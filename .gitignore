@@ -1,0 +1,33 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# .NET
+bin/
+obj/
+
+# Python
+__pycache__/
+*.pyc
+
+# Local env / secrets
+.env
+.env.*
+local.settings.json
+appsettings.secrets.json
+
+# Temp and artifacts
+artifacts/
+dist/
+build/
+coverage/
+tmp/
+temp/
