@@ -1,5 +1,11 @@
 # Contributing
 
+## Contribution expectation
+
+This repository is public for reference and starter use only.
+Publication does not create any support obligation or maintenance commitment.
+Pull requests may be ignored or closed without review.
+
 ## Goal
 
 Contributions should improve clarity, safety, and reuse for AI-assisted software delivery.

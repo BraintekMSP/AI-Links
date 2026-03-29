@@ -12,7 +12,8 @@ Use this checklist before publishing an adapted version of this framework public
 - confirm example repos and prompts are generic
 - confirm destructive guidance is framed safely
 - confirm temporary internal notes have been removed
-- choose and add a license
+- confirm `LICENSE` matches the intended permission model
+- confirm `NOTICE` matches the intended permission model
 - review `SECURITY.md`
 - review `CONTRIBUTING.md`
 

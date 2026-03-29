@@ -51,8 +51,22 @@ Good AI collaboration depends on four things:
 
 This scaffold is public-safe by design, but you should still review:
 
+- `LICENSE`
+- `NOTICE`
 - `docs/PUBLICATION_CHECKLIST.md`
 - `SECURITY.md`
 - `CONTRIBUTING.md`
 
 before publishing your adapted version.
+
+## Usage notice
+
+This repository is public for reference and evaluation.
+Reuse requires prior written permission from the repository owner.
+
+## Support and maintenance
+
+- Public access is for reference and starter use only.
+- No support obligation is created by publication.
+- No maintenance commitment is created by publication.
+- Pull requests may be ignored or closed without review.

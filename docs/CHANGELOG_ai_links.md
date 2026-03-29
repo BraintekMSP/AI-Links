@@ -18,3 +18,9 @@ Validation:
 
 - Scaffold and documentation review only.
 - No runtime application behavior exists in this repository yet.
+
+### Publication stance
+
+- Added a custom `LICENSE` with an all-rights-reserved, permission-required model.
+- Added a root `NOTICE` to make the public-reference-only stance explicit.
+- Updated `README.md` and `docs/PUBLICATION_CHECKLIST.md` to reflect the custom publication model.
