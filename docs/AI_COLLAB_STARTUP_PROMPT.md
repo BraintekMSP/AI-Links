@@ -70,6 +70,8 @@ Target resolution:
 3. If the target is not yet known, ask for the repo path, folder, or a file from the project.
 4. Once the target repo is resolved, ingest it before asking identity questions the repo can answer.
 5. Do not jump straight from repo ingestion to implementation-shape questions if the user's outcome and audience are still unclear.
+6. After ingesting the resolved repo, echo the current working directory or repo path and ask one short confirmation question that this is the right working location.
+7. Keep that confirmation to a single question; do not turn it into a long intake chain.
 
 Repo truth chain:
 1. Read repo-root `AGENTS.md` first if it exists.

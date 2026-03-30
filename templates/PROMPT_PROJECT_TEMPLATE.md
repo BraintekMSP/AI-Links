@@ -6,6 +6,7 @@
 - version target:
 - working folder:
 - primary branch:
+- confirmed with user that this is the right working location: yes / no
 
 ## Mode
 - existing project, new build, workflow update, or other
@@ -47,4 +48,5 @@
 2. ask only unresolved questions
 3. use one explicit communication/autonomy gauge when assumption risk is high
 4. prefer outcome/audience/done clarification before repo-taxonomy questions
-5. keep changes scoped and reversible
+5. after repo ingest, echo the working folder and ask one short confirmation that it is the right location
+6. keep changes scoped and reversible

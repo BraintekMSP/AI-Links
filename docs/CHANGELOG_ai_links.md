@@ -19,6 +19,10 @@
   - the answer is treated as a communication/autonomy contract, not a competence judgment
   - the working level can be updated later as the conversation reveals stronger context or specific knowledge gaps
 - Updated `templates/PROMPT_PROJECT_TEMPLATE.md` so new-project intake captures `User outcome`, `Communication / autonomy gauge`, `Audience / operator`, and `Done when` up front.
+- Added an explicit wrong-workspace guard to the startup model:
+  - after repo ingest, the agent should echo the current working directory/repo path
+  - then ask one short confirmation question that this is the correct working location
+  - this is intentionally a single confirmation step, not a long intake chain
 - Updated `docs/README_ai_links.md` purpose wording to call out repo-truth vs workspace-sprawl boundaries.
 
 Validation:
