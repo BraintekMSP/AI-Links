@@ -35,7 +35,8 @@
 - changelog
 
 ## Strategy sources
-- list only the deeper docs that matter
+- list the deeper docs actually ingested and used
+- if the user explicitly required full-repo ingest, record that the entire repo was ingested instead of naming only a subset
 
 ## Constraints
 - client data
@@ -50,3 +51,4 @@
 4. prefer outcome/audience/done clarification before repo-taxonomy questions
 5. after repo ingest, echo the working folder and ask one short confirmation that it is the right location
 6. keep changes scoped and reversible
+7. if the user said to ingest the entire repo, do not report success until the full repo was actually ingested or explicit exclusions were stated

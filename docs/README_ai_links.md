@@ -22,6 +22,12 @@ This is the runbook and navigation hub for `AI-Links`.
 - `./TODO_ai_links.md`
 - `./CHANGELOG_ai_links.md`
 
+Default behavior:
+
+- start with the startup spine
+- then continue through the rest of the repo in a deliberate order
+- do not reduce `AI-Links` to a self-selected subset of "important" docs when the user asked for a repo ingest
+
 ## Primary navigation
 
 - `./AI_COLLAB_STARTUP_PROMPT.md`

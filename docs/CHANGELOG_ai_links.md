@@ -4,6 +4,17 @@
 
 ### Guardrail clarification
 
+- Removed the weaker "read only what's needed" bias from the baseline ingest language:
+  - the startup spine is now an entry order, not a license to ignore the rest of the repo
+  - `AI-Links` is treated as intentional operating context rather than a subjective pile of optional docs
+  - full-repo ingest now stays explicit and should not be narrowed by agent preference
+- Tightened the repo-ingest contract so "ingest the entire repo" now means exactly that:
+  - agents should not self-select a subset of "important" docs and call that full ingest
+  - ingest acknowledgments should distinguish startup-spine ingest, task-relevant subset ingest, and true full-repo ingest
+  - agents should state any exclusions explicitly instead of implying full coverage
+- Tightened the ingest acknowledgment shape:
+  - after repo ingest, the reply should still echo the working directory or repo path
+  - the reply should still end with one short confirmation question that this is the right working location
 - Tightened `AGENTS.md` and `docs/AI_COLLAB_STARTUP_PROMPT.md` so the default behavior contract now says more explicitly:
   - `gitignored`, `untracked`, and `workspace-safe` are different concepts
   - synced workspaces should not receive non-critical runtime/cache state without an explicit decision

@@ -8,13 +8,17 @@
 ## 2) Startup truth chain
 - Start with `AGENTS.md`.
 - Then read `docs/README_ai_links.md`.
-- Then load only the exact docs or templates needed for the task.
+- Then continue through the rest of the repo in a deliberate order.
+- Do not self-select a subset and call that complete when the user asked for a repo ingest.
+- For `AI-Links`, treat the repo as intentional operating context, not as a pile of optional reference docs.
 
 ## 3) Documentation rules
 - `docs/TODO_ai_links.md` is active work only.
 - Completed work moves to `docs/CHANGELOG_ai_links.md`.
 - `docs/README_ai_links.md` is the repo runbook and navigation hub.
 - Templates should stay example-safe and copy-friendly.
+- When reporting an ingest result, name what was actually loaded.
+- Do not imply a full-repo ingest if only part of the repo was read.
 
 ## 4) Safety rules
 - Do not describe destructive actions casually or as defaults.

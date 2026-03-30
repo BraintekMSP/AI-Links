@@ -72,11 +72,15 @@ Target resolution:
 5. Do not jump straight from repo ingestion to implementation-shape questions if the user's outcome and audience are still unclear.
 6. After ingesting the resolved repo, echo the current working directory or repo path and ask one short confirmation question that this is the right working location.
 7. Keep that confirmation to a single question; do not turn it into a long intake chain.
+8. Do not end an ingest acknowledgment without that short confirmation question.
 
 Repo truth chain:
 1. Read repo-root `AGENTS.md` first if it exists.
 2. Then read the project runbook/startup docs.
 3. Treat generated summary layers as optional navigation aids unless the repo explicitly says otherwise.
+4. Use the startup spine as the entry order, not as permission to ignore the rest of the repo.
+5. If the user explicitly says to ingest the entire repo, read the whole repo or clearly state which files were not ingested and why.
+6. Never claim full-repo ingest if only part of the repo was read.
 
 Subagent rule:
 - Default subagents to off.
