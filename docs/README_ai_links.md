@@ -8,6 +8,9 @@ This is the runbook and navigation hub for `AI-Links`.
 
 - AI startup prompts
 - repo guardrails
+- repo truth vs workspace-sprawl boundaries
+- outcome-first operator intake
+- explicit communication/autonomy gauges
 - repo maturity reviews
 - cross-repo contracts
 - subagent-safe delivery patterns

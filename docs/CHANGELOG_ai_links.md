@@ -1,5 +1,31 @@
 # Changelog - AI-Links
 
+## 2026-03-30
+
+### Guardrail clarification
+
+- Tightened `AGENTS.md` and `docs/AI_COLLAB_STARTUP_PROMPT.md` so the default behavior contract now says more explicitly:
+  - `gitignored`, `untracked`, and `workspace-safe` are different concepts
+  - synced workspaces should not receive non-critical runtime/cache state without an explicit decision
+  - machine-local `AppData` / temp lanes should be preferred for disposable output
+  - `clean clone + declared bootstrap` is the target, not warm-cache success
+  - destructive cleanup should inventory first, quarantine before delete, and revalidate the exact target path in-scope immediately before execution
+  - command sequencing is not itself a safety gate for destructive follow-up actions
+- Tightened the startup-intake guidance so repo ingestion does not immediately jump to developer-style repo classification:
+  - the default intake now clarifies user outcome, audience, and "done" in plain language first
+  - repo-shape and implementation-taxonomy questions are now explicitly secondary
+- Replaced the weaker "infer it from how the user talks" pattern with an explicit one-question communication/autonomy gauge:
+  - agents should ask one short gauge question when technical-depth assumptions are unclear
+  - the answer is treated as a communication/autonomy contract, not a competence judgment
+  - the working level can be updated later as the conversation reveals stronger context or specific knowledge gaps
+- Updated `templates/PROMPT_PROJECT_TEMPLATE.md` so new-project intake captures `User outcome`, `Communication / autonomy gauge`, `Audience / operator`, and `Done when` up front.
+- Updated `docs/README_ai_links.md` purpose wording to call out repo-truth vs workspace-sprawl boundaries.
+
+Validation:
+
+- Documentation review only.
+- No runtime application behavior exists in this repository.
+
 ## 2026-03-28
 
 ### Initial scaffold

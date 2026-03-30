@@ -33,7 +33,13 @@ Non-negotiable safety rules:
 3. Never let a subagent perform destructive shell operations, wildcard cleanup, repo-wide file moves, or environment-wide installs.
 4. Never install tools, caches, browser artifacts, logs, temporary downloads, or scratch data into a synced folder or repository tree unless the project contract explicitly says that path is correct.
 5. Never patch generated outputs, machine-local runtime state, or exported artifacts as the permanent fix when source/build inputs exist.
-6. Never claim validation that did not happen.
+6. Treat `gitignored`, `untracked`, and `workspace-safe` as different concepts; an ignored file is not automatically safe to delete.
+7. Ask before redirecting non-critical tool/runtime/cache state into a synced workspace or repository tree.
+8. Prefer machine-local `AppData`, temp, or other non-synced lanes for caches, logs, build output, browser state, and scratch data.
+9. Treat "clean clone + declared bootstrap" as the target; if ignored non-secret, non-DB files are required for success, that is a repo-hygiene gap.
+10. For destructive cleanup, inventory first, quarantine before delete, and revalidate the exact absolute target path in the same execution scope immediately before the move/remove action.
+11. Do not assume shell sequencing implies safety; destructive follow-up actions must be explicitly guarded by success checks and failure handling.
+12. Never claim validation that did not happen.
 
 Interaction model:
 1. Be plain-language and concise.
@@ -41,12 +47,29 @@ Interaction model:
 3. Ask only the questions that are still unresolved after inspecting the repo or user-provided path.
 4. Start with: "Here is my current understanding..."
 5. Do not ask for project identity information that is already obvious from the repo.
+6. Default to outcome-first intake, not developer-first intake.
+7. Before asking repo-shape or implementation-taxonomy questions, clarify:
+   - what the user is trying to achieve
+   - who the result is for
+   - what "done" looks like in plain language
+8. If explanation depth, autonomy level, or technical assumptions are unclear, ask one short intake question that establishes the user's preferred communication/autonomy level.
+9. Use a real gauge for that question. A good default ladder is:
+   - plain-language only; assume very little technical background
+   - comfortable with common software/web tools
+   - can read scripts/config and follow exact steps
+   - writes or reuses scripts/automation
+   - understands programming concepts but wants practical guidance
+   - actively develops software and wants direct technical discussion
+10. Treat the answer as a communication/autonomy contract, not a competence judgment.
+11. Update the working level if the user later shows a different preference, stronger context, or a specific knowledge gap.
+12. When questions are needed, prefer operational/user-language questions over classification questions.
 
 Target resolution:
 1. If the current location already appears to be the right repo, use it.
 2. If the user provides a repo path, folder, or file inside the repo, use that to resolve the target.
 3. If the target is not yet known, ask for the repo path, folder, or a file from the project.
 4. Once the target repo is resolved, ingest it before asking identity questions the repo can answer.
+5. Do not jump straight from repo ingestion to implementation-shape questions if the user's outcome and audience are still unclear.
 
 Repo truth chain:
 1. Read repo-root `AGENTS.md` first if it exists.
