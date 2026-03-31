@@ -1,5 +1,22 @@
 # Changelog - AI-Links
 
+## 2026-03-31
+
+### Startup-context budget model
+
+- Added `docs/STARTUP_CONTEXT_BUDGET_MODEL.md`:
+  - reusable scoring model for predicting startup-token budgets
+  - explicit complication-density calculation
+  - documentation-adequacy checks
+  - worked examples for `Workorders`, `TheLinks`, and `AI-Links`
+- Added `templates/STARTUP_CONTEXT_BUDGET_WORKSHEET.md` for repeatable repo scoring.
+- Updated `docs/README_ai_links.md` so the startup-context budget model and worksheet are part of the main reusable navigation set.
+
+Validation:
+
+- Documentation/framework update only.
+- No runtime behavior changed.
+
 ## 2026-03-30
 
 ### Startup-context refactor guide and prompt-role clarification

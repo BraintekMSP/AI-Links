@@ -32,6 +32,7 @@ Default behavior:
 
 - `./AI_COLLAB_STARTUP_PROMPT.md`
 - `./STARTUP_CONTEXT_REFACTOR_GUIDE.md`
+- `./STARTUP_CONTEXT_BUDGET_MODEL.md`
 - `./REPO_2_5_READINESS_MODEL.md`
 - `./CROSS_REPO_CONTRACT_MODEL.md`
 - `./SUBAGENT_SAFETY_MODEL.md`
@@ -44,6 +45,7 @@ Default behavior:
 - `../templates/PROMPT_PROJECT_TEMPLATE.md`
 - `../templates/README_PROJECT_TEMPLATE.md`
 - `../templates/CROSS_REPO_HANDOFF_TEMPLATE.md`
+- `../templates/STARTUP_CONTEXT_BUDGET_WORKSHEET.md`
 
 ## Intended adaptation model
 
@@ -59,6 +61,7 @@ Use this repo as a starting point, then adapt it for:
 - canonical:
   - startup prompt
   - startup-context refactor guide
+  - startup-context budget model
   - readiness model
   - cross-repo contract model
   - subagent safety model
