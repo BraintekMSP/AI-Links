@@ -31,6 +31,7 @@ Default behavior:
 ## Primary navigation
 
 - `./AI_COLLAB_STARTUP_PROMPT.md`
+- `./STARTUP_CONTEXT_REFACTOR_GUIDE.md`
 - `./REPO_2_5_READINESS_MODEL.md`
 - `./CROSS_REPO_CONTRACT_MODEL.md`
 - `./SUBAGENT_SAFETY_MODEL.md`
@@ -57,6 +58,7 @@ Use this repo as a starting point, then adapt it for:
 
 - canonical:
   - startup prompt
+  - startup-context refactor guide
   - readiness model
   - cross-repo contract model
   - subagent safety model

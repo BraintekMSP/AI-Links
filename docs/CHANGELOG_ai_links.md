@@ -2,6 +2,25 @@
 
 ## 2026-03-30
 
+### Startup-context refactor guide and prompt-role clarification
+
+- Added `docs/STARTUP_CONTEXT_REFACTOR_GUIDE.md` as a reusable reference for:
+  - expanding mandatory startup context before cleanup
+  - splitting `AGENTS`, runbook README, project prompt, TODO, and changelog roles cleanly
+  - preserving historical docs before any archival/move pass
+- Updated `AGENTS.md` and `docs/README_ai_links.md` so startup-doc cleanup and prompt/runbook refactor work has an explicit navigation target instead of being rediscovered through chat.
+- Rebuilt `templates/PROMPT_PROJECT_TEMPLATE.md` around the intended prompt role:
+  - implemented baseline
+  - active direction
+  - discretionary biases for new work
+  - when TODO and CHANGELOG actually need to be loaded
+  - explicit separation from hard rules in `AGENTS.md`
+
+Validation:
+
+- Documentation review only.
+- No runtime application behavior exists in this repository.
+
 ### Guardrail clarification
 
 - Removed the weaker "read only what's needed" bias from the baseline ingest language:

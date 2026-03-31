@@ -16,6 +16,7 @@
 - `docs/TODO_ai_links.md` is active work only.
 - Completed work moves to `docs/CHANGELOG_ai_links.md`.
 - `docs/README_ai_links.md` is the repo runbook and navigation hub.
+- `docs/STARTUP_CONTEXT_REFACTOR_GUIDE.md` is the reusable reference when a project needs startup-doc cleanup, prompt/runbook role split, or historical-doc triage.
 - Templates should stay example-safe and copy-friendly.
 - When reporting an ingest result, name what was actually loaded.
 - Do not imply a full-repo ingest if only part of the repo was read.

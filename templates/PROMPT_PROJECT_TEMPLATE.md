@@ -1,54 +1,62 @@
 # Project Prompt Template
 
+## Purpose
+- what this prompt is for in this repo
+- what it should carry that is not already in `AGENTS.md`
+
 ## Resolved Identity
 - project name:
 - project slug:
-- version target:
 - working folder:
 - primary branch:
-- confirmed with user that this is the right working location: yes / no
+- version target or current release label:
 
-## Mode
-- existing project, new build, workflow update, or other
+## Prompt role
+- directional brief, current-state brief, or other
+- one sentence on what this prompt should not try to replace
 
-## User outcome
-- what the user is trying to accomplish in plain language
+## Current implemented baseline
+- the important capabilities, boundaries, or foundations that already exist
+- prefer facts that can be supported by recent changelog or current runbook truth
 
-## Communication / autonomy gauge
-- how the user wants to be talked to on this task
-- how much technical depth or implementation autonomy is appropriate
+## Active direction
+- the major active lift now
+- what the next meaningful improvement areas are
 
-## Audience / operator
-- who this is for
-- who will run it, use it, or maintain it
-
-## Done when
-- what success looks like in plain language
-
-## Current objective
-- one short paragraph
+## Discretionary biases for new work
+- when a task leaves room for judgment, what choices should be favored
 
 ## Canonical current-state sources
 - `AGENTS.md`
 - runbook README
-- active TODO
-- changelog
+- exact change-gate or contract docs if relevant
+- other current-state docs actually used
+
+## When to load TODO
+- what kinds of work require the backlog
+- what should not depend on loading the full backlog
+
+## When to load CHANGELOG
+- what kinds of work require shipped history
+- what should not depend on loading the full changelog
 
 ## Strategy sources
 - list the deeper docs actually ingested and used
 - if the user explicitly required full-repo ingest, record that the entire repo was ingested instead of naming only a subset
 
-## Constraints
-- client data
+## Constraints not already owned by `AGENTS.md`
 - deployment constraints
-- branch/release constraints
 - environment constraints
+- operator or audience constraints
+- data-handling constraints that are current-state rather than permanent repo policy
+
+## Original prompt note
+- if replacing an older prompt, preserve one short note explaining what changed in role or emphasis
 
 ## Working agreements
-1. start with repo truth
-2. ask only unresolved questions
-3. use one explicit communication/autonomy gauge when assumption risk is high
-4. prefer outcome/audience/done clarification before repo-taxonomy questions
-5. after repo ingest, echo the working folder and ask one short confirmation that it is the right location
+1. keep hard rules in `AGENTS.md`
+2. keep the runbook in README
+3. keep active backlog state in TODO
+4. keep shipped history in CHANGELOG
+5. use this prompt for implemented baseline plus directional judgment
 6. keep changes scoped and reversible
-7. if the user said to ingest the entire repo, do not report success until the full repo was actually ingested or explicit exclusions were stated
