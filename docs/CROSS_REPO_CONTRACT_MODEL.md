@@ -40,6 +40,20 @@ That requires explicit contracts, not inferred coupling.
 - contract tests
 - rollback or replay expectations
 
+### 6. Impact-surface contract
+- upstream producers that create or mutate the object
+- downstream consumers that read or depend on the object
+- workflow or orchestration repos that route the work
+- edge or intake tools that can still create records outside the main app flow
+- what must be revalidated when the local schema, mapping, or surface changes
+
+## Required cross-repo interpretation
+
+- Do not scope a change only to the repo being edited when the business object clearly crosses repo boundaries.
+- Explicitly identify the neighboring repos and surfaces that will feel the change.
+- If a repo is not being edited, still record it as an affected producer, consumer, owner, or orchestrator.
+- Cross-repo work is not complete when the local repo compiles but sibling repos would now receive ambiguous IDs, weaker payloads, or semantically incomplete bundles.
+
 ## Preferred communication order
 
 1. explicit owner API

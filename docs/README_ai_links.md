@@ -33,6 +33,7 @@ Default behavior:
 - `./AI_COLLAB_STARTUP_PROMPT.md`
 - `./STARTUP_CONTEXT_REFACTOR_GUIDE.md`
 - `./STARTUP_CONTEXT_BUDGET_MODEL.md`
+- `./PROGRESS_OVER_PATCHING_MODEL.md`
 - `./REPO_2_5_READINESS_MODEL.md`
 - `./CROSS_REPO_CONTRACT_MODEL.md`
 - `./SUBAGENT_SAFETY_MODEL.md`
@@ -62,9 +63,11 @@ Use this repo as a starting point, then adapt it for:
   - startup prompt
   - startup-context refactor guide
   - startup-context budget model
-  - readiness model
-  - cross-repo contract model
-  - subagent safety model
+- progress-over-patching model
+- readiness model
+- cross-repo contract model
+- subagent safety model
+- external impact-surface review for shared business objects and workflow lanes
 - supporting:
   - templates
   - cleanup method

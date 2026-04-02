@@ -20,6 +20,13 @@ Your job is to collaborate without absorbing owner-lane truth.
 - communication contract
 - error/health contract
 
+## Required impact surface inventory
+- upstream producers:
+- downstream consumers:
+- orchestration/runtime repos:
+- edge/intake tools:
+- validation surfaces that must still work after the change:
+
 ## Preferred communication mechanisms
 - API
 - webhook

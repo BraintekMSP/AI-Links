@@ -44,3 +44,13 @@
 - Default subagents to off.
 - If a repo adapts this framework, read-only explorers and exact file ownership should be the default delegation model.
 - Destructive shell autonomy, repo-wide cleanup, and broad environment installs should remain disallowed by default.
+
+## 7) Progress Over Patching
+- Treat each change as durable product/module progress for a parent solution, not as an isolated patch.
+- Before changing a surface, inspect the impacted schema, translation/hydration path, API/bundle contract, controller/service/view seams, scripts/startup helpers, and tests.
+- Tiny slices are waste when a broader impact sweep and scoped plan are clearly required to avoid semantic drift or repeated break/fix churn.
+- If local-first tables are missing fields needed to represent business meaning clearly, widen the local tables or add the supporting local tables instead of hiding meaning in payload blobs, mapper-only code, or UI-only logic.
+- A change is not considered progress if it leaves source-of-truth ambiguous, silently relies on fallback/degraded behavior, or fixes one surface while bypassing related surfaces.
+- Name tables, columns, classes, methods, variables, and properties so domain intent and likely impact are discoverable by reading the code without constant reference to external docs.
+- When a change impacts scripts, bootstrap helpers, or validation paths, account for those dependencies in the same slice instead of treating them as optional follow-up.
+- When shared business objects or workflow lanes are involved, require an explicit cross-repo impact review covering owner repos, producers, consumers, orchestration/runtime repos, and edge/intake tools.

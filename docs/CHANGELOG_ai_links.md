@@ -1,5 +1,21 @@
 # Changelog - AI-Links
 
+## 2026-04-02
+
+### Progress-over-patching model
+
+- Added `docs/PROGRESS_OVER_PATCHING_MODEL.md` as a reusable guardrail for:
+  - impact-first planning instead of narrow symptom patching
+  - widening local-first tables when translation friction reveals missing structure
+  - keeping source-of-truth, fallback/degraded behavior, and naming/discoverability explicit
+- Updated `AGENTS.md`, `docs/CROSS_REPO_CONTRACT_MODEL.md`, the cross-repo templates, and `docs/README_ai_links.md` so the new rule is part of the startup path and reusable framework spine.
+- Cross-repo standard now explicitly requires external impact-surface review across owner repos, producer/consumer repos, orchestration/runtime repos, and edge/intake tools.
+
+Validation:
+
+- Documentation/framework update only.
+- No runtime behavior changed.
+
 ## 2026-03-31
 
 ### Startup-context budget model
