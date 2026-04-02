@@ -2,6 +2,26 @@
 
 ## 2026-04-02
 
+### Control-plane agent prompting
+
+- Added `docs/CONTROL_PLANE_AGENT_PROMPT_MODEL.md` to codify the pattern where a control-plane repo should generate richer worker-agent prompts for narrower module/repo agents.
+- Added `templates/MODULE_AGENT_PROMPT_TEMPLATE.md` so downstream repos can produce structured module-agent prompt packets with:
+  - objective
+  - source-of-truth
+  - startup set
+  - impact surface
+  - acceptance contract
+  - prohibited shortcuts
+- Updated `AGENTS.md` and `docs/README_ai_links.md` so:
+  - control-plane prompting is now explicit top-level guidance
+  - serious control-plane work uses `25k` minimum starter context and `50k` target context
+  - bounded maintenance work is still allowed to use a smaller context pack
+
+Validation:
+
+- Documentation/framework update only.
+- No runtime behavior changed.
+
 ### Progress-over-patching model
 
 - Added `docs/PROGRESS_OVER_PATCHING_MODEL.md` as a reusable guardrail for:

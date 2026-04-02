@@ -54,3 +54,9 @@
 - Name tables, columns, classes, methods, variables, and properties so domain intent and likely impact are discoverable by reading the code without constant reference to external docs.
 - When a change impacts scripts, bootstrap helpers, or validation paths, account for those dependencies in the same slice instead of treating them as optional follow-up.
 - When shared business objects or workflow lanes are involved, require an explicit cross-repo impact review covering owner repos, producers, consumers, orchestration/runtime repos, and edge/intake tools.
+
+## 8) Control-Plane Prompting
+- When this framework is used from a control-plane repo, prefer generating the worker-agent prompt from the control-plane context instead of relying on the user's short description alone.
+- For meaningful control-plane work, treat `25k` as the minimum starter context and `50k` as the healthy target.
+- Use a bounded maintenance exception only for clearly local, low-impact hygiene work.
+- Prefer a prompt packet that states the objective, source-of-truth lane, startup set, impact surface, acceptance contract, and prohibited shortcuts.

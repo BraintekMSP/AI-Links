@@ -33,6 +33,7 @@ Default behavior:
 - `./AI_COLLAB_STARTUP_PROMPT.md`
 - `./STARTUP_CONTEXT_REFACTOR_GUIDE.md`
 - `./STARTUP_CONTEXT_BUDGET_MODEL.md`
+- `./CONTROL_PLANE_AGENT_PROMPT_MODEL.md`
 - `./PROGRESS_OVER_PATCHING_MODEL.md`
 - `./REPO_2_5_READINESS_MODEL.md`
 - `./CROSS_REPO_CONTRACT_MODEL.md`
@@ -43,6 +44,7 @@ Default behavior:
 ## Templates
 
 - `../templates/AGENTS_TEMPLATE.md`
+- `../templates/MODULE_AGENT_PROMPT_TEMPLATE.md`
 - `../templates/PROMPT_PROJECT_TEMPLATE.md`
 - `../templates/README_PROJECT_TEMPLATE.md`
 - `../templates/CROSS_REPO_HANDOFF_TEMPLATE.md`
@@ -63,11 +65,12 @@ Use this repo as a starting point, then adapt it for:
   - startup prompt
   - startup-context refactor guide
   - startup-context budget model
-- progress-over-patching model
-- readiness model
-- cross-repo contract model
-- subagent safety model
-- external impact-surface review for shared business objects and workflow lanes
+  - control-plane agent prompt model
+  - progress-over-patching model
+  - readiness model
+  - cross-repo contract model
+  - subagent safety model
+  - external impact-surface review for shared business objects and workflow lanes
 - supporting:
   - templates
   - cleanup method
