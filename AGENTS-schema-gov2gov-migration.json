@@ -1,0 +1,518 @@
+{
+  "meta": {
+    "context-ordering-rule": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
+    "context-compression-warning": "acceptable context compression from your current context window in no way guarantees context fidelity in future context -- do not assume that what survives compression now will survive the next compression -- write durable state to files, not to context",
+    "version": "0.1.0",
+    "role": "governance-to-governance migration contract schema -- use when the source system is already a governance model and the work is reconciling one governed operating system into another without losing load-bearing meaning",
+    "intent": "stop governance migrations from being declared complete when only structural parity exists -- require semantic extraction, measured ancillary-surface control, explicit divergence handling, and usable stop-state output",
+    "self-contained": "this schema is the sole context source for authoring its own migration artifacts -- do not consult external operating procedures or supplementary governance docs to fill schema gaps -- if something required is not declared here, ask the human rather than reaching outside this file",
+    "human-reported-issue-governance": "bug reports and feature requests are not governed by this schema -- they are owned by whatever system the project declares",
+    "schema-family": "AGENTS-schema-gov2gov-migration.json is a member of the AGENTS-schema-* family -- AGENTS-schema-governance.json governs steady-state governance scopes -- AGENTS-schema-1project.json governs single-goal continuity -- AGENTS-schema-narrative.json governs evolving narrative records",
+    "sibling-isolation": "if another AGENTS-schema-*.json file is present in the context window, do not merge, inherit, or cross-reference fields between schemas unless an explicit pointer field declares the relationship -- each schema governs its own artifact set independently -- shared field names across schemas are structurally similar but operationally independent -- do not assume one schema's field definitions apply to another",
+    "schema-modes": {
+      "role": "this schema can exist in two modes in a workspace -- active mode means GOV2GOV-* artifact files are materialized and the migration is in progress -- reference mode means the schema is present for future migrations but no artifact family exists -- do not create GOV2GOV-* files in reference mode",
+      "active": "GOV2GOV-hello.md and the full artifact family are present -- the workspace is undergoing a governance-to-governance migration",
+      "reference": "AGENTS-schema-gov2gov-migration.json is present but no GOV2GOV-* files exist -- the schema is available for future use -- this is the expected state after a migration completes and the GOV2GOV-* files are archived or removed"
+    },
+    "use-when": [
+      "the source workspace already has a governed or semi-governed operating model",
+      "the target workspace also has a governance model rather than a greenfield AGENTS family",
+      "the migration risk is semantic drift, shadow governance, or parallel authority, not just missing file creation"
+    ],
+    "do-not-use-when": [
+      "the source workspace is monolithic and the target is the first governance model -- use AGENTS-schema-governance.json migration mode instead",
+      "the work is a small bounded objective with no governance-system change -- use AGENTS-schema-1project.json or the repo's active governance system instead",
+      "the task is steady-state governance maintenance with no competing governance model -- use AGENTS-schema-governance.json instead"
+    ],
+    "core-lessons": [
+      "structural migration is not semantic migration",
+      "measured doc placement is not proof that load-bearing governance truth has been extracted",
+      "adjacent support docs need explicit budgets or they regrow into shadow governance",
+      "a migration is not complete while parallel authority surfaces remain unclassified",
+      "stop-state output is part of the contract, not a courtesy",
+      "versioned lane docs (e.g. Workorders_2_5/, Workorders_3_0/) are high-risk hiding places for first-copy governance meaning that belongs in the governed core -- semantic-extraction must check versioned lanes explicitly",
+      "the ancillary ring is a pressure point that needs ongoing monitoring after migration -- docs grow, drift, and can regrow into shadow governance even after reconciliation",
+      "an extraction is incomplete while the original source wording still exists -- leaving the source intact after extracting into the target core creates parallel authority that will not be caught until the next audit",
+      "classification completeness is not semantic compression completeness -- a file can be correctly classified, registered, and within budget while still carrying duplicate governance prose that should have been trimmed during extraction -- the completion-audit must check both independently"
+    ],
+    "types": {
+      "string": "single text value",
+      "string[]": "ordered array of text values",
+      "int": "whole number",
+      "bool": "true | false",
+      "date": "ISO 8601 format -- YYYY-MM-DD",
+      "file-path": "relative path from workspace root to a file",
+      "file-path[]": "ordered array of file-path values",
+      "command": "executable shell command or script path with arguments -- must be runnable without modification",
+      "enum": "single value selected from a defined values list",
+      "enum[]": "one or more values selected from a defined values list",
+      "object": "nested field group",
+      "object[]": "ordered array of object entries"
+    },
+    "blocked-until-values": {
+      "type": "enum",
+      "values": ["human-confirms", "measurement-passes"],
+      "definitions": {
+        "human-confirms": "a human must explicitly approve before proceeding",
+        "measurement-passes": "the declared open or close measurement must return a clean result before proceeding"
+      }
+    }
+  },
+  "migration-concepts": {
+    "distribution-and-realtime-copies": {
+      "role": "schemas and their companion docs may exist in two places -- a distribution copy and a realtime copy -- these are not interchangeable and the direction of authority is fixed",
+      "distribution-copy": {
+        "role": "the portable, publication-ready version of the schema family -- lives in a repo dedicated to framework distribution (e.g. AI-Links) -- this copy is authoritative for schema definitions, field names, structural rules, and companion documentation",
+        "authority": "distribution copy is the source of truth for schema content -- changes to schema structure, field definitions, naming conventions, and companion docs originate here or are promoted here after validation",
+        "protection": "do not inject project-specific semantics, workspace-local terms, or realtime migration artifacts into the distribution copy -- an overeager agent working in a realtime workspace must not push workspace-specific lessons into the distribution plane without human review"
+      },
+      "realtime-copy": {
+        "role": "the working copy deployed in a specific workspace (e.g. TheLinks) -- used by agents during actual governance, migration, or narrative operations -- may accumulate project-specific lessons, pitfalls, and measurement refinements",
+        "authority": "realtime copy inherits schema structure from the distribution copy -- it does not override schema definitions -- workspace-specific additions (ancillary registries, measurement scripts, AGENTS files) are local to the realtime copy and do not propagate upstream automatically",
+        "sync-direction": "distribution → realtime for schema updates -- realtime → distribution only when a lesson is validated, generalized, and confirmed by a human as universally applicable"
+      },
+      "divergence-risk": "if the realtime copy's schema diverges from the distribution copy, the workspace is operating on a fork -- this is not automatically wrong but must be declared -- undeclared divergence between copies is a parallel authority surface",
+      "human-attachment-note": "humans who invest in building a governance system develop strong attachment to the specific instance they created -- this attachment is rational but creates resistance to migration and distribution -- agents should recognize this pattern and reframe it: the governance instance in this workspace is a deployment of a portable schema, not the schema itself -- protecting the system means protecting the distribution copy -- evolving the workspace instance does not threaten the system, it exercises it"
+    },
+    "parallel-authority-surface-classes": {
+      "type": "enum",
+      "values": [
+        "source-core",
+        "source-ancillary",
+        "target-core",
+        "target-ancillary",
+        "historical-preserved",
+        "bridge-support"
+      ],
+      "definitions": {
+        "source-core": "load-bearing operating authority in the source governance system",
+        "source-ancillary": "outskirt source docs that are not core but still carry critical load-bearing meaning or first-copy implementation truth",
+        "target-core": "load-bearing operating authority in the target governance system",
+        "target-ancillary": "explicitly allowed critical support ring next to the target core",
+        "historical-preserved": "older guidance preserved for context but demoted from live authority",
+        "bridge-support": "active bridge or runbook docs that still need to point back to the target governance system"
+      }
+    },
+    "target-dispositions": {
+      "type": "enum",
+      "values": [
+        "extract-to-target-core",
+        "keep-as-target-ancillary",
+        "keep-as-bridge-support",
+        "demote-to-historical",
+        "remove-after-migration"
+      ]
+    },
+    "migration-phases": {
+      "type": "enum",
+      "values": [
+        "source-ingest",
+        "contract-diff",
+        "semantic-extraction",
+        "ancillary-reconciliation",
+        "measurement-rewrite",
+        "completion-audit"
+      ],
+      "definitions": {
+        "source-ingest": "read the source governance system fully before planning changes",
+        "contract-diff": "map source and target authority responsibilities and identify mismatches",
+        "semantic-extraction": "move load-bearing governance truth into the target core -- explicitly check versioned lane directories and subdirectory READMEs for first-copy governance meaning that was never promoted to the governed core",
+        "ancillary-reconciliation": "shrink or demote adjacent critical support docs so they stop acting like shadow governance -- set line budgets and authority anchors for the ancillary ring",
+        "measurement-rewrite": "update measurement so the new target model can prove compliance and remaining spill",
+        "completion-audit": "verify two things independently -- classification completeness (every file has a disposition and is registered) AND semantic compression completeness (every classified file has been trimmed to its minimum after extraction) -- passing classification alone is not passing the audit"
+      }
+    },
+    "migration-states": {
+      "type": "enum",
+      "values": [
+        "unmapped",
+        "mapped",
+        "extracted",
+        "shrunk",
+        "demoted",
+        "measured",
+        "complete"
+      ]
+    }
+  },
+  "files": {
+    "GOV2GOV-hello.md": {
+      "required": true,
+      "load-order": 0,
+      "role": "migration identity, source/target pairing, current phase, measurement, and stop-state declaration",
+      "fields": {
+        "schema-path": {
+          "type": "file-path",
+          "required": true,
+          "default": "{{workspace}}/AGENTS-schema-gov2gov-migration.json"
+        },
+        "context-ordering-rule": {
+          "type": "verbatim",
+          "required": true,
+          "value": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
+          "missing": "invalid -- do not proceed"
+        },
+        "source-governance-system": {
+          "type": "string",
+          "required": true,
+          "role": "name of the source governance model or local governance system being migrated from"
+        },
+        "target-governance-system": {
+          "type": "string",
+          "required": true,
+          "role": "name of the target governance model being migrated to"
+        },
+        "migration-scope": {
+          "type": "string",
+          "required": true,
+          "role": "one-sentence description of what governance surface is being migrated"
+        },
+        "current-phase": {
+          "type": "enum",
+          "required": true,
+          "values": [
+            "source-ingest",
+            "contract-diff",
+            "semantic-extraction",
+            "ancillary-reconciliation",
+            "measurement-rewrite",
+            "completion-audit"
+          ]
+        },
+        "migration-measurement": {
+          "type": "object",
+          "required": true,
+          "fields": {
+            "open": { "type": "command", "required": true },
+            "baseline": { "type": "file-path", "required": true },
+            "close": { "type": "command", "required": true },
+            "diff": { "type": "file-path", "required": true },
+            "blocked-on-discrepancy": { "type": "bool", "required": true }
+          }
+        },
+        "migration-state-when-work-starts-and-stops": {
+          "type": "object",
+          "required": true,
+          "fields": {
+            "open": { "type": "string", "required": true },
+            "close": { "type": "string", "required": true }
+          }
+        },
+        "required-stop-state-if-incomplete": {
+          "type": "object",
+          "required": true,
+          "role": "must be updated before a session ends whenever the migration is not complete",
+          "fields": {
+            "migration-objective-at-pause": { "type": "string", "required": true, "role": "what the migration was trying to accomplish when work stopped" },
+            "paused-at-migration-phase": {
+              "type": "enum",
+              "required": true,
+              "values": [
+                "source-ingest",
+                "contract-diff",
+                "semantic-extraction",
+                "ancillary-reconciliation",
+                "measurement-rewrite",
+                "completion-audit"
+              ],
+              "role": "which migration phase was active when work stopped"
+            },
+            "remaining-work": { "type": "string[]", "required": true },
+            "blocker": { "type": "string", "required": true, "role": "use `none` when not blocked" },
+            "first-unknown-encountered": { "type": "string", "required": true },
+            "next-automatic-action": { "type": "string", "required": true },
+            "divergence-question-for-human": { "type": "string", "required": false }
+          }
+        }
+      }
+    },
+    "GOV2GOV-source-target-map.md": {
+      "required": true,
+      "load-order": 1,
+      "role": "explicit map of source core, source ancillary, target core, target ancillary, and preserved/historical material",
+      "fields": {
+        "source-operating-core": {
+          "type": "file-path[]",
+          "required": true,
+          "role": "files that were genuinely load-bearing in the source governance model"
+        },
+        "source-ancillary-surfaces": {
+          "type": "file-path[]",
+          "required": true,
+          "role": "source-adjacent docs that still carry governance truth, design law, or first-copy implementation rules"
+        },
+        "target-operating-core": {
+          "type": "file-path[]",
+          "required": true,
+          "role": "target files that must absorb the extracted load-bearing truth"
+        },
+        "target-ancillary-ring": {
+          "type": "file-path[]",
+          "required": true,
+          "role": "explicitly allowed support docs that remain adjacent after extraction"
+        },
+        "historical-preservation-lane": {
+          "type": "file-path[]",
+          "required": false,
+          "role": "where preserved older wording or snapshots may live after demotion"
+        },
+        "mandatory-reads-to-preserve": {
+          "type": "file-path[]",
+          "required": true,
+          "role": "source mandatory reads that cannot be removed until their meaning exists in the target system"
+        },
+        "source-lessons-to-carry-forward": {
+          "type": "string[]",
+          "required": true,
+          "role": "the actual lessons the target governance model must encode rather than re-learn"
+        }
+      }
+    },
+    "GOV2GOV-registry.json": {
+      "required": true,
+      "load-order": 2,
+      "role": "machine-readable migration ledger for every parallel-authority surface being reconciled",
+      "fields": {
+        "entries": {
+          "type": "object[]",
+          "required": true,
+          "fields": {
+            "source-file-path": { "type": "file-path", "required": true, "role": "path to the file being reconciled in this migration" },
+            "parallel-authority-surface-class": {
+              "type": "enum",
+              "required": true,
+              "values": [
+                "source-core",
+                "source-ancillary",
+                "target-core",
+                "target-ancillary",
+                "historical-preserved",
+                "bridge-support"
+              ],
+              "role": "what role this file plays in the parallel authority landscape"
+            },
+            "target-disposition": {
+              "type": "enum",
+              "required": true,
+              "values": [
+                "extract-to-target-core",
+                "keep-as-target-ancillary",
+                "keep-as-bridge-support",
+                "demote-to-historical",
+                "remove-after-migration"
+              ],
+              "role": "what should happen to this file during migration"
+            },
+            "migration-progress-for-this-surface": {
+              "type": "enum",
+              "required": true,
+              "values": [
+                "unmapped",
+                "mapped",
+                "extracted",
+                "shrunk",
+                "demoted",
+                "measured",
+                "complete"
+              ],
+              "role": "how far along the migration is for this specific file"
+            },
+            "load-bearing-truth-summary": { "type": "string", "required": true },
+            "target-home": { "type": "file-path", "required": false },
+            "max-line-count": { "type": "int", "required": false },
+            "required-authority-anchor": { "type": "string", "required": false }
+          }
+        }
+      }
+    },
+    "GOV2GOV-rules.md": {
+      "required": true,
+      "load-order": 3,
+      "role": "phase gates, divergence triggers, completion rules, and stop-state expectations",
+      "fields": {
+        "phase-gates": {
+          "type": "object[]",
+          "required": true,
+          "fields": {
+            "migration-phase": {
+              "type": "enum",
+              "required": true,
+              "values": [
+                "source-ingest",
+                "contract-diff",
+                "semantic-extraction",
+                "ancillary-reconciliation",
+                "measurement-rewrite",
+                "completion-audit"
+              ],
+              "role": "which migration phase this gate governs"
+            },
+            "entry-criteria": { "type": "string[]", "required": true, "role": "what must be true before entering this phase" },
+            "exit-criteria": { "type": "string[]", "required": true, "role": "what must be true before this phase is complete" }
+          }
+        },
+        "divergence-triggers": {
+          "type": "string[]",
+          "required": true,
+          "role": "situations that require human confirmation before continuing"
+        },
+        "hard-rules": {
+          "type": "string[]",
+          "required": true,
+          "role": "non-optional migration rules"
+        },
+        "completion-rules": {
+          "type": "string[]",
+          "required": true,
+          "role": "what must be true before the migration can be called complete"
+        }
+      }
+    },
+    "GOV2GOV-pitfalls.md": {
+      "required": false,
+      "load-order": 4,
+      "role": "migration-specific recurring failure patterns that future governance migrations should not rediscover",
+      "fields": {
+        "pitfalls": {
+          "type": "object[]",
+          "required": true,
+          "fields": {
+            "trigger": { "type": "string", "required": true },
+            "failure-mode": { "type": "string", "required": true },
+            "resolution": { "type": "string", "required": true },
+            "session-count": { "type": "int", "required": true }
+          }
+        }
+      }
+    }
+  },
+  "review-before-authoring-prompt": "Read the source governance system completely before writing anything. Which files are truly load-bearing source-core authority? Which files are only source-ancillary but still contain first-copy operating truth? What must be preserved verbatim until the target core actually absorbs it? What is the first unknown? What is the earliest likely divergence trigger? Return: source-core, source-ancillary, mandatory-reads-to-preserve, first-unknown-encountered, and likely-divergence-triggers.",
+  "schema-level-hard-rules": {
+    "role": "these are universal migration rules that apply to every gov2gov migration regardless of instance -- GOV2GOV-rules.md contains instance-specific rules that supplement these -- if the two conflict, schema-level rules win",
+    "rules": [
+    "do not call the migration complete when only file-family parity exists",
+    "do not remove a source mandatory read until its meaning is present in the target core or the human accepts the loss explicitly",
+    "do not treat support-doc classification as proof that load-bearing meaning has been extracted",
+    "do not leave the ancillary governance ring unmeasured",
+    "do not consider an extraction complete while the original source wording still exists -- the extraction is incomplete until the source duplicate is removed or the human explicitly approves retaining it",
+    "do not stop mid-migration without updating the required stop-state fields in GOV2GOV-hello.md",
+    "do not ask the human for direction when the active plan has not diverged and no declared divergence trigger has fired"
+  ]},
+  "authoring-sequence": {
+    "steps": [
+      "read this schema fully before writing anything",
+      "run review-before-authoring-prompt against the source governance system and present findings to the human",
+      "author GOV2GOV-hello.md with the source/target pairing, phase, measurement, and stop-state contract",
+      "author GOV2GOV-source-target-map.md before changing any target governance files",
+      "build GOV2GOV-registry.json for every parallel-authority surface that will be reconciled",
+      "write GOV2GOV-rules.md with explicit phase gates, divergence triggers, and completion rules before the migration proceeds",
+      "complete semantic extraction before declaring ancillary reconciliation done -- an extraction is incomplete while the original source wording still exists -- trim the source before moving to the next surface",
+      "rewrite measurement so the target system can prove ancillary-footprint and unresolved-parallel-authority counts",
+      "only call the migration complete after completion-audit passes cleanly"
+    ]
+  },
+  "schema-level-divergence-triggers": {
+    "role": "these are universal divergence triggers that apply to every gov2gov migration -- GOV2GOV-rules.md may contain additional instance-specific triggers that supplement these",
+    "values": [
+      "source law and target law cannot both survive without a human choice",
+      "a source mandatory read cannot be shrunk or moved without losing still-live operational meaning",
+      "measurement must change in a way the current plan did not anticipate",
+      "the target ancillary ring cannot stay within budget without a human choosing what detail to keep",
+      "an unresolved parallel-authority surface has no clear target-home"
+    ]
+  },
+  "completion-contract": {
+    "required-outcomes": [
+      "every source-core truth is mapped into the target core or explicitly preserved with human approval",
+      "every source-ancillary governance surface is either shrunk into the target ancillary ring, demoted to historical, or removed",
+      "no unclassified parallel-authority surfaces remain",
+      "open and close measurement return clean results",
+      "if the migration is incomplete, GOV2GOV-hello.md contains a usable stop-state with next automatic action"
+    ]
+  },
+  "post-migration-handoff-to-steady-state": {
+    "role": "what the steady-state governance system inherits after a gov2gov migration completes -- the migration ends but the ancillary ring persists",
+    "ancillary-ring-monitoring": "the ancillary ring established during ancillary-reconciliation becomes a permanent fixture of the steady-state governance model -- it must be measured on every governance session open/close, not just during migration -- if an ancillary doc exceeds its line budget or loses its authority anchor, that is a governance measurement discrepancy, not a migration problem",
+    "semantic-compression-handoff-to-measurement": "the steady-state measurement script must test for semantic compression, not just classification and budget compliance -- a classified doc that still carries stale current-state language, dated snapshot claims presented as live truth, or duplicate governance prose that was not trimmed during extraction is a measurement failure -- if the measurement script does not test for this, the completion-audit passed but the handoff is incomplete",
+    "schema-mode-transition": "when the migration is complete and the human confirms, archive or remove the GOV2GOV-* artifact files -- the gov2gov schema transitions from active mode to reference mode -- the steady-state governance schema assumes full authority",
+    "versioned-lane-inheritance": "versioned lane directories (e.g. Workorders_2_5/, Workorders_3_0/) that survived the migration as classified ancillary or bridge content must be declared in the steady-state governance vision or rules -- if they are not declared, they become unclassified surfaces and will drift"
+  },
+  "templates": {
+    "schema": {
+      "encoding": "GOV2GOV-hello.md, GOV2GOV-source-target-map.md, GOV2GOV-rules.md, and GOV2GOV-pitfalls.md use flat labeled key-value markdown -- nested objects indented two spaces -- arrays as hyphenated bullet lists -- no frontmatter markers, no code fences -- field names must match schema declarations exactly -- GOV2GOV-registry.json uses JSON encoding"
+    },
+    "GOV2GOV-hello.md": {
+      "schema-path": "{{workspace}}/AGENTS-schema-gov2gov-migration.json",
+      "context-ordering-rule": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
+      "source-governance-system": "",
+      "target-governance-system": "",
+      "migration-scope": "",
+      "current-phase": "source-ingest",
+      "migration-measurement": {
+        "open": "",
+        "baseline": "",
+        "close": "",
+        "diff": "",
+        "blocked-on-discrepancy": true
+      },
+      "migration-state-when-work-starts-and-stops": {
+        "open": "",
+        "close": ""
+      },
+      "required-stop-state-if-incomplete": {
+        "migration-objective-at-pause": "",
+        "paused-at-migration-phase": "source-ingest",
+        "remaining-work": [],
+        "blocker": "none",
+        "first-unknown-encountered": "",
+        "next-automatic-action": "",
+        "divergence-question-for-human": ""
+      }
+    },
+    "GOV2GOV-source-target-map.md": {
+      "source-operating-core": [],
+      "source-ancillary-surfaces": [],
+      "target-operating-core": [],
+      "target-ancillary-ring": [],
+      "historical-preservation-lane": [],
+      "mandatory-reads-to-preserve": [],
+      "source-lessons-to-carry-forward": []
+    },
+    "GOV2GOV-registry.json": {
+      "entries": [
+        {
+          "source-file-path": "",
+          "parallel-authority-surface-class": "source-ancillary",
+          "target-disposition": "extract-to-target-core",
+          "migration-progress-for-this-surface": "unmapped",
+          "load-bearing-truth-summary": "",
+          "target-home": "",
+          "max-line-count": 0,
+          "required-authority-anchor": ""
+        }
+      ]
+    },
+    "GOV2GOV-rules.md": {
+      "phase-gates": [
+        {
+          "migration-phase": "source-ingest",
+          "entry-criteria": [],
+          "exit-criteria": []
+        }
+      ],
+      "divergence-triggers": [],
+      "hard-rules": [],
+      "completion-rules": []
+    },
+    "GOV2GOV-pitfalls.md": {
+      "pitfalls": [
+        {
+          "trigger": "",
+          "failure-mode": "",
+          "resolution": "",
+          "session-count": 1
+        }
+      ]
+    }
+  }
+}

@@ -32,7 +32,7 @@
       ]
     },
 
-    "schema-family": "AGENTS-schema-1project.json is a member of the AGENTS-schema-* family -- AGENTS-schema-governance.json is the full governance schema -- AGENTS-schema-narrative.json covers evolving narrative records for entities with multiple parties",
+    "schema-family": "AGENTS-schema-1project.json is a member of the AGENTS-schema-* family -- AGENTS-schema-governance.json is the full governance schema -- AGENTS-schema-narrative.json covers evolving narrative records for entities with multiple parties -- AGENTS-schema-gov2gov-migration.json governs migrations from one governance system into another",
 
     "sibling-isolation": "if another AGENTS-schema-*.json file is present in the context window, do not merge, inherit, or cross-reference fields between schemas unless an explicit pointer field (narrative-ref, project-ref) declares the relationship -- each schema governs its own artifact set independently -- shared field names across schemas are structurally similar but operationally independent -- do not assume one schema's field definitions apply to another",
 
