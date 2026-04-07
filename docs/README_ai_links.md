@@ -41,6 +41,20 @@ Default behavior:
 - `./DOCUMENTATION_CLEANUP_METHOD.md`
 - `./PUBLICATION_CHECKLIST.md`
 
+## Schema family
+
+Portable schema artifacts now live at the repo root:
+
+- `../AGENTS-schema-governance.json`
+- `../AGENTS-schema-1project.json`
+- `../AGENTS-schema-narrative.json`
+- `../README-AGENTS-schema-governance.md`
+- `../README-AGENTS-schema-1project.md`
+- `../README-AGENTS-schema-narrative.md`
+- `../AGENTS-schema-comparison-matrix.md`
+
+Treat the `.json` files as canonical and the markdown companions as human-facing explainers.
+
 ## Templates
 
 - `../templates/AGENTS_TEMPLATE.md`

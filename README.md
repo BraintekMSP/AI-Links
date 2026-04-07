@@ -17,6 +17,7 @@ It is a control-plane and documentation scaffold that clients can adapt to their
 
 - a generic AI startup prompt
 - a reusable `AGENTS.md` model
+- the portable `AGENTS-schema-*` family
 - a repo `2.5` readiness model
 - a cross-repo contract model
 - a subagent safety model
@@ -37,6 +38,18 @@ It is a control-plane and documentation scaffold that clients can adapt to their
 3. Read `docs/AI_COLLAB_STARTUP_PROMPT.md`
 4. Read `docs/REPO_2_5_READINESS_MODEL.md`
 5. Read the templates in `templates/`
+
+## Schema family
+
+This repo now carries the portable schema family directly:
+
+- `AGENTS-schema-governance.json`
+- `AGENTS-schema-1project.json`
+- `AGENTS-schema-narrative.json`
+- `README-AGENTS-schema-governance.md`
+- `README-AGENTS-schema-1project.md`
+- `README-AGENTS-schema-narrative.md`
+- `AGENTS-schema-comparison-matrix.md`
 
 ## Core idea
 

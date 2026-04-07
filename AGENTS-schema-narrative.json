@@ -1,0 +1,406 @@
+{
+  "meta": {
+    "context-ordering-rule": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
+    "context-compression-warning": "acceptable context compression from your current context window in no way guarantees context fidelity in future context -- do not assume that what survives compression now will survive the next compression -- write durable state to files, not to context",
+    "version": "0.1.0",
+    "role": "narrative protocol schema -- governs the structure of evolving narrative records for any entity with multiple parties and a story that changes over time",
+    "intent": "combat tribal knowledge and human memory decay -- documentation and SOPs are not enough because they strip narrative out -- this schema preserves narrative structure while making it navigable by agents and humans alike",
+    "self-contained": "this schema is the sole context source for authoring and maintaining narrative records -- do not consult external operating procedures -- if something required is not declared here, ask the human rather than reaching outside this file",
+    "human-reported-issue-governance": "bug reports and feature requests are not governed by this schema -- they are owned by whatever system the project declares",
+
+    "narrative-bias-acknowledgment": "humans operate on narratives -- narrative bias may be the strongest bias humans trend toward -- this schema works with that tendency rather than against it -- stripping narrative out of communication records does not produce a cleaner record, it produces a wrong one -- the goal is structured narrative, not normalized data",
+
+    "output-format": "JSON data artifacts -- not human-editable markdown -- records are written and maintained by agents from human input -- direct human editing is discouraged because it is prone to inconsistency and context leakage between record sets -- humans provide input, agents write the record",
+
+    "storage-recommendation": "namespace records by entity type for context isolation -- example: /narratives/clients/acme.json, /narratives/vendors/workorders.json, /narratives/projects/my-book.json -- storage location is the consuming system's decision -- isolation between sets is mandatory -- an agent working on a client record must not have a vendor record in its active context unless the relationship between them is explicitly declared",
+
+    "schema-family": "AGENTS-schema-narrative.json is a member of the AGENTS-schema-* family -- it produces JSON data artifacts, not markdown governance files -- AGENTS-schema-governance.json governs code and operations -- AGENTS-schema-1project.json governs single-goal session continuity -- narrative records may reference sibling schema artifacts when work materializes from a narrative thread",
+
+    "sibling-isolation": "if another AGENTS-schema-*.json file is present in the context window, do not merge, inherit, or cross-reference fields between schemas unless an explicit pointer field (narrative-ref, project-ref) declares the relationship -- each schema governs its own artifact set independently -- shared field names across schemas are structurally similar but operationally independent -- do not assume one schema's field definitions apply to another",
+
+    "opening-prompt": "The workspace you are in, or the files you see, represents a tool or human workflow that has evolving and updating personal, company, and/or client data, and may be interacted with by nearly every stakeholder involved. We need to build a captured narrative around the experience. This schema describes the mechanisms by which you build that narrative. Implementation and view are up to you, but the mechanisms are not optional. This narrative exists to combat tribal knowledge and human memory decay over time, because documentation and SOPs are unreliable, stale, and have never been enough.",
+
+    "entity-type-hints": {
+      "role": "entity types are not a closed list -- any entity with an evolving story and multiple parties who need to stay aligned on what happened is a valid subject -- the following are common patterns with notes on which optional fields become most relevant",
+      "client-account":    "definition-of-fixed and sentiment-and-tension are critical -- these records reveal whether the relationship is healthy",
+      "vendor-account":    "technical-limitations, budgetary-limitations, and awaiting-external are critical -- these records reveal dependency risk",
+      "employee-workflow": "open-threads and tribal flags are critical -- these records reveal training gaps and process friction",
+      "process":           "narrative-beats and bad-patterns are critical -- these records reveal where internal workflows break down",
+      "personal-project":  "record-state-at-review-open-and-close and open-threads are critical -- these records replace the memory of a solo creator working across long time gaps",
+      "other":             "describe the entity and its primary parties -- the agent derives the relevant shape from that description"
+    }
+  },
+
+  "cadence": {
+    "role": "recommended update rhythm per record set -- not mandatory -- set per record at authoring time -- consume system may enforce or ignore",
+    "monthly": {
+      "scope": "set-level -- all records in a set reviewed",
+      "mode": "iterative -- append new entries, update open threads, flag stale items -- compress not permitted"
+    },
+    "quarterly": {
+      "scope": "set-level -- full review",
+      "mode": "full review -- compress-eligible -- all open threads must be assessed -- all bad patterns reviewed for resolution or escalation"
+    },
+    "transient": {
+      "scope": "single record -- one-off situation or complaint that cannot wait for the monthly or quarterly cycle",
+      "mode": "append and update only -- record is closed when the situation resolves -- archived not deleted -- transient records feed into the next quarterly review as input"
+    }
+  },
+
+  "register": {
+    "role": "index of all narrative records in this workspace -- without this, records sprawl and go stale silently",
+    "required": true,
+    "entry-fields": {
+      "id":           { "type": "string",  "required": true,  "role": "unique identifier for this record -- used for cross-references from sibling schema artifacts" },
+      "subject":      { "type": "string",  "required": true,  "role": "name of the entity this narrative tracks" },
+      "entity-type":  { "type": "string",  "required": true,  "role": "what kind of entity this is -- see meta.entity-type-hints for common patterns" },
+      "record-path":  { "type": "string",  "required": true,  "role": "path to the JSON record file" },
+      "cadence":      { "type": "string",  "required": true,  "role": "monthly, quarterly, or transient" },
+      "last-updated": { "type": "string",  "required": true,  "role": "ISO 8601 date of last write to this record" },
+      "owner":        { "type": "string",  "required": true,  "role": "who is responsible for keeping this record current" },
+      "status":       { "type": "string",  "required": true,  "role": "active, dormant, closed, or archived" }
+    }
+  },
+
+  "record-structure": {
+    "role": "shape of a single narrative record -- every record regardless of entity type shares this structure -- optional fields are omitted when not applicable, never left empty",
+
+    "header": {
+      "role": "identity and state of this record",
+      "fields": {
+        "id":              { "type": "string", "required": true,  "role": "matches register entry id" },
+        "subject":         { "type": "string", "required": true,  "role": "one-sentence description of the entity this narrative tracks" },
+        "entity-type":     { "type": "string", "required": true,  "role": "what kind of entity this is" },
+        "primary-parties": { "type": "array",  "required": true,  "role": "who is involved -- names, roles, or relationship descriptions -- at least one entry required" },
+        "cadence":         { "type": "string", "required": true,  "role": "monthly, quarterly, or transient" },
+        "status":          { "type": "string", "required": true,  "role": "active, dormant, closed, or archived" },
+        "last-updated":    { "type": "string", "required": true,  "role": "ISO 8601 date" },
+        "owner":           { "type": "string", "required": true,  "role": "who is responsible for keeping this record current" }
+      }
+    },
+
+    "record-state-at-review-open-and-close": {
+      "role": "open and close state for the current update session -- agent reads open at session start, writes close at session end -- same pattern as sibling schemas",
+      "fields": {
+        "open":  { "type": "string", "required": true, "role": "state of the narrative at session start -- what is known, what is open, what changed since last session" },
+        "close": { "type": "string", "required": true, "role": "state of the narrative at session end -- what was recorded, what remains open, what the next session should front-load" }
+      }
+    },
+
+    "entries": {
+      "role": "ordered log of events, exchanges, and decisions -- append-only except for status updates on existing entries -- entries are never deleted, only archived",
+      "entry-fields": {
+
+        "id":        { "type": "string", "required": true,  "role": "unique entry identifier within this record -- used for cross-references and superseded-by links" },
+        "date":      { "type": "string", "required": true,  "role": "ISO 8601 date this entry was recorded" },
+        "type":      { "type": "string", "required": true,  "role": "event, decision, thread-open, thread-close, beat, correction" },
+        "summary":   { "type": "string", "required": true,  "role": "what happened -- preserve the human language, do not normalize or compress -- this is the narrative" },
+        "tribal":    { "type": "bool",   "required": false, "role": "true when this information exists only in one person's account with no corroborating record -- tribal entries are highest criticality regardless of apparent significance" },
+
+        "cast": {
+          "role": "who was involved in this entry -- omit roles that do not apply",
+          "owner":          { "type": "string", "required": false, "role": "who owns this issue or thread" },
+          "context-holder": { "type": "string", "required": false, "role": "who has the most context -- may differ from owner" },
+          "requested-by":   { "type": "string", "required": false, "role": "who made the original request" },
+          "finalized-by":   { "type": "string", "required": false, "role": "who made the final call" }
+        },
+
+        "definition-of-fixed": {
+          "role": "required when this entry involves a resolution or closure -- a resolution is only real if definitions align",
+          "required": false,
+          "fields": {
+            "fixed-per-client":        { "type": "string", "required": false, "role": "what the client or requester considers resolved -- in their words" },
+            "fixed-per-tech":          { "type": "string", "required": false, "role": "what the technician or executor considers resolved -- in their words" },
+            "definitions-match":       { "type": "bool",   "required": false, "role": "true when both definitions describe the same outcome -- when false, explain in narrative" },
+            "matches-original-request":{ "type": "bool",   "required": false, "role": "true when the resolution matches what was originally asked for -- when false, explain in narrative" },
+            "divergence-narrative":    { "type": "string", "required": false, "role": "required when definitions-match or matches-original-request is false -- describe the gap and how it was handled or left open" }
+          }
+        },
+
+        "constraints": {
+          "role": "what shaped or limited the outcome -- omit if not applicable",
+          "technical-limitations":  { "type": "string", "required": false, "role": "what was not possible and why" },
+          "budgetary-limitations":  { "type": "string", "required": false, "role": "what was descoped or deferred due to cost" },
+          "awaiting-external":      { "type": "string", "required": false, "role": "blocked on a vendor, partner, or third party -- record who and why" }
+        },
+
+        "sentiment-and-tension": {
+          "type": "string",
+          "required": false,
+          "role": "the emotional reality of this entry -- not a score -- a narrative note -- did the client feel heard, was there friction, did a relationship shift -- medium criticality by default, high when it predicts churn or disengagement"
+        },
+
+        "beat": {
+          "type": "string",
+          "required": false,
+          "role": "required when type is beat -- describe the direction shift -- a decision reversed, a scope expanded, a new stakeholder appeared, a definition changed -- beats are the moments that rewrite everything that follows and are the first thing tribal memory loses"
+        },
+
+        "status":       { "type": "string", "required": false, "role": "open, resolved, archived, superseded -- omit if entry type does not have a lifecycle" },
+        "superseded-by":{ "type": "string", "required": false, "role": "entry id or external reference that replaces this entry -- preserve original entry, do not delete" }
+      }
+    },
+
+    "open-threads": {
+      "role": "things raised but not resolved -- the feature request that never happened problem -- populated from entries with type thread-open and status open",
+      "entry-fields": {
+        "id":           { "type": "string", "required": true,  "role": "matches entry id that opened this thread" },
+        "summary":      { "type": "string", "required": true,  "role": "what is unresolved" },
+        "opened-date":  { "type": "string", "required": true,  "role": "ISO 8601 date" },
+        "owner":        { "type": "string", "required": false, "role": "who is responsible for resolving this thread" },
+        "stale":        { "type": "bool",   "required": false, "role": "true when no activity past the declared stale window for this record -- stale open threads are a signal-cue" },
+        "stale-window": { "type": "string", "required": false, "role": "how long without activity before this thread is considered stale -- overrides record default if set" }
+      }
+    },
+
+    "known-decisions": {
+      "role": "choices that were made and confirmed -- answers the question did they ask for that or did we make that call",
+      "entry-fields": {
+        "id":            { "type": "string", "required": true,  "role": "unique identifier" },
+        "date":          { "type": "string", "required": true,  "role": "ISO 8601 date decision was made" },
+        "decision":      { "type": "string", "required": true,  "role": "what was decided -- in plain language" },
+        "decided-by":    { "type": "string", "required": true,  "role": "who made the call -- attribution is mandatory for known-decisions" },
+        "requested-by":  { "type": "string", "required": false, "role": "who asked for this outcome -- may differ from decided-by" },
+        "reversed":      { "type": "bool",   "required": false, "role": "true if this decision was later reversed -- add a beat entry to entries when this happens" },
+        "project-ref":   { "type": "string", "required": false, "role": "reference to a sibling schema record if this decision spawned concrete work -- e.g. 1project goal id or governance scope" }
+      }
+    },
+
+    "observed-patterns": {
+      "good": {
+        "type": "array",
+        "required": false,
+        "role": "patterns worth repeating -- what worked in this relationship or context -- omit if nothing notable",
+        "entry-fields": {
+          "description": { "type": "string", "required": true,  "role": "what worked and why it is worth repeating" },
+          "tribal":      { "type": "bool",   "required": false, "role": "true if this pattern exists only in undocumented practice" }
+        }
+      },
+      "bad": {
+        "type": "array",
+        "required": false,
+        "role": "known problems -- if something went wrong record it here -- omit only when nothing has gone wrong -- numbers when they apply, narrative when they do not",
+        "entry-fields": {
+          "description": { "type": "string", "required": true,  "role": "what went wrong and what broke as a side effect" },
+          "resolved":    { "type": "bool",   "required": false, "role": "true when addressed -- omit if unknown" },
+          "tribal":      { "type": "bool",   "required": false, "role": "true if this pattern exists only in undocumented practice" }
+        }
+      }
+    },
+
+    "handoff-note": {
+      "type": "string",
+      "required": false,
+      "role": "what the next person needs to know that is not obvious from the entries -- required on any session that closes a thread or transfers ownership -- this is the tribal knowledge capture point"
+    }
+  },
+
+  "edit-modes": {
+    "role": "not all touches are equal -- agents must declare which mode they are operating in before writing",
+
+    "append": {
+      "description": "new event, new thread, new decision -- additive only -- nothing prior changes",
+      "permitted-on": ["entries", "open-threads", "known-decisions", "observed-patterns"],
+      "blocked": "do not modify existing entries in append mode"
+    },
+    "update": {
+      "description": "existing entry changes state -- a thread closes, a decision reverses, a pattern resolves -- old state is preserved, not overwritten",
+      "permitted-on": ["entries.status", "open-threads.status", "open-threads.stale", "known-decisions.reversed"],
+      "preservation-rule": "add a new entry referencing the updated entry id -- do not overwrite the original"
+    },
+    "compress": {
+      "description": "multiple entries consolidate into a summary -- highest-risk mode -- governed by compression rules",
+      "permitted-when": "quarterly review only -- never during monthly or transient cycles",
+      "blocked-until": "human-confirms",
+      "lossy-artifact-warning": "compressed entries are lossy artifacts -- detail that was not promoted to a durable section (known-decisions, open-threads, observed-patterns, handoff-note) during authoring is lost after compression -- this is the accepted cost of compression and the incentive to author well -- do not treat compressed summaries as authoritative for detail-level questions",
+      "compression-rules": {
+        "never-drop": [
+          "named decisions with their owners",
+          "open threads",
+          "bad patterns",
+          "any entry with tribal: true",
+          "definition-of-fixed divergences",
+          "narrative beats",
+          "handoff notes"
+        ],
+        "may-compress": [
+          "status update entries with no decision, thread, or beat",
+          "duplicate sentiment entries where pattern is already captured in observed-patterns"
+        ],
+        "invalid-compress": "a compress that loses any never-drop item is invalid -- agent must abort and report which items would be lost"
+      }
+    },
+    "correct": {
+      "description": "factual error fixed -- attribution required -- old value preserved alongside correction",
+      "required-fields": ["corrected-by", "correction-date", "original-value", "corrected-value", "reason"],
+      "preservation-rule": "original entry is never deleted -- correction is appended as a new entry with type correction referencing the original entry id"
+    }
+  },
+
+  "criticality": {
+    "role": "what makes an entry load-bearing vs background noise -- agents use this to prioritize what to front-load in a session and what cannot be dropped in a compress",
+    "highest": "any entry with tribal: true -- regardless of apparent significance",
+    "high":    "named decisions with named owners -- definition-of-fixed divergences -- narrative beats -- handoff notes",
+    "medium":  "sentiment-and-tension entries -- open threads with no stale flag -- bad patterns marked resolved",
+    "low":     "status updates with no decision, thread, or beat -- good patterns with no tribal flag",
+    "escalation-rule": "medium criticality escalates to high when sentiment-and-tension predicts churn or disengagement -- agent must flag this to human"
+  },
+
+  "signal-cues": {
+    "role": "canonical classes of signal that indicate something worth recording is happening -- used by capture-workflows to detect narrative-relevant events passively",
+    "false-positive-tracking": "signal cues will misfire -- agents cannot reliably distinguish casual language from meaningful signal in all cases -- when an agent flags a cue and the human determines it was not meaningful, record the false positive as a not-working entry in the review session -- if a specific cue class consistently misfires in a specific workflow, note it in that workflow's observed patterns and reduce confidence -- do not disable cues, reduce trust in them",
+
+    "context-truncation": {
+      "description": "system shows a fragment but the full story exists upstream",
+      "examples": ["truncated email body in a ticket", "ticket note that references an attachment not included", "summary field that says see attached with no attachment present"],
+      "action": "flag as incomplete context -- record what is visible -- note that upstream source was not captured -- do not treat the fragment as the complete record"
+    },
+    "cross-domain-reference": {
+      "description": "a record points outside itself to context it does not contain",
+      "examples": ["ticket mentions a Slack thread", "email references a phone call", "note says per our conversation with no record of the conversation"],
+      "action": "flag the reference -- record the fragment -- mark the entry as potentially incomplete -- request the source if accessible"
+    },
+    "attribution-gap": {
+      "description": "a decision or action is recorded with no named owner",
+      "examples": ["it was decided that...", "we agreed to...", "the team chose..."],
+      "action": "flag the gap -- attempt to infer owner from context -- if unresolvable, record as unknown-owner and mark tribal: true"
+    },
+    "implicit-history": {
+      "description": "language that signals undocumented prior context",
+      "examples": ["again", "as before", "still waiting on", "like last time", "same issue as"],
+      "action": "flag the reference -- search existing entries for the prior event -- if not found, open a thread to capture what the reference points to"
+    },
+    "ownership-ambiguity": {
+      "description": "a commitment or task with no named owner",
+      "examples": ["someone will follow up", "this needs to be handled", "we should address this"],
+      "action": "flag as unowned -- record the commitment -- open a thread -- mark stale window from date of entry"
+    },
+    "stale-open-thread": {
+      "description": "an open thread with no activity past the declared stale window",
+      "action": "flag as stale -- surface in next session open -- escalate to human if no activity in two consecutive cycles"
+    },
+    "definition-divergence": {
+      "description": "language suggesting the parties are not using the same success criteria",
+      "examples": ["we consider this closed", "the issue has been resolved", "this was fixed in the last update -- with no confirmation from the other party"],
+      "action": "flag as potential divergence -- record both definitions if available -- populate definition-of-fixed block -- do not mark resolved until both parties confirm"
+    },
+    "tribal-flag": {
+      "description": "information that exists only in one person's account with no corroborating record",
+      "examples": ["only Mike knows why this was set up this way", "I remember we decided this but I can't find where", "the original developer said..."],
+      "action": "mark tribal: true -- record everything available -- flag as highest criticality -- surface in handoff-note"
+    }
+  },
+
+  "capture-workflows": {
+    "role": "named workflow patterns describing where narrative-relevant signals appear and what cues to watch for -- not an exhaustive list -- add workflows as patterns are discovered",
+
+    "technician-mailbox": {
+      "description": "inbound communications to a technician or support role -- high signal density for context truncation and cross-domain references",
+      "watch-for": ["context-truncation", "cross-domain-reference", "attribution-gap", "implicit-history", "definition-divergence"],
+      "notes": "email previews and ticket digests are especially prone to context-truncation -- the full thread is the source of truth, not the preview"
+    },
+    "client-email-thread": {
+      "description": "email exchanges with a client -- high signal density for definition divergence and implicit history",
+      "watch-for": ["definition-divergence", "implicit-history", "tribal-flag", "ownership-ambiguity"],
+      "notes": "client language around resolution is rarely identical to technical language -- always check for definition-of-fixed divergence before marking an issue closed"
+    },
+    "ticket-update": {
+      "description": "updates to a support or project ticket -- moderate signal density, high risk of attribution gaps",
+      "watch-for": ["attribution-gap", "context-truncation", "stale-open-thread", "ownership-ambiguity"],
+      "notes": "ticket status changes without narrative explanation are a common source of tribal knowledge -- record the why, not just the what"
+    },
+    "vendor-exchange": {
+      "description": "communications with a vendor or external dependency -- high signal density for technical limitations and awaiting-external",
+      "watch-for": ["context-truncation", "attribution-gap", "implicit-history", "tribal-flag"],
+      "notes": "vendor commitments without named owners and dates are high-risk -- record who said what and when -- verbal commitments are tribal until written"
+    },
+    "internal-handoff": {
+      "description": "transfer of ownership or context between team members -- highest risk for tribal knowledge loss",
+      "watch-for": ["tribal-flag", "attribution-gap", "ownership-ambiguity", "implicit-history"],
+      "notes": "handoff-note is mandatory on any entry that transfers ownership -- a handoff without a handoff-note is an incomplete record"
+    },
+    "review-session": {
+      "description": "monthly or quarterly review of a record set -- compress-eligible sessions only at quarterly",
+      "watch-for": ["stale-open-thread", "definition-divergence", "tribal-flag"],
+      "notes": "review sessions must check every open thread for stale status before closing -- compress is not permitted during monthly review"
+    }
+  },
+
+  "authoring-sequence": {
+    "role": "ordered steps for creating and maintaining narrative records -- two modes: cold-start for new records, update for existing",
+
+    "cold-start": [
+      "read this schema fully before writing anything",
+      "ask human to describe the entity and its primary parties in plain language",
+      "ask human to identify any existing fragments -- emails, tickets, notes, memory -- that contain context about this entity",
+      "ask human to declare the cadence: monthly, quarterly, or transient",
+      "scan available fragments for signal cues before writing the first entry",
+      "author the header block -- blocked-until human-confirms subject and primary-parties",
+      "reconstruct known-decisions from fragments -- flag attribution gaps where owner cannot be determined",
+      "reconstruct open-threads from fragments -- mark stale where applicable",
+      "record observed-patterns from fragments if any are identifiable",
+      "write handoff-note summarizing what was reconstructed and what could not be recovered",
+      "register the record in the register file",
+      "declare cold-start complete -- do not compress on first authoring"
+    ],
+    "update": [
+      "read the existing record header and record-state-at-review-open-and-close.close from the last session before writing anything",
+      "declare edit mode before writing: append, update, compress, or correct",
+      "scan new input for signal cues before recording",
+      "write record-state-at-review-open-and-close.open reflecting current state",
+      "append or update entries according to declared edit mode",
+      "update open-threads status for any threads that have moved",
+      "update known-decisions if any decisions were reversed or added",
+      "update observed-patterns if new patterns emerged",
+      "write handoff-note if any thread was closed or ownership transferred",
+      "write record-state-at-review-open-and-close.close",
+      "update register last-updated field"
+    ]
+  },
+
+  "templates": {
+    "role": "starting-point shapes for new records -- replace placeholder values -- do not add fields not declared in this schema -- output is JSON not markdown",
+
+    "record": {
+      "header": {
+        "id": "",
+        "subject": "",
+        "entity-type": "",
+        "primary-parties": [],
+        "cadence": "",
+        "status": "active",
+        "last-updated": "",
+        "owner": ""
+      },
+      "record-state-at-review-open-and-close": {
+        "open": "",
+        "close": ""
+      },
+      "entries": [],
+      "open-threads": [],
+      "known-decisions": [],
+      "observed-patterns": {
+        "good": [],
+        "bad": []
+      },
+      "handoff-note": ""
+    },
+
+    "entry": {
+      "id": "",
+      "date": "",
+      "type": "",
+      "summary": "",
+      "cast": {
+        "owner": "",
+        "context-holder": "",
+        "requested-by": "",
+        "finalized-by": ""
+      }
+    },
+
+    "register": {
+      "records": []
+    }
+  }
+}

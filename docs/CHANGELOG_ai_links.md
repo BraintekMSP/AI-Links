@@ -1,5 +1,25 @@
 # Changelog - AI-Links
 
+## 2026-04-07
+
+### AGENTS schema family hosting
+
+- Added the portable schema JSON family at the repo root:
+  - `AGENTS-schema-governance.json`
+  - `AGENTS-schema-1project.json`
+  - `AGENTS-schema-narrative.json`
+- Moved the human-facing schema companions and comparison guide into `AI-Links` so the reusable framework repo now hosts the public-safe schema explanation set:
+  - `README-AGENTS-schema-governance.md`
+  - `README-AGENTS-schema-1project.md`
+  - `README-AGENTS-schema-narrative.md`
+  - `AGENTS-schema-comparison-matrix.md`
+- Updated `README.md` and `docs/README_ai_links.md` so the schema family is part of the normal repo navigation instead of living only in `TheLinks`.
+
+Validation:
+
+- Cross-repo documentation move/copy only.
+- No runtime behavior changed.
+
 ## 2026-04-02
 
 ### Control-plane agent prompting
