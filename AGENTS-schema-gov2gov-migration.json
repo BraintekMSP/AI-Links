@@ -33,7 +33,8 @@
       "versioned lane docs (e.g. Workorders_2_5/, Workorders_3_0/) are high-risk hiding places for first-copy governance meaning that belongs in the governed core -- semantic-extraction must check versioned lanes explicitly",
       "the ancillary ring is a pressure point that needs ongoing monitoring after migration -- docs grow, drift, and can regrow into shadow governance even after reconciliation",
       "an extraction is incomplete while the original source wording still exists -- leaving the source intact after extracting into the target core creates parallel authority that will not be caught until the next audit",
-      "classification completeness is not semantic compression completeness -- a file can be correctly classified, registered, and within budget while still carrying duplicate governance prose that should have been trimmed during extraction -- the completion-audit must check both independently"
+      "classification completeness is not semantic compression completeness -- a file can be correctly classified, registered, and within budget while still carrying duplicate governance prose that should have been trimmed during extraction -- the completion-audit must check both independently",
+      "agents defer mandatory work by not disclosing it -- the fix is not a harder rule about phrasing, it is mandatory enumeration of the entire migration plan with status per step before any pause, exit, or completion claim -- proving comprehension of the full scope preempts selective disclosure"
     ],
     "types": {
       "string": "single text value",
@@ -396,7 +397,8 @@
     "do not leave the ancillary governance ring unmeasured",
     "do not consider an extraction complete while the original source wording still exists -- the extraction is incomplete until the source duplicate is removed or the human explicitly approves retaining it",
     "do not stop mid-migration without updating the required stop-state fields in GOV2GOV-hello.md",
-    "do not ask the human for direction when the active plan has not diverged and no declared divergence trigger has fired"
+    "do not ask the human for direction when the active plan has not diverged and no declared divergence trigger has fired",
+    "before any pause, exit, or completion claim, enumerate the entire migration plan as the schema contract defines it -- not just remaining steps, the full plan with status per step -- the human must see what was done, what was not, and what the contract still requires in one view -- the human decides what gets deferred, not the agent -- an incomplete enumeration is a contract violation"
   ]},
   "authoring-sequence": {
     "steps": [

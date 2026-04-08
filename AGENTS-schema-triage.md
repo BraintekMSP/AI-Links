@@ -34,28 +34,38 @@ Listen for the shape of the answer, not specific words.
 |---|---|
 | "I have one thing to get done" / "I need to finish this project" / "just help me build X" | **AGENTS-schema-1project.json** |
 | "I need to track what happened with a client" / "we keep losing context when people leave" / "nobody remembers why we did this" | **AGENTS-schema-narrative.json** |
-| "We have multiple teams working on this" / "I need rules" / "ownership is a mess" / "things keep breaking because nobody knows who owns what" | **AGENTS-schema-governance.json** |
+| "We have multiple teams working on this" / "I need rules" / "ownership is a mess" / "things keep breaking because nobody knows who owns what" | Likely governance — but continue to Question 2 before loading |
 | "We already have governance but it's wrong" / "we're replacing our current system" / "the old docs don't match the new structure" | **AGENTS-schema-gov2gov-migration.json** |
 
-If the answer does not clearly match any of these, continue to Question 2.
+**Important:** If the answer points toward governance, do NOT load governance yet. Continue to Question 2.
+Gov2gov is routinely missed at this stage because "I need governance" sounds like a governance-greenfield answer, but the workspace may already have authority that must be reconciled, not ignored.
 
-### Question 2: How many people or agents need to stay aligned on this?
+### Question 2: Does this workspace already have existing authority?
+
+This question must be asked before choosing between governance and gov2gov. "Existing authority" is not limited to a formal governance system. It includes:
+
+- Dockerfiles, configs, READMEs, or docs that currently define how work is done here
+- Conventions, naming patterns, or folder structures that agents or team members already follow
+- Previous AGENTS files, prompts, or operating docs from an earlier system
+- Informal rules that live in someone's head or in scattered notes
+
+| If... | Route to... |
+|---|---|
+| No existing authority of any kind — truly empty workspace or brand new project | **AGENTS-schema-governance.json** (greenfield mode) |
+| Some existing authority exists — docs, configs, conventions, or informal rules that carry meaning the new governance must absorb | **AGENTS-schema-gov2gov-migration.json** — even if the existing authority is not a formal governance system, it is still authority that must be reconciled, not overwritten |
+| Existing authority is minimal and the human confirms it can be safely ignored | **AGENTS-schema-governance.json** (greenfield mode — but document what was deliberately ignored) |
+
+If the answer from Question 1 did not point toward governance, continue to Question 3.
+
+### Question 3: How many people or agents need to stay aligned on this?
+
+This question resolves remaining ambiguity between 1project and narrative.
 
 | If... | Route to... |
 |---|---|
 | One person or agent, working alone on a bounded task | **AGENTS-schema-1project.json** |
 | Multiple people or agents, but the subject is a relationship or evolving story, not code | **AGENTS-schema-narrative.json** |
-| Multiple people or agents working on shared code, rules, or ownership | **AGENTS-schema-governance.json** |
-
-If still unclear, continue to Question 3.
-
-### Question 3: Does a governance system already exist here?
-
-| If... | Route to... |
-|---|---|
-| No — this is the first time any structure is being applied | **AGENTS-schema-1project.json** (start small, exit to governance when it outgrows) |
-| Yes, but it is informal, undocumented, or in someone's head | **AGENTS-schema-governance.json** (greenfield mode — the governance exists conceptually but not as files) |
-| Yes, and it is documented but needs to be replaced or reconciled with a new model | **AGENTS-schema-gov2gov-migration.json** |
+| Multiple people or agents working on shared code or operations | Return to Question 2 — this is a governance case |
 
 ---
 
@@ -83,6 +93,16 @@ If the agent cannot clearly answer all three, the exit condition has not been me
 
 ---
 
+## On Undisclosed Remaining Work
+
+A related pattern to exit-condition escape: agents defer mandatory work not by claiming it is done, but by not mentioning it. The human sees a natural stopping point and assumes the work is complete because no remaining steps were disclosed.
+
+This happens most often during migration and governance setup. The agent finishes the core file family and pauses. Conflict-surface reconciliation, historical labeling, measurement wiring, and archive classification are still required by the schema contract, but the agent does not enumerate them. The human would have said "keep going" if they knew the work existed.
+
+**The rule:** Before any pause, exit, or completion claim, the agent must enumerate the entire migration plan as the schema contract defines it — not just remaining steps, the full plan with status per step. The human must see what was done, what was not done, and what the contract still requires, in one view. The human decides what gets deferred. An incomplete enumeration is a contract violation.
+
+---
+
 ## On Human Uncertainty Throughout
 
 This triage document handles the initial routing. But human uncertainty does not end at triage. Throughout any schema's lifecycle:
@@ -101,4 +121,4 @@ This triage document handles the initial routing. But human uncertainty does not
 | 1project | One goal, one deliverable, need to not lose context between sessions | "I just need to get this done and have the next person be able to pick it up" |
 | Narrative | Evolving story, multiple parties, tribal knowledge at risk | "Nobody remembers why we did it this way" |
 | Governance | Multiple scopes, rules, ownership, coordination | "Who owns this?" or "We keep breaking each other's work" |
-| Gov2Gov | Existing governance needs to be replaced or reconciled | "The old system doesn't match what we're actually doing anymore" |
+| Gov2Gov | Any existing authority (formal or informal) that the new governance must absorb rather than ignore | "There's already a way things work here" or "we have docs and conventions but need real governance" or "the old system doesn't match what we're doing" |
