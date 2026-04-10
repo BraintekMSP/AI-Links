@@ -1,19 +1,12 @@
-# README - AI-Links
+# README - AI-Links (AGENTS Heuristic Underlay)
 
 ## Purpose
 
 This is the runbook and navigation hub for `AI-Links`.
 
-`AI-Links` is a reusable framework for:
+AI-Links houses the **AGENTS Heuristic Underlay** — a portable schema family that engineers what AI agents read before they act — alongside a broader framework for AI-assisted software delivery.
 
-- AI startup prompts
-- repo guardrails
-- repo truth vs workspace-sprawl boundaries
-- outcome-first operator intake
-- explicit communication/autonomy gauges
-- repo maturity reviews
-- cross-repo contracts
-- subagent-safe delivery patterns
+The schema family is the core. The framework docs are supporting material for teams adopting it.
 
 ## Documentation startup spine
 
@@ -28,7 +21,35 @@ Default behavior:
 - then continue through the rest of the repo in a deliberate order
 - do not reduce `AI-Links` to a self-selected subset of "important" docs when the user asked for a repo ingest
 
-## Primary navigation
+## The Schema Family (AGENTS Heuristic Underlay)
+
+### Portable deployment set (travels to any workspace):
+
+- `../AGENTS-schema-governance.json` — multi-scope governance for code and operations
+- `../AGENTS-schema-1project.json` — single-goal session continuity
+- `../AGENTS-schema-narrative.json` — evolving narrative records for tribal knowledge capture
+- `../AGENTS-schema-gov2gov-migration.json` — governance-to-governance migration contracts
+- `../AGENTS-schema-triage.md` — routing document that picks the right schema
+- `../Getting-Started-For-Humans.txt` — human onramp
+
+### Evaluation and reference (stays in AI-Links):
+
+- `../README-AGENTS-schema-governance.md`
+- `../README-AGENTS-schema-1project.md`
+- `../README-AGENTS-schema-narrative.md`
+- `../README-AGENTS-schema-gov2gov-migration.md`
+- `../AGENTS-schema-comparison-matrix.md`
+
+Treat the `.json` files as canonical and the markdown companions as human-facing explainers.
+
+## Research scratchpads
+
+- `./SCRATCHPAD_prompt_efficacy_patterns.md` — prompt efficacy, research foundation (Dziri 2023, Leviathan 2025), product identity, measurable claims
+- `./SCRATCHPAD_prophecy_precontext_influence.md` — pre-context influence theory, model-narration concept, layered maturity model, continuation boundary analysis
+- `./SAMPLES_prophecy_precontext_influence_2026-04-10.md` — 10 observed deployment samples with analysis
+- `./ASSUMPTION_FAILURE_PEN_TEST.md` — penetration-test-style review of the framework's control model
+
+## Framework docs
 
 - `./AI_COLLAB_STARTUP_PROMPT.md`
 - `./STARTUP_CONTEXT_REFACTOR_GUIDE.md`
@@ -41,20 +62,6 @@ Default behavior:
 - `./DOCUMENTATION_CLEANUP_METHOD.md`
 - `./PUBLICATION_CHECKLIST.md`
 
-## Schema family
-
-Portable schema artifacts now live at the repo root:
-
-- `../AGENTS-schema-governance.json`
-- `../AGENTS-schema-1project.json`
-- `../AGENTS-schema-narrative.json`
-- `../README-AGENTS-schema-governance.md`
-- `../README-AGENTS-schema-1project.md`
-- `../README-AGENTS-schema-narrative.md`
-- `../AGENTS-schema-comparison-matrix.md`
-
-Treat the `.json` files as canonical and the markdown companions as human-facing explainers.
-
 ## Templates
 
 - `../templates/AGENTS_TEMPLATE.md`
@@ -64,34 +71,20 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 - `../templates/CROSS_REPO_HANDOFF_TEMPLATE.md`
 - `../templates/STARTUP_CONTEXT_BUDGET_WORKSHEET.md`
 
-## Intended adaptation model
-
-Use this repo as a starting point, then adapt it for:
-
-- a single application repo
-- a multi-repo internal platform
-- a consulting/client delivery framework
-- an AI-assisted engineering workspace
-
 ## Document roles
 
-- canonical:
-  - startup prompt
-  - startup-context refactor guide
-  - startup-context budget model
-  - control-plane agent prompt model
-  - progress-over-patching model
-  - readiness model
-  - cross-repo contract model
-  - subagent safety model
-  - external impact-surface review for shared business objects and workflow lanes
-- supporting:
-  - templates
-  - cleanup method
-  - publication checklist
-- operational:
-  - TODO
-  - changelog
+- **schema family (canonical):**
+  - 4 schema JSON files + triage + Getting-Started
+  - this is the AGENTS Heuristic Underlay
+- **framework (canonical):**
+  - startup prompt, refactor guide, budget model, control-plane prompt model
+  - progress-over-patching, readiness model, cross-repo contracts, subagent safety
+- **research (supporting):**
+  - scratchpads, samples, assumption-failure pen test, comparison matrix
+- **reference (supporting):**
+  - schema READMEs, cleanup method, publication checklist, templates
+- **operational:**
+  - TODO, changelog
 
 ## Rule
 
