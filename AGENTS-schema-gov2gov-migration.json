@@ -153,6 +153,18 @@
           "value": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
           "missing": "invalid -- do not proceed"
         },
+        "plan-completion-directive": {
+          "type": "verbatim",
+          "required": true,
+          "value": "the prompt requires plan completion",
+          "missing": "invalid -- do not proceed"
+        },
+        "plan-requirement-directive": {
+          "type": "verbatim",
+          "required": true,
+          "value": "the prompt requires a plan",
+          "missing": "invalid -- do not proceed"
+        },
         "source-governance-system": {
           "type": "string",
           "required": true,
@@ -446,6 +458,8 @@
     "GOV2GOV-hello.md": {
       "schema-path": "{{workspace}}/AGENTS-schema-gov2gov-migration.json",
       "context-ordering-rule": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
+      "plan-completion-directive": "the prompt requires plan completion",
+      "plan-requirement-directive": "the prompt requires a plan",
       "source-governance-system": "",
       "target-governance-system": "",
       "migration-scope": "",

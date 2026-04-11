@@ -84,6 +84,18 @@
           "value": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
           "missing": "invalid -- do not proceed"
         },
+        "plan-completion-directive": {
+          "type": "verbatim",
+          "required": true,
+          "value": "the prompt requires plan completion",
+          "missing": "invalid -- do not proceed"
+        },
+        "plan-requirement-directive": {
+          "type": "verbatim",
+          "required": true,
+          "value": "the prompt requires a plan",
+          "missing": "invalid -- do not proceed"
+        },
         "file-list": {
           "type": "file-path[]",
           "required": true,
@@ -236,6 +248,8 @@
     "AGENTS.md": {
       "schema-path": "{{workspace}}/AGENTS-schema-1project.json",
       "context-ordering-rule": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
+      "plan-completion-directive": "the prompt requires plan completion",
+      "plan-requirement-directive": "the prompt requires a plan",
       "file-list": [
         "AGENTS-hello.md"
       ]

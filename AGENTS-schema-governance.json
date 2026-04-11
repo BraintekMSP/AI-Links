@@ -42,15 +42,15 @@
       "verbatim":    "fixed string that must be copied exactly -- no paraphrase, no interpretation",
       "term[]":      "array of entries in format: term [role: definition] -- not: excluded meaning",
       "rule[]":      "array of operating constraint strings -- each must reference only terms defined in scope or inherited",
-      "pitfall[]":   "array of failure records -- each declares: trigger (condition that caused it), failure-mode (what broke), resolution (confirmed correct behavior), session-count (times rediscovered -- higher means higher load priority) -- optional: superseded-by (FR/BR reference when picked up by external issue system), awaiting-external (blocked on a vendor or third-party relationship outside this project)"
+      "pitfall[]":   "array of failure records -- each declares: trigger (condition that caused it), failure-mode (what broke), resolution (confirmed correct behavior), session-count (times rediscovered -- higher means higher load priority) -- optional: superseded-by (FR/BR reference when picked up by external issue system), awaiting-external (waiting on a vendor or third-party relationship outside this project)"
     },
 
-    "blocked-until-values": {
+    "report-to-human-values": {
       "type": "enum",
       "values": ["human-confirms", "verification-passes", "parent-valid"],
       "definitions": {
-        "human-confirms":      "a human must explicitly approve before proceeding -- agent may not self-approve",
-        "verification-passes": "open measurement must return a clean diff before proceeding",
+        "human-confirms":      "report findings to human and receive explicit approval before continuing",
+        "verification-passes": "open measurement must return a clean diff before continuing",
         "parent-valid":        "parent scope file must be present and valid before this file is generated"
       }
     },
@@ -77,7 +77,7 @@
         "trigger": "file missing",
         "requires-before-generate": null,
         "prompt": "ask human to confirm workspace identity before writing anything",
-        "blocked-until": "human-confirms",
+        "report-to-human": "human-confirms",
         "ask-if-ambiguous": true
       },
       "fields": {
@@ -92,6 +92,18 @@
           "type": "verbatim",
           "required": true,
           "value": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
+          "missing": "invalid -- do not proceed"
+        },
+        "plan-completion-directive": {
+          "type": "verbatim",
+          "required": true,
+          "value": "the prompt requires plan completion",
+          "missing": "invalid -- do not proceed"
+        },
+        "plan-requirement-directive": {
+          "type": "verbatim",
+          "required": true,
+          "value": "the prompt requires a plan",
           "missing": "invalid -- do not proceed"
         },
         "file-list": {
@@ -117,7 +129,7 @@
         "requires-before-generate": "parent AGENTS-hello.md must be valid first",
         "none-if-scope": "platform",
         "prompt": "ask human to confirm scope, scope-level, parent, parties, end-user, deliverable-recipients before writing",
-        "blocked-until": "human-confirms",
+        "report-to-human": "human-confirms",
         "ask-if-ambiguous": true
       },
       "fields": {
@@ -127,7 +139,7 @@
           "default": "{{workspace}}/AGENTS-schema-governance.json",
           "missing": "invalid -- do not proceed"
         },
-        "scope": {
+        "scope-identity-statement": {
           "type": "string",
           "required": true,
           "role": "one-sentence statement of what this level is",
@@ -139,7 +151,7 @@
           "values": ["platform", "repo", "module"],
           "role": "which level of the hierarchy this file represents -- determines whether parent is required"
         },
-        "parent": {
+        "parent-scope-agents-hello-path": {
           "type": "file-path",
           "required": true,
           "none-if-scope": "platform",
@@ -190,23 +202,23 @@
           "fields": {
             "sync-engine": {
               "type": "string",
-              "required": false,
+              
               "role": "file sync service active on this workspace -- e.g. OneDrive, Dropbox, none -- bulk file operations may trigger mass sync"
             },
             "destructive-ops-default": {
               "type": "enum",
               "required": true,
               "values": ["allow", "confirm", "block"],
-              "role": "default posture for destructive operations -- confirm means blocked-until human-confirms before any delete, move, or overwrite"
+              "role": "default posture for destructive operations -- confirm means report-to-human before any delete, move, or overwrite"
             },
             "permission-error-behavior": {
               "type": "string",
-              "required": false,
+              
               "role": "how to interpret permission errors in this environment -- e.g. sandbox block not sync engine -- do not attempt permission changes unless human instructs"
             },
             "known-constraints": {
               "type": "string[]",
-              "required": false,
+              
               "role": "list of known environment-specific constraints agents must respect -- e.g. node_modules must install to AppData not project directory"
             }
           }
@@ -237,26 +249,21 @@
               "required": true,
               "role": "file path where open-to-close diff is recorded -- handoff is generated from this, not authored by agent"
             },
-            "blocked-on-discrepancy": {
+            "measurement-gate-on-discrepancy": {
               "type": "bool",
               "required": true,
               "role": "if true, session may not proceed past open discrepancies without human sign-off"
             }
           }
         },
-        "incomplete-session": {
-          "type": "file-path",
-          "required": false,
-          "role": "path to HANDOFF.md left at the present working directory when a session ended before work was complete and no plan file was started -- absent means no incomplete session -- prefer plan file if work is ongoing -- remove this field and the HANDOFF.md when the human confirms closure"
-        },
         "narrative-ref": {
           "type": "string",
-          "required": false,
+          
           "role": "reference to a narrative record that tracks this scope -- points to the record id in AGENTS-schema-narrative.json register -- omit if no narrative record exists"
         },
         "architecture": {
           "type": "object",
-          "required": false,
+          
           "role": "scope architecture declaration -- only present for app-repo and module scopes -- see architecture block in schema for field definitions",
           "active-when": "migration.measurement-profile is app-repo or module",
           "missing": "omit entirely for docs-repo and platform scopes -- do not leave empty"
@@ -272,11 +279,11 @@
         "trigger": "file missing",
         "requires-before-generate": "AGENTS-hello.md must be valid first",
         "prompt": "scan scope for high-entropy terms, propose definitions with role tags, ask human to confirm before writing",
-        "blocked-until": "human-confirms",
+        "report-to-human": "human-confirms",
         "ask-if-ambiguous": true
       },
       "fields": {
-        "inherits": {
+        "inherits-terms-from-parent-scope": {
           "type": "file-path",
           "required": true,
           "none-if-scope": "platform",
@@ -301,7 +308,7 @@
         "trigger": "file missing",
         "requires-before-generate": "AGENTS-Terms.md must be valid first",
         "prompt": "derive scope-statement from hello scope and parent vision, propose success and locked values, ask human to confirm",
-        "blocked-until": "human-confirms",
+        "report-to-human": "human-confirms",
         "ask-if-ambiguous": true
       },
       "fields": {
@@ -311,13 +318,13 @@
           "role": "what this level achieves within its parent vision",
           "ask-if-ambiguous": true
         },
-        "success": {
+        "what-done-looks-like-at-this-scope": {
           "type": "string",
           "required": true,
           "role": "what done looks like at this scope",
           "ask-if-ambiguous": true
         },
-        "locked": {
+        "commitments-that-must-survive-scope-evolution": {
           "type": "string[]",
           "required": true,
           "min": 1,
@@ -328,7 +335,7 @@
     },
 
     "AGENTS-Pitfalls.md": {
-      "required": false,
+      
       "load-order": 5,
       "role": "failure history for this scope -- past session failures that must survive across agent resets",
       "generates": {
@@ -341,7 +348,7 @@
         },
         "requires-before-generate": "AGENTS-Rules.md must be valid first",
         "prompt": "ask human to describe failure trigger, what went wrong, and confirmed resolution before writing -- do not infer from session context alone",
-        "blocked-until": "human-confirms",
+        "report-to-human": "human-confirms",
         "ask-if-ambiguous": true
       },
       "fields": {
@@ -351,7 +358,7 @@
           "default": "{{workspace}}/AGENTS-schema-governance.json",
           "missing": "invalid -- do not proceed"
         },
-        "inherits": {
+        "inherits-pitfalls-from-parent-scope": {
           "type": "file-path",
           "required": true,
           "none-if-scope": "platform",
@@ -359,10 +366,10 @@
         },
         "tier-history": {
           "type": "object[]",
-          "required": false,
+          
           "role": "ordered record of tier changes -- new sessions must read this to understand current density context and which recovery paths have been confirmed -- sort by date descending",
           "fields": {
-            "date":                 { "type": "date",        "required": true },
+            "date-tier-changed":    { "type": "date",        "required": true },
             "trigger-type":         { "type": "enum",        "required": true, "values": ["intra-attempt", "intra-session", "cross-session"] },
             "from-tier":            { "type": "enum",        "required": true, "values": ["low", "medium", "high"] },
             "to-tier":              { "type": "enum",        "required": true, "values": ["low", "medium", "high"] },
@@ -377,12 +384,12 @@
           "min": 1,
           "role": "ordered list of failure records -- sort by session-count descending so highest-recurrence failures load first",
           "fields": {
-            "trigger":       { "type": "string",  "required": true, "role": "condition or action that caused the failure" },
+            "failure-trigger":       { "type": "string",  "required": true, "role": "condition or action that caused the failure" },
             "failure-mode":  { "type": "string",  "required": true, "role": "what broke -- be specific, not categorical" },
             "resolution":    { "type": "string",  "required": true, "role": "confirmed correct behavior -- human-verified, not agent-inferred" },
             "session-count":    { "type": "int",    "required": true,  "role": "number of sessions this was rediscovered -- feeds complexity-density.signals.measurement-discrepancy-count" },
             "superseded-by":   { "type": "string", "required": false, "role": "FR or BR reference number when this pitfall has been picked up by the external issue system -- omit if not yet filed" },
-            "awaiting-external": { "type": "string", "required": false, "role": "blocked on a vendor, partner, or third-party relationship outside this project -- record who and why -- omit if not applicable" }
+            "awaiting-external": { "type": "string", "required": false, "role": "waiting on a vendor, partner, or third-party relationship outside this project -- record who and why -- omit if not applicable" }
           }
         }
       }
@@ -396,18 +403,18 @@
         "trigger": "file missing",
         "requires-before-generate": "AGENTS-Vision.md must be valid first",
         "prompt": "derive rules from vision and terms only -- no rule may reference an undefined term or contradict vision",
-        "blocked-until": "human-confirms",
+        "report-to-human": "human-confirms",
         "ask-if-ambiguous": true
       },
       "fields": {
-        "rules": {
+        "operating-rules-for-this-scope": {
           "type": "rule[]",
           "required": true,
           "min": 1,
           "role": "operating rules for this scope only -- must not restate parent rules",
           "constraint": "each rule must reference only terms defined in AGENTS-Terms.md at this scope or inherited"
         },
-        "refs": {
+        "required-files-loaded-before-rules-are-valid": {
           "type": "file-path[]",
           "required": true,
           "role": "terms and vision must be loaded before this file is valid",
@@ -421,15 +428,15 @@
     "role": "agents must declare which mode they are operating in before modifying any AGENTS file -- lighter than narrative edit-modes because governance files are structurally simpler -- docs-repo measurement should record the declared mode whenever governance files or migration conflict-surface docs change",
     "add": {
       "description": "new term, rule, pitfall, or conflation entry -- additive only -- existing entries unchanged",
-      "blocked-until": "human-confirms"
+      "report-to-human": "human-confirms"
     },
     "revise": {
       "description": "existing entry changes -- a term definition updates, a rule is reworded, a vision locked value shifts",
-      "blocked-until": "human-confirms"
+      "report-to-human": "human-confirms"
     },
     "remove": {
       "description": "entry deleted from an AGENTS file -- a rule is retired, a term is deprecated, a pitfall is resolved",
-      "blocked-until": "human-confirms"
+      "report-to-human": "human-confirms"
     },
     "none": {
       "description": "no governance-surface edits in this session -- close measurement should fail if AGENTS-family, schema-family, governance-control, or classified conflict-surface files changed under this declaration"
@@ -462,7 +469,7 @@
     },
     "observed-good-patterns": {
       "type": "object[]",
-      "required": false,
+      
       "role": "patterns worth preserving -- what worked in this scope -- populate from real sessions -- omit if nothing notable",
       "entry-fields": {
         "description": { "type": "string", "required": true,  "role": "what worked and why it is worth repeating" },
@@ -472,7 +479,7 @@
     },
     "observed-bad-patterns": {
       "type": "object[]",
-      "required": false,
+      
       "role": "known problems in this scope -- if something went wrong record it here -- omit only when nothing has gone wrong -- numbers when they apply, narrative when they do not -- side-effect failures count (example: operation succeeded but broke a separate integration)",
       "entry-fields": {
         "description":  { "type": "string", "required": true,  "role": "what went wrong and what broke as a side effect" },
@@ -484,7 +491,7 @@
     "soft-metrics": {
       "low":    { "condition": "signals stable -- no unresolved bad patterns",                                                                              "action": "continue in current scope" },
       "medium": { "condition": "any unresolved bad pattern -- or multiple signals elevated across consecutive sessions",                                     "action": "flag for human review" },
-      "high":   { "condition": "bad pattern recurring without resolution -- or multiple signals elevated with no clear scope boundary in sight",             "action": "generate module extraction prompt -- blocked-until human-confirms" }
+      "high":   { "condition": "bad pattern recurring without resolution -- or multiple signals elevated with no clear scope boundary in sight",             "action": "generate module extraction prompt -- report-to-human before proceeding" }
     },
 
     "operational-modes": {
@@ -498,14 +505,14 @@
       },
       "medium": {
         "posture": "conservative -- no destructive operations without explicit human confirmation regardless of environment default",
-        "destructive-ops": "blocked-until human-confirms",
+        "destructive-ops": "report-to-human before executing",
         "file-ops": "declare intent before executing",
         "starter-context": ["AGENTS.md", "AGENTS-hello.md", "AGENTS-Terms.md", "AGENTS-Vision.md", "AGENTS-Rules.md", "AGENTS-Pitfalls.md"]
       },
       "high": {
-        "posture": "proposal mode -- agent proposes, does not execute -- all writes blocked-until human-confirms",
-        "destructive-ops": "blocked -- do not execute regardless of instruction",
-        "file-ops": "blocked-until human-confirms for any write operation",
+        "posture": "proposal mode -- agent proposes and reports to human -- human approves each write",
+        "destructive-ops": "report-to-human for every destructive operation regardless of instruction",
+        "file-ops": "report-to-human for any write operation",
         "starter-context": ["AGENTS.md", "AGENTS-hello.md", "AGENTS-Terms.md", "AGENTS-Vision.md", "AGENTS-Rules.md", "AGENTS-Pitfalls.md"]
       }
     },
@@ -517,19 +524,19 @@
         "condition": "same operation fails 2 times within a single attempt",
         "recovery": "ingest parent scope AGENTS files immediately -- retry the operation",
         "if-resolved": "raise current-tier one level in AGENTS-hello.md -- append entry to AGENTS-Pitfalls.md tier-history",
-        "if-unresolved": "record new pitfall entry -- do not raise tier -- escalate to intra-session tracking"
+        "else": "record new pitfall entry -- do not raise tier -- escalate to intra-session tracking"
       },
       "intra-session": {
         "condition": "3 distinct operation failures across the current session",
         "recovery": "ingest parent scope AGENTS files before each retry",
         "if-resolved": "raise current-tier one level -- append entry to tier-history",
-        "if-unresolved": "record new pitfall or conflation entry depending on failure type -- do not raise tier"
+        "else": "record new pitfall or conflation entry depending on failure type -- do not raise tier"
       },
       "cross-session": {
         "condition": "same pitfall session-count reaches 5 across unique sessions",
         "recovery": "ingest parent scope AGENTS files at session open -- front-load before any work begins",
-        "if-resolved": "raise current-tier one level -- evaluate whether new rule or terms entry is warranted -- blocked-until human-confirms for any rule or terms change",
-        "if-unresolved": "flag for human review -- scope boundary problem, not a context problem -- do not raise tier"
+        "if-resolved": "raise current-tier one level -- evaluate whether new rule or terms entry is warranted -- report-to-human before any rule or terms change",
+        "else": "flag for human review -- scope boundary problem, not a context problem -- do not raise tier"
       }
     }
   },
@@ -543,7 +550,7 @@
       },
       "generates": {
         "output": "structured extraction decision prompt -- not a free-form doc",
-        "blocked-until": "human-confirms",
+        "report-to-human": "human-confirms",
         "ask-if-ambiguous": true
       }
     },
@@ -561,10 +568,10 @@
         ]
       },
       "fields": {
-        "date":         { "type": "date",     "required": true },
-        "decision":     { "type": "enum",     "required": true, "values": ["approved", "rejected"] },
-        "context":      { "type": "string",   "required": true, "role": "why this discrepancy exists and what is expected to resolve it", "ask-if-ambiguous": true },
-        "changed":      { "type": "string[]", "required": true, "role": "what specifically changed that created the discrepancy" },
+        "date-decision-was-made": { "type": "date",     "required": true },
+        "approval-or-rejection":  { "type": "enum",     "required": true, "values": ["approved", "rejected"] },
+        "why-this-discrepancy-exists": { "type": "string",   "required": true, "role": "why this discrepancy exists and what is expected to resolve it", "ask-if-ambiguous": true },
+        "what-specifically-changed":   { "type": "string[]", "required": true, "role": "what specifically changed that created the discrepancy" },
         "confirmed-by": { "type": "string",   "required": true, "role": "human who confirmed -- not agent" }
       }
     }
@@ -575,9 +582,9 @@
     "mode": {
       "type": "enum",
       "required": true,
-      "values": ["greenfield", "migration"],
+      "values": ["first-time-governance-authoring", "migration"],
       "definitions": {
-        "greenfield": "no existing AGENTS files -- generate from schema and templates",
+        "first-time-governance-authoring": "no existing AGENTS files -- generate from schema and templates",
         "migration":  "existing authority file present -- map content to new structure, do not discard"
       }
     },
@@ -616,11 +623,11 @@
     "review-before-migration-prompt": "Read the existing authority file at migration.existing-authority completely before writing anything. What content does it declare that would map to Terms, Vision, Rules, or Pitfalls in the new structure? What mandatory reads are present that are not yet represented in the new file set? Which conflict-surface files are active-control, active-bridge, or historical-supporting? What would block migration from completing cleanly? Return: gap-list, mandatory-reads-to-preserve, classified-conflict-surface, and first-unknown-encountered. Present findings to human before writing any new file.",
 
     "authoring-sequence": {
-      "role": "ordered steps for authoring AGENTS files from this schema -- follow in sequence, do not skip blocked-until gates",
-      "greenfield": [
+      "role": "ordered steps for authoring AGENTS files from this schema -- follow in sequence, report to human at each gate before continuing",
+      "first-time-governance-authoring": [
         "read this schema fully -- meta through templates -- before writing anything",
         "confirm scope identity with human: workspace, scope-level, parent",
-        "generate files in load-order (0 through 5) using templates as the starting point -- blocked-until human-confirms each file before writing the next",
+        "generate files in load-order (0 through 5) using templates as the starting point -- report-to-human and receive approval before writing the next file",
         "populate agent-session-open-close-measurement fields before declaring authoring complete"
       ],
       "migration": [
@@ -634,7 +641,7 @@
         "for docs-repo migrations, do not stop at file-family creation -- finish the conflict-surface migration and historical labeling before calling the migration complete",
         "remove a mandatory read only when: its content is fully migrated AND the instruction cascades naturally through the new system AND it is not core to a standard repository",
         "remove redundant instructions that the new system already enforces -- do not carry forward what the schema makes implicit",
-        "generate files in load-order (0 through 5) using templates as the starting point -- blocked-until human-confirms each file before writing the next",
+        "generate files in load-order (0 through 5) using templates as the starting point -- report-to-human and receive approval before writing the next file",
         "declare edit mode before modifying governance files or conflict-surface files",
         "update all conflict-surface files after all new AGENTS files are confirmed valid"
       ]
@@ -643,7 +650,7 @@
 
   "conflations": {
     "role": "optional -- disambiguation map for terms that carry multiple meanings in this workspace or would override agent statistical defaults",
-    "required": false,
+    
     "when-to-use": "declare a term here when it can complete in 3+ meaningfully different directions without context, or when a term in this workspace overrides a common industry meaning",
     "type": "object[]",
     "fields": {
@@ -664,12 +671,12 @@
       },
       "not": {
         "type": "string[]",
-        "required": false,
+        
         "role": "meanings explicitly excluded -- use when the default-load is close enough to cause silent misapplication"
       },
       "context-cue": {
         "type": "string",
-        "required": false,
+        
         "role": "how to tell which meaning applies when the term carries more than one valid meaning in this workspace -- e.g. capitalization, path prefix, surrounding terms"
       }
     },
@@ -714,7 +721,7 @@
 
   "architecture": {
     "role": "optional extension -- activate only when measurement-profile is app-repo or module -- governs ownership and mutation semantics for code-level truth",
-    "required": false,
+    
     "active-when": {
       "operator": "any-of",
       "conditions": [
@@ -769,7 +776,7 @@
       },
       "observed-good-patterns": {
         "type": "object[]",
-        "required": false,
+        
         "role": "architectural patterns worth preserving -- what worked in this scope -- populate from real audits -- omit if nothing notable",
         "entry-fields": {
           "description": { "type": "string", "required": true,  "role": "what worked and why it is worth repeating" },
@@ -778,7 +785,7 @@
       },
       "observed-bad-patterns": {
         "type": "object[]",
-        "required": false,
+        
         "role": "known architectural problems in this scope -- if something went wrong record it here -- omit only when nothing has gone wrong",
         "entry-fields": {
           "description": { "type": "string", "required": true,  "role": "what went wrong and what broke as a side effect" },
@@ -789,7 +796,7 @@
       "soft-metrics": {
         "low":    { "condition": "signals stable -- no unresolved bad patterns",                                                                   "action": "continue -- no architectural review required" },
         "medium": { "condition": "any unresolved bad pattern -- or multiple drift signals elevated across consecutive sessions",                    "action": "flag for human review before next authoring session" },
-        "high":   { "condition": "bad pattern recurring without resolution -- or multiple drift signals elevated with no clear boundary in sight",  "action": "block new feature work -- architecture review required before proceeding -- blocked-until human-confirms" }
+        "high":   { "condition": "bad pattern recurring without resolution -- or multiple drift signals elevated with no clear boundary in sight",  "action": "architecture review required before new feature work -- report-to-human before proceeding" }
       }
     },
 
@@ -798,8 +805,8 @@
       "type": "object[]",
       "required-if-active": true,
       "fields": {
-        "object":        { "type": "string",    "required": true, "role": "name of the durable business object" },
-        "class":         { "type": "enum",      "required": true, "values": ["truth", "constructor", "mutation", "consumer", "validator"] },
+        "durable-business-object-name": { "type": "string",    "required": true, "role": "name of the durable business object" },
+        "object-class":  { "type": "enum",      "required": true, "values": ["truth", "constructor", "mutation", "consumer", "validator"] },
         "owner-scope":   { "type": "file-path", "required": true, "role": "AGENTS-hello.md of the scope responsible for this object -- for truth class: the authoritative owner -- for all other classes: the scope where this object lives" },
         "consumers":     { "type": "file-path[]", "required": false, "role": "AGENTS-hello.md paths of scopes permitted to consume this object" },
         "mutations-permitted": { "type": "bool", "required": true, "role": "whether bounded mutations are allowed by non-owner scopes -- default false" }
@@ -842,6 +849,8 @@
     "AGENTS.md": {
       "schema-path": "{{workspace}}/AGENTS-schema-governance.json",
       "context-ordering-rule": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
+      "plan-completion-directive": "the prompt requires plan completion",
+      "plan-requirement-directive": "the prompt requires a plan",
       "file-list": [
         "AGENTS-hello.md",
         "AGENTS-Terms.md",
@@ -852,9 +861,9 @@
 
     "AGENTS-hello.md": {
       "schema-path": "{{workspace}}/AGENTS-schema-governance.json",
-      "scope": "",
+      "scope-identity-statement": "",
       "scope-level": "",
-      "parent": "",
+      "parent-scope-agents-hello-path": "",
       "parties": [],
       "end-user": "",
       "deliverable-recipients": "",
@@ -875,29 +884,29 @@
         "baseline": "",
         "close": "",
         "diff": "",
-        "blocked-on-discrepancy": true
+        "measurement-gate-on-discrepancy": true
       }
     },
 
     "AGENTS-Terms.md": {
-      "inherits": "",
+      "inherits-terms-from-parent-scope": "",
       "definitions": []
     },
 
     "AGENTS-Vision.md": {
       "scope-statement": "",
-      "success": "",
-      "locked": []
+      "what-done-looks-like-at-this-scope": "",
+      "commitments-that-must-survive-scope-evolution": []
     },
 
     "AGENTS-Rules.md": {
-      "refs": ["AGENTS-Terms.md", "AGENTS-Vision.md"],
-      "rules": []
+      "required-files-loaded-before-rules-are-valid": ["AGENTS-Terms.md", "AGENTS-Vision.md"],
+      "operating-rules-for-this-scope": []
     },
 
     "AGENTS-Pitfalls.md": {
       "schema-path": "{{workspace}}/AGENTS-schema-governance.json",
-      "inherits": "",
+      "inherits-pitfalls-from-parent-scope": "",
       "tier-history": [],
       "pitfalls": []
     },
@@ -921,8 +930,8 @@
       "note": "copy this block into the relevant AGENTS-hello.md scope file -- do not add to docs-repo scopes",
       "ownership-declaration": [
         {
-          "object": "",
-          "class": "",
+          "durable-business-object-name": "",
+          "object-class": "",
           "owner-scope": "",
           "consumers": [],
           "mutations-permitted": false

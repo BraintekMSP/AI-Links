@@ -328,6 +328,7 @@
 
   "authoring-sequence": {
     "role": "ordered steps for creating and maintaining narrative records -- two modes: cold-start for new records, update for existing",
+    "plan-directives": "the prompt requires a plan -- the prompt requires plan completion -- make a plan before writing, complete the plan before stopping",
 
     "cold-start": [
       "read this schema fully before writing anything",
