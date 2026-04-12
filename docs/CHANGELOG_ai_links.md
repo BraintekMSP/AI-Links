@@ -2,6 +2,73 @@
 
 ## 2026-04-12
 
+### Anarchy-AI setup EXE direction
+
+- Stopped treating `plugins/AnarchyAi.Setup.exe` as a committed source artifact.
+- Added `.gitignore` coverage for `plugins/AnarchyAi.Setup.exe` so the self-contained installer stays a generated local build output.
+- Added `harness/setup/scripts/build-self-contained-exe.ps1` as the canonical one-command build helper for regenerating the self-contained setup executable.
+- Kept `publish-anarchy-ai-setup.ps1` only as a compatibility wrapper so older references do not break immediately.
+- Added `docs/ANARCHY_AI_SETUP_EXE_SPEC.md` to define the preferred next delivery surface:
+  - `AnarchyAi.Setup.exe` as installer/bootstrap
+  - `AnarchyAi.Mcp.Server.exe` as the long-running MCP runtime
+- Preserved the desired GUI/CLI split:
+  - no-argument launch opens a simple Windows installer UI
+  - switch-driven launch remains silent/JSON-friendly for agents and automation
+- Recorded the explicit installer command surface around:
+  - `/assess`
+  - `/install`
+  - `/update`
+  - `/silent`
+  - `/json`
+  - `/repo`
+  - `/sourcepath`
+  - `/sourceurl`
+  - `/refreshschemas`
+- Preserved the stronger delivery decision that agent use of the installer should continue to behave like the current bootstrap lane rather than inventing a second install semantics.
+- Updated the harness architecture note and runbook hub so the repo now states the intended split between setup executable and runtime executable explicitly.
+- Added the same direction to the implementation gap register so script-first bootstrap is treated as an interim lane rather than the preferred long-term user-facing install surface.
+- Implemented the first real `AnarchyAi.Setup.exe` project under `harness/setup/dotnet/` and published the single-file Windows executable to `plugins/AnarchyAi.Setup.exe`.
+- The setup executable now:
+  - embeds the current `plugins/anarchy-ai` bundle
+  - materializes the plugin bundle into a target repo
+  - creates or updates `.agents/plugins/marketplace.json`
+  - supports CLI `/assess`, `/install`, and `/update`
+  - supports `/repo`, `/sourcepath`, `/sourceurl`, and `/refreshschemas`
+  - provides a minimal no-argument GUI for `Assess` and `Install`
+- Added a GUI install disclosure page that appears before interactive install proceeds and summarizes:
+  - repo changes
+  - product behavior
+  - human impact
+  - AI impact
+- Kept the disclosure concise and mostly generated from current installer facts so it stays aligned with rebuilds instead of drifting into stale hand-written claims.
+- Added `harness/setup/scripts/publish-anarchy-ai-setup.ps1` as the one-command publish helper for regenerating `plugins/AnarchyAi.Setup.exe`.
+- The helper:
+  - resolves a usable SDK path
+  - publishes with machine-local temp `obj/bin/publish` lanes
+  - refreshes the repo-carried setup executable directly
+- Added real CLI help alias support to `AnarchyAi.Setup.exe` for:
+  - `/?`
+  - `-?`
+  - `/h`
+  - `-h`
+  - `/help`
+  - `-help`
+  - `--help`
+  - `--?`
+- The help output is now a generated plain-text summary instead of a parser failure, and it tells the actor:
+  - that Anarchy-AI is available in the repo
+  - that install provides preflight, gap assessment, and schema reality checks
+  - what repo-local changes install will make
+- Validated locally against disposable temp repos:
+  - repo-local install
+  - repo-local assess
+  - local-source update
+  - optional portable schema family materialization
+- Added `docs/VISION_REGISTER_MODEL.md` to define the missing structured vision-register direction.
+- Recorded two new implementation gaps:
+  - vision capture still lacks a structured register with traceable implementation and detractor fields
+  - vision qualification, capture, and detractor notes are not yet bounded harness-control surfaces
+
 ### Anarchy-AI repo install runbook
 
 - Added `docs/ANARCHY_AI_REPO_INSTALL_PROCESS.md` as the exact current repo-bootstrap install process for bringing Anarchy-AI into another repository.

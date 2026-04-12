@@ -59,6 +59,7 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 
 - `./AI_COLLAB_STARTUP_PROMPT.md`
 - `./ANARCHY_AI_HARNESS_ARCHITECTURE.md`
+- `./VISION_REGISTER_MODEL.md`
 - `./VISION_anarchy_ai_harness_core.md`
 - `./VISION_anarchy_ai_delivery_and_access.md`
 - `./VISION_negation_context_span_verbatim.md`
@@ -75,8 +76,11 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 ## Anarchy-AI runtime harness
 
 - `./ANARCHY_AI_HARNESS_ARCHITECTURE.md` - implementation-level harness architecture, actor split, and adapter allocation
+- `./ANARCHY_AI_SETUP_EXE_SPEC.md` - preferred Windows-first installer contract for separating `Setup.exe` delivery/bootstrap from the MCP runtime
 - `./ANARCHY_AI_REPO_INSTALL_PROCESS.md` - exact repo-bootstrap install process for delivering Anarchy-AI into another repo
 - `../harness/README.md` - local runtime harness boundary and capability notes
+- `../harness/setup/dotnet/AnarchyAi.Setup.csproj` - Windows-first setup/installer project that embeds the current plugin bundle and exposes GUI/CLI bootstrap behavior
+- `../harness/setup/scripts/build-self-contained-exe.ps1` - one-command helper that builds the self-contained setup executable with temp build lanes and refreshes the local generated `plugins/AnarchyAi.Setup.exe`
 - `../harness/contracts/preflight-session.contract.json` - session preflight contract for meaningful governed work
 - `../harness/contracts/schema-reality.contract.json` - first harness contract for `is_schema_real_or_shadow_copied`
 - `../harness/contracts/harness-gap-state.contract.json` - environment gap-assessment contract for install/runtime/schema/adoption state
@@ -87,10 +91,11 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 
 ## Anarchy-AI plugin delivery
 
+- `../plugins/AnarchyAi.Setup.exe` - preferred repo-local single-file installer/bootstrap executable for Anarchy-AI after it is generated locally by the build helper; this binary is not tracked in git
 - `../plugins/anarchy-ai/.codex-plugin/plugin.json` - repo-local plugin manifest for Anarchy-AI delivery
 - `../plugins/anarchy-ai/.mcp.json` - plugin MCP declaration that launches the bundled runtime directly
 - `../plugins/anarchy-ai/runtime/win-x64/AnarchyAi.Mcp.Server.exe` - bundled Windows-first self-contained MCP runtime used by the delivery plugin
-- `../plugins/anarchy-ai/scripts/bootstrap-anarchy-ai.ps1` - repo-bootstrap lane for registration, quick install assessment, and bundle refresh
+- `../plugins/anarchy-ai/scripts/bootstrap-anarchy-ai.ps1` - compatibility/fallback repo-bootstrap lane for registration, quick install assessment, and bundle refresh after the bundle exists
 - `../plugins/anarchy-ai/scripts/stop-anarchy-ai.ps1` - bounded runtime-lock assess, safe-release, and force-release command for the repo-local Anarchy-AI process
 - `../plugins/anarchy-ai/scripts/start-anarchy-ai.cmd` - development helper only, not the intended delivery path
 - `../plugins/anarchy-ai/skills/anarchy-ai-harness/SKILL.md` - usage layer for the five core harness tools

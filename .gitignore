@@ -32,3 +32,6 @@ build/
 coverage/
 tmp/
 temp/
+
+# Generated setup executable
+plugins/AnarchyAi.Setup.exe

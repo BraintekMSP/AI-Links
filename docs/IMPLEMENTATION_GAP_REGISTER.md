@@ -42,6 +42,11 @@ Addressed in current local state and ready for re-review after commit:
 
 - first-class `preflight_session` and `assess_harness_gap_state` contracts in the shared harness core
 - explicit repo-bootstrap lane through `plugins/anarchy-ai/scripts/bootstrap-anarchy-ai.ps1`
+- separate Windows-first `AnarchyAi.Setup.exe` delivery lane with:
+  - embedded plugin bundle materialization
+  - repo-local marketplace registration
+  - CLI assess/install/update behavior
+  - minimal GUI assess/install behavior
 - plugin trust metadata and user-facing trust surfaces
 - direct bundled-runtime launch path as the primary documented delivery path
 - stale `scaffold` / `first two tools` maturity framing across harness and plugin docs
@@ -422,6 +427,36 @@ This is not yet the finalized install architecture, but it is a stronger directi
 
 ---
 
+### 9C. The Preferred Delivery Surface Is A Separate Setup EXE, Not A Script-First Bootstrap
+
+#### Gap
+
+The current repo-bootstrap lane works, but the preferred delivery shape is now clearer and partially delivered:
+
+- `AnarchyAi.Setup.exe` now exists locally as the installer/bootstrap surface
+- `AnarchyAi.Mcp.Server.exe` should remain the runtime surface
+
+The current PowerShell bootstrap script is still useful, but it is no longer the preferred long-term user-facing install path.
+
+#### Why it matters
+
+- users should not need to read or invoke a script just to install a repo-local harness
+- agents need a bounded machine-readable installer lane that is semantically equivalent to the current bootstrap path
+- the MCP runtime should not absorb installer/update responsibilities that would blur its role or complicate self-replacement
+
+#### What this points toward
+
+- keep the separate Windows-first `Setup.exe`
+- expand the no-argument GUI beyond the current minimal assess/install surface
+- keep switch-driven launch as silent/JSON CLI behavior for agents and automation
+- preserve alternate repo targeting through an explicit `/repo` override
+
+#### Problem being solved
+
+- replacing script-first delivery with a cleaner installer surface without forking the underlying bootstrap semantics
+
+---
+
 ### 10. Claim Discipline Gap In Scratchpad #2
 
 #### Gap
@@ -511,6 +546,81 @@ The narrative lessons are still incomplete.
 #### Problem being solved
 
 - preventing premature schema proliferation while still preserving the observed need for a more rigid factual capture model
+
+---
+
+### 13. Vision Capture Still Lacks A Structured Register
+
+#### Gap
+
+The repo preserves vision artifacts, but it still lacks a durable vision-register shape that can track:
+
+- what the user asked for
+- the exact human quote that mattered
+- why the request qualified as vision
+- which implementation surfaces were implicated
+- how implemented the vision actually is
+- how many known detractors still undermine delivery quality
+
+Minimum desired properties:
+
+- `vision_request`
+- `human_quote`
+- `qualifying_context`
+- `surfaces_affected`
+- `implementation_assessed_at_percent`
+- `implementation_grade_detractor_count`
+
+#### Why it matters
+
+- current vision capture is still too artifact-shaped and not traceable enough
+- durable user intent can get preserved in prose without becoming implementation-legible
+- later agents can inherit the artifact without inheriting a clean view of implementation progress or detractors
+
+#### What this points toward
+
+- define a real vision-register model and file shape
+- preserve both normalized request and exact human quote
+- separate implementation progress from implementation detractors
+
+#### Problem being solved
+
+- making durable human direction traceable without collapsing it into loose prose
+
+---
+
+### 14. Vision Qualification And Detractor Controls Are Not Yet Harness Surfaces
+
+#### Gap
+
+The harness does not yet have bounded controls for:
+
+- qualifying a prompt as vision
+- capturing a vision entry
+- attaching detractors to an existing vision item
+
+Desired future helper surfaces:
+
+- `qualify_as_vision`
+- `capture_vision`
+- `detract_from_vision_id_with_note`
+
+#### Why it matters
+
+- long prompts alone are not enough to distinguish durable vision from transient chat
+- if capture stays ad hoc, later rebuilds or refactors can drift away from what the human actually constrained
+- implementation quality is not binary, so vision needs a detractor lane instead of only `implemented / not implemented`
+
+#### What this points toward
+
+- define bounded qualification rules
+- keep long human prompts as a cue, not as the sole criterion
+- preserve exact quotes alongside normalized structure
+- add later harness support for detractor notes against stable `vision_id`s
+
+#### Problem being solved
+
+- preventing durable product direction from being lost, misqualified, or flattened during later implementation work
 
 ---
 

@@ -43,16 +43,34 @@ The broader harness contract may later travel farther than the current packaged 
 
 The plugin provides:
 
+- a preferred repo-local installer at `../AnarchyAi.Setup.exe` after that installer is generated locally by the build helper
 - a local MCP declaration through `.mcp.json`
 - direct launch of the bundled `.NET 8` self-contained single-file runtime inside the plugin
 - a bundled canonical schema family plus hash manifest under `./schemas/`
 - a skill that teaches when to use the five bounded runtime tools
-- a repo-bootstrap script at `./scripts/bootstrap-anarchy-ai.ps1` for install, assess, and bundle refresh
+- a repo-bootstrap script at `./scripts/bootstrap-anarchy-ai.ps1` as a compatibility/fallback lane for install, assess, and bundle refresh after the bundle already exists
 - a runtime lock script at `./scripts/stop-anarchy-ai.ps1` for assessing, safely releasing, or forcibly releasing the bundled repo-local Anarchy-AI runtime lock
 
 The repo-local launcher script is retained only as a development helper during source work. It is not the intended packaged delivery path.
 
 The plugin does not yet add a custom UI panel or settings page.
+
+The setup executable now also exposes CLI help aliases:
+
+- `/?`
+- `-?`
+- `/h`
+- `-h`
+- `/help`
+- `-help`
+- `--help`
+- `--?`
+
+That help output is intentionally generated from current installer facts so an agent or user can see:
+
+- that Anarchy-AI is available in the repo
+- what bounded harness capabilities install makes available
+- what concrete repo changes install will make
 
 ## Current Tool State
 
@@ -109,4 +127,6 @@ The plugin does not yet add a custom UI panel or settings page.
   - it makes the cause legible when a live runtime lock is blocking update
   - it gives the agent stronger direction about the problem before it reaches for broader file or path manipulation
 - The plugin bundle still does not invent repo-authored governed files such as `AGENTS-hello.md`, `AGENTS-Terms.md`, `AGENTS-Vision.md`, or `AGENTS-Rules.md`.
-- The current first install lane is repo bootstrap, not machine-wide install.
+- The preferred current first install lane is `../AnarchyAi.Setup.exe`.
+- In the `AI-Links` source repo, that setup executable is a generated artifact, not a tracked file.
+- The current overall install posture is still repo-local, not machine-wide.

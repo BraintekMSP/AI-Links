@@ -77,6 +77,9 @@ Together they define:
 - safe next actions
 - a minimal migration handoff and result shape
 - the launchable MCP server lane Codex can point at
+- the separate setup/installer lane now implemented in:
+  - `./setup/dotnet/AnarchyAi.Setup.csproj`
+  - `../plugins/AnarchyAi.Setup.exe` after local generation through `./setup/scripts/build-self-contained-exe.ps1`
 
 ## Intended Follow-On
 

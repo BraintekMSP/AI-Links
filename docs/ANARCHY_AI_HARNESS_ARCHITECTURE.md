@@ -126,6 +126,15 @@ Current v1 delivery direction:
 - optional direct user use
 - Codex + Claude as first-class compatibility targets
 
+Preferred next delivery direction:
+
+- `AnarchyAi.Setup.exe` becomes the installer/bootstrap surface
+- `AnarchyAi.Mcp.Server.exe` remains the long-running runtime
+- no-argument launch opens a simple Windows GUI installer
+- switch-driven launch remains machine-readable and agent-friendly
+- repo-local install remains the default target
+- explicit alternate repo targeting remains available through `/repo`
+
 Still-open gaps:
 
 - machine-level install

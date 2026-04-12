@@ -1,12 +1,12 @@
-﻿# Anarchy-AI Repo Installation Process
+# Anarchy-AI Repo Installation Process
 
 ## Purpose
 
-This document defines the exact current repo-bootstrap installation process for bringing Anarchy-AI into another repository.
+This document defines the exact current repo-local installation process for bringing Anarchy-AI into another repository.
 
 This is the current real delivery path.
-It is not the future machine-level installer path.
-It is the repo-local process that makes the harness:
+It is repo-local, not machine-level install.
+It is the current process that makes the harness:
 
 - delivered
 - accessible
@@ -20,13 +20,33 @@ Current reality:
 - Claude shares the contract model and MCP direction, but does not yet have an equivalent packaged adapter in this repo
 - Cursor is not a first-class install target yet
 
-## What gets delivered
+## Preferred current delivery surface
 
-For a target repo, delivery means copying these surfaces into that repo.
+The preferred first-delivery surface is one file:
+
+- `plugins/AnarchyAi.Setup.exe`
+
+In the `AI-Links` source repo, that installer should be generated first with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\harness\setup\scripts\build-self-contained-exe.ps1
+```
+
+That file now handles:
+
+- plugin bundle materialization into `plugins/anarchy-ai/`
+- repo-local marketplace registration
+- readiness assessment
+- bundle refresh from local source path or public source url
+- optional portable schema family materialization when requested
+
+The older script-first lane still exists, but it is now the compatibility/fallback path after the bundle already exists.
+
+## What gets delivered after setup runs
 
 ### 1. Harness plugin bundle
 
-Copy the entire directory:
+The setup executable materializes:
 
 `plugins/anarchy-ai/`
 
@@ -40,80 +60,16 @@ That bundle contains:
 - `skills/anarchy-ai-harness/SKILL.md`
 - `scripts/bootstrap-anarchy-ai.ps1`
 - `scripts/start-anarchy-ai.cmd`
+- `scripts/stop-anarchy-ai.ps1`
 - plugin trust and asset files
 
 ### 2. Marketplace registration
 
-Marketplace registration is still required, but it no longer needs to be manual.
+Setup also creates or updates:
 
-The current repo-bootstrap script can:
+`./.agents/plugins/marketplace.json`
 
-- create `./.agents/plugins/`
-- create `./.agents/plugins/marketplace.json` if it does not exist
-- add or update the `anarchy-ai` plugin entry
-- enforce `INSTALLED_BY_DEFAULT`
-
-This is what makes the plugin present by default instead of merely available.
-
-### 3. Schema family when the target repo is adopting the underlay
-
-If the target repo is adopting the AGENTS Heuristic Underlay, also copy the portable deployment set into the repo root:
-
-- `AGENTS-schema-governance.json`
-- `AGENTS-schema-1project.json`
-- `AGENTS-schema-narrative.json`
-- `AGENTS-schema-gov2gov-migration.json`
-- `AGENTS-schema-triage.md`
-- `Getting-Started-For-Humans.txt`
-
-Do not confuse harness delivery with schema reality.
-Copying the schema family alone does not make the system real.
-
-## Exact installation steps in another repo
-
-Assume:
-
-- source repo = the repo that already carries Anarchy-AI
-- target repo = the repo you want to equip
-
-### Step 1. Copy the plugin bundle
-
-Copy `plugins/anarchy-ai/` from the source repo into the target repo at the same relative path.
-
-Result required:
-
-- `./plugins/anarchy-ai/.codex-plugin/plugin.json` exists
-- `./plugins/anarchy-ai/.mcp.json` exists
-- `./plugins/anarchy-ai/runtime/win-x64/AnarchyAi.Mcp.Server.exe` exists
-- `./plugins/anarchy-ai/contracts/` contains all current contract files
-- `./plugins/anarchy-ai/skills/anarchy-ai-harness/SKILL.md` exists
-- `./plugins/anarchy-ai/scripts/bootstrap-anarchy-ai.ps1` exists
-
-### Step 2. Run repo bootstrap install
-
-From the target repo root, run:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\plugins\anarchy-ai\scripts\bootstrap-anarchy-ai.ps1 -Mode Install
-```
-
-This is the current first install lane.
-
-What it does now:
-
-- checks bundled runtime presence
-- checks plugin manifest presence
-- checks MCP declaration presence
-- checks skill presence
-- checks schema bundle manifest presence
-- checks contract presence
-- creates `./.agents/plugins/` when missing
-- creates `./.agents/plugins/marketplace.json` when missing
-- creates or updates the repo-local marketplace entry for `anarchy-ai`
-- enforces `INSTALLED_BY_DEFAULT`
-- returns a bounded bootstrap result
-
-Current exact plugin entry shape after bootstrap:
+It enforces this plugin entry shape:
 
 ```json
 {
@@ -130,12 +86,69 @@ Current exact plugin entry shape after bootstrap:
 }
 ```
 
-### Step 3. Verify bootstrap state
+### 3. Optional root schema family
+
+If the target repo is adopting the AGENTS Heuristic Underlay, setup can also materialize the portable schema family into repo root when explicitly requested.
+
+That set is:
+
+- `AGENTS-schema-governance.json`
+- `AGENTS-schema-1project.json`
+- `AGENTS-schema-narrative.json`
+- `AGENTS-schema-gov2gov-migration.json`
+- `AGENTS-schema-triage.md`
+- `Getting-Started-For-Humans.txt`
+
+Do not confuse harness delivery with schema reality.
+Copying or refreshing schema files alone does not make the system materially governed.
+
+## Exact installation steps in another repo
+
+Assume:
+
+- source repo = the repo that already carries Anarchy-AI
+- target repo = the repo you want to equip
+
+### Step 1. Copy the setup executable
+
+Generate and then copy this file from the source repo into the target repo:
+
+`plugins/AnarchyAi.Setup.exe`
+
+Place it here:
+
+`./plugins/AnarchyAi.Setup.exe`
+
+### Step 2. Run install
+
+From the target repo root, run:
+
+```powershell
+.\plugins\AnarchyAi.Setup.exe /install
+```
+
+Or double-click:
+
+`./plugins/AnarchyAi.Setup.exe`
+
+Then use the simple installer UI.
+
+Result required:
+
+- `./plugins/anarchy-ai/.codex-plugin/plugin.json` exists
+- `./plugins/anarchy-ai/.mcp.json` exists
+- `./plugins/anarchy-ai/runtime/win-x64/AnarchyAi.Mcp.Server.exe` exists
+- `./plugins/anarchy-ai/contracts/` contains all current contract files
+- `./plugins/anarchy-ai/skills/anarchy-ai-harness/SKILL.md` exists
+- `./plugins/anarchy-ai/scripts/bootstrap-anarchy-ai.ps1` exists
+- `./.agents/plugins/marketplace.json` contains the `anarchy-ai` entry
+
+### Step 3. Verify readiness
 
 Run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\plugins\anarchy-ai\scripts\bootstrap-anarchy-ai.ps1 -Mode Assess
+.\plugins\AnarchyAi.Setup.exe /assess
 ```
 
 Expected good result shape:
@@ -147,29 +160,42 @@ Expected good result shape:
 - `next_action = use_preflight_session`
 
 If that result is not reached, the harness is present but not yet accessible enough to count as installed.
+It is just partially delivered files.
 
-### Step 4. Refresh the delivered bundle when needed
+### Step 4. Optional schema materialization
 
-If the source repository is public and the target repo already carries `plugins/anarchy-ai/`, bootstrap can refresh the local Anarchy-AI bundle from the published repository zip.
-
-Refresh the plugin bundle only:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\plugins\anarchy-ai\scripts\bootstrap-anarchy-ai.ps1 -Mode Assess -Update
-```
-
-Refresh the plugin bundle and also force refresh the portable schema family at repo root:
+If the target repo is adopting the underlay and you want the portable schema family copied into repo root during install, run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\plugins\anarchy-ai\scripts\bootstrap-anarchy-ai.ps1 -Mode Assess -Update -RefreshPortableSchemaFamily
+.\plugins\AnarchyAi.Setup.exe /install /refreshschemas
 ```
 
-Current `-Update` behavior:
+### Step 5. Refresh the delivered bundle when needed
 
-- downloads the current repo zip from `UpdateSourceZipUrl`
+Preferred current refresh commands:
+
+Refresh from a local source path:
+
+```powershell
+.\plugins\AnarchyAi.Setup.exe /update /sourcepath "C:\path\to\AI-Links"
+```
+
+Refresh from the configured public source:
+
+```powershell
+.\plugins\AnarchyAi.Setup.exe /update
+```
+
+Refresh the plugin bundle and root portable schema family together:
+
+```powershell
+.\plugins\AnarchyAi.Setup.exe /update /refreshschemas /sourcepath "C:\path\to\AI-Links"
+```
+
+Current update behavior:
+
 - refreshes the local plugin bundle surfaces in `./plugins/anarchy-ai/`
-- refreshes the root portable schema family only when `-RefreshPortableSchemaFamily` is passed
-- re-runs bundle presence checks after refresh
+- refreshes the root portable schema family only when `/refreshschemas` is passed
 - returns bounded update state in the JSON result
 - cannot replace a running `AnarchyAi.Mcp.Server.exe` in place; the active runtime must be stopped before retrying an update that touches the bundled runtime
 
@@ -218,32 +244,23 @@ Force runtime-lock release with one UAC-backed retry on access denied:
 powershell -ExecutionPolicy Bypass -File .\plugins\anarchy-ai\scripts\stop-anarchy-ai.ps1 -Mode ForceReleaseRuntimeLock
 ```
 
-`SafeReleaseRuntimeLock` does not request elevation.
-`ForceReleaseRuntimeLock` tries once normally, then retries once through UAC if the normal release fails with access denied.
+## Compatibility and fallback lane
 
-That split is intentional:
+The script-first lane still exists after bundle materialization.
 
-- it gives the user a visible choice before a UAC-backed force action
-- it gives the agent a bounded repair lane before it reaches for broader file or path manipulation
-- it creates stronger feedback about the actual problem: a live runtime lock is blocking update, not a missing file or a broken bundle
+Use it when:
 
-The update source can be overridden when needed:
+- source work is happening inside the plugin bundle itself
+- a repo already carries `plugins/anarchy-ai/`
+- you need the existing PowerShell bootstrap semantics specifically
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\plugins\anarchy-ai\scripts\bootstrap-anarchy-ai.ps1 -Mode Assess -Update -UpdateSourceZipUrl 'https://your-host/AI-Links-main.zip'
-```
-
-The most reliable fallback when Windows trust or Schannel is damaged is a local source path:
+Fallback commands:
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File .\plugins\anarchy-ai\scripts\bootstrap-anarchy-ai.ps1 -Mode Install
+powershell -ExecutionPolicy Bypass -File .\plugins\anarchy-ai\scripts\bootstrap-anarchy-ai.ps1 -Mode Assess
 powershell -ExecutionPolicy Bypass -File .\plugins\anarchy-ai\scripts\bootstrap-anarchy-ai.ps1 -Mode Assess -Update -UpdateSourcePath 'C:\path\to\AI-Links'
 ```
-
-`-UpdateSourcePath` may point to:
-
-- a local repository directory
-- a local zip file
-- a mounted file-share path that resolves locally
 
 ## How to make the system accessible
 
@@ -251,13 +268,14 @@ Accessible means the host and agent can actually reach the harness without cerem
 
 For the current Codex-first path, accessibility requires all of the following:
 
+- `plugins/AnarchyAi.Setup.exe` or the already materialized plugin bundle is present
 - plugin bundle exists in `./plugins/anarchy-ai`
 - marketplace entry exists in `./.agents/plugins/marketplace.json`
 - policy is `INSTALLED_BY_DEFAULT`
 - bundled runtime exists
 - `.mcp.json` points at the bundled runtime
 - skill exists in the plugin bundle
-- bootstrap assessment returns `ready`
+- setup or bootstrap assessment returns `ready`
 
 If any of those are missing, the harness is not yet accessible enough to behave like a harness.
 It is just partially delivered files.
@@ -285,9 +303,6 @@ To make that rule operational, add a direction in the target repo's startup surf
 - use `assess_harness_gap_state` when install/runtime/schema/adoption state is unclear
 - use `is_schema_real_or_shadow_copied` before trusting copied schema presence
 
-This does not require the user to operate the harness manually.
-It means the repo's own agent instructions expect the harness to be used.
-
 ### 3. Keep the plugin installed by default
 
 Do not downgrade the marketplace policy to `AVAILABLE` if the goal is harness behavior.
@@ -309,7 +324,7 @@ A real harness deployment must satisfy both harness reality and schema reality.
 
 The harness is real in the target repo when:
 
-- repo bootstrap returns `ready`
+- repo install/assess returns `ready`
 - bundled runtime is present
 - plugin is installed by default
 - preflight is callable
@@ -359,11 +374,12 @@ That is how the harness helps make a copied or drifted package real without sile
 
 A target repo should only be considered fully adopted when all of the following are true:
 
+- `plugins/AnarchyAi.Setup.exe` has been used or the equivalent plugin bundle has already been materialized
 - `plugins/anarchy-ai/` is present
 - `.agents/plugins/marketplace.json` contains the `anarchy-ai` entry
 - installation policy is `INSTALLED_BY_DEFAULT`
 - bundled runtime exists
-- bootstrap assess returns `ready`
+- assess returns `ready`
 - `preflight_session` is callable
 - `assess_harness_gap_state` is callable
 - the repo's agent-facing startup/control-plane direction expects preflight-first for meaningful governed work
@@ -375,24 +391,25 @@ This process is current and real, but it is not the final install architecture.
 
 Current limitations:
 
-- this is repo bootstrap, not machine-level install
+- this is repo-local install, not machine-level install
 - packaged delivery is Windows-first
 - Claude does not yet have an equivalent packaged adapter in this repo
 - Cursor is not yet a first-class delivery target
 - host-native install suggestion chips are not part of the guaranteed install story
+- GUI mode currently covers `Assess` and `Install`, not GUI `Update`
 - reflection (`assess the last exchange and do better`) is still a secondary workflow, not a first-class install target
-- `-Update` depends on outbound access to the configured source zip and a working local trust/TLS path
+- public update depends on outbound access to the configured source zip and a working local trust/TLS path
 - local-source update is the safer fallback when public HTTPS is unreliable on the machine
-- `-Update` does not hot-swap a running bundled runtime; stop the active Anarchy-AI process first if the update needs to replace `runtime/win-x64/AnarchyAi.Mcp.Server.exe`
+- update does not hot-swap a running bundled runtime; stop the active Anarchy-AI process first if the update needs to replace `runtime/win-x64/AnarchyAi.Mcp.Server.exe`
 
 ## Minimum checklist for another repo
 
-1. Copy `plugins/anarchy-ai/` into the target repo.
-2. Run `bootstrap-anarchy-ai.ps1 -Mode Install`.
-3. Require bootstrap to provision or update `.agents/plugins/marketplace.json` with `INSTALLED_BY_DEFAULT`.
-4. Run `bootstrap-anarchy-ai.ps1 -Mode Assess` and require `bootstrap_state = ready`.
-5. If using the underlay, copy the portable schema family into the target repo root.
-6. Use `-Update` when the carried bundle needs to be refreshed from the public source repo.
+1. Copy `plugins/AnarchyAi.Setup.exe` into the target repo `plugins/` folder.
+2. Run `AnarchyAi.Setup.exe /install` or double-click it.
+3. Require install to provision or update `.agents/plugins/marketplace.json` with `INSTALLED_BY_DEFAULT`.
+4. Run `AnarchyAi.Setup.exe /assess` and require `bootstrap_state = ready`.
+5. If using the underlay, use `/refreshschemas` when the portable schema family should be copied into repo root.
+6. Use `AnarchyAi.Setup.exe /update` when the carried bundle needs to be refreshed.
 7. Add a startup/control-plane instruction that meaningful governed work starts with `preflight_session`.
 8. Verify schema reality before trusting copied schema presence.
 9. Use gov2gov planning where existing authority surfaces must be reconciled.

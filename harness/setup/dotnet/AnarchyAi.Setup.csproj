@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>AnarchyAi.Setup</RootNamespace>
+    <AssemblyName>AnarchyAi.Setup</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\..\plugins\anarchy-ai\**\*"
+                      LogicalName="SetupPayload/plugins/anarchy-ai/%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\..\AGENTS-schema-governance.json"
+                      LogicalName="SetupPayload/portable-schema/AGENTS-schema-governance.json" />
+    <EmbeddedResource Include="..\..\..\AGENTS-schema-1project.json"
+                      LogicalName="SetupPayload/portable-schema/AGENTS-schema-1project.json" />
+    <EmbeddedResource Include="..\..\..\AGENTS-schema-narrative.json"
+                      LogicalName="SetupPayload/portable-schema/AGENTS-schema-narrative.json" />
+    <EmbeddedResource Include="..\..\..\AGENTS-schema-gov2gov-migration.json"
+                      LogicalName="SetupPayload/portable-schema/AGENTS-schema-gov2gov-migration.json" />
+    <EmbeddedResource Include="..\..\..\AGENTS-schema-triage.md"
+                      LogicalName="SetupPayload/portable-schema/AGENTS-schema-triage.md" />
+    <EmbeddedResource Include="..\..\..\Getting-Started-For-Humans.txt"
+                      LogicalName="SetupPayload/portable-schema/Getting-Started-For-Humans.txt" />
+  </ItemGroup>
+</Project>
