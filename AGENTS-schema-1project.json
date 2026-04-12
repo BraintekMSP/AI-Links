@@ -1,12 +1,12 @@
 {
   "meta": {
-    "context-ordering-rule": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
-    "context-compression-warning": "acceptable context compression from your current context window in no way guarantees context fidelity in future context -- do not assume that what survives compression now will survive the next compression -- write durable state to files, not to context",
+    "context-ordering-rule": "past context CANNOT be reshaped by future context -- the direction of this relationship is critical",
+    "context-compression-warning": "acceptable context compression from your current context window in no way guarantees context fidelity in future context -- context is always ephemeral -- write durable state to files",
     "version": "0.1.0",
-    "role": "single-goal session continuity schema -- not a governance schema -- use when the work has one clear goal and no rules, ownership, or cross-scope coordination needed",
+    "role": "single-goal session continuity schema -- lighter than governance -- use when the work has one clear goal and rules, ownership, or cross-scope coordination have yet to emerge",
     "intent": "any agent picking up this project can reconstruct what the goal is, what has been done, and what is known to go wrong -- humans are the source of missing truth when needed",
-    "self-contained": "this schema is the sole context source for authoring its own AGENTS files -- do not consult external operating procedures, modes of action, or supplementary governance docs -- if something required for authoring is not declared here, ask the human rather than reaching outside this file",
-    "human-reported-issue-governance": "bug reports and feature requests are not governed by this schema -- they are owned by whatever system the project declares",
+    "self-contained": "this schema is the sole context source for authoring its own AGENTS files -- consult only this schema for authoring -- if something required for authoring is missing, ask the human rather than reaching outside this file",
+    "human-reported-issue-governance": "bug reports and feature requests are owned by whatever system the project declares",
 
     "exit-to-governance": {
       "role": "this schema has a natural ceiling -- replace it with AGENTS-schema-governance.json when any of the following emerge",
@@ -18,23 +18,23 @@
       ],
       "migration-protocol": [
         "read AGENTS-schema-governance.json fully before modifying any existing 1project files",
-        "the goal field in AGENTS-hello.md becomes the scope-statement in AGENTS-Vision.md -- do not discard, reframe as what this scope achieves",
-        "project-state-when-work-starts-and-stops does not map to agent-session-open-close-measurement -- ask the human to configure measurement commands for the governance schema's measurement-profile",
+        "the goal field in AGENTS-hello.md becomes the scope-statement in AGENTS-Vision.md -- retain and reframe as what this scope achieves",
+        "project-state-when-work-starts-and-stops is structurally different from agent-session-open-close-measurement -- ask the human to configure measurement commands for the governance schema's measurement-profile",
         "existing AGENTS-Terms.md carries over unchanged -- it was optional in 1project but is required in governance, so it must exist before migration is complete",
         "existing AGENTS-Pitfalls.md carries over unchanged -- add tier-history and inherits fields required by governance",
         "freeform-patterns.not-working entries that triggered the exit should become candidate rules in AGENTS-Rules.md -- present to human for confirmation before writing",
         "freeform-patterns.working entries should become candidate observed-good-patterns in the governance complexity-density block -- present to human for confirmation",
         "narrative-ref carries over unchanged if present",
-        "author AGENTS-Vision.md and AGENTS-Rules.md as new files -- these do not exist in 1project and cannot be derived from existing files alone -- blocked-until human-confirms",
+        "author AGENTS-Vision.md and AGENTS-Rules.md as new files -- these are new to the governance model and require human input -- report-to-human before writing each",
         "update AGENTS.md schema-path from AGENTS-schema-1project.json to AGENTS-schema-governance.json",
         "update AGENTS.md file-list to include all governance-required files",
-        "do not delete the original 1project schema file until the human confirms the migration is complete"
+        "retain the original 1project schema file until the human confirms the migration is complete"
       ]
     },
 
     "schema-family": "AGENTS-schema-1project.json is a member of the AGENTS-schema-* family -- AGENTS-schema-governance.json is the full governance schema -- AGENTS-schema-narrative.json covers evolving narrative records for entities with multiple parties -- AGENTS-schema-gov2gov-migration.json governs migrations from one governance system into another",
 
-    "sibling-isolation": "if another AGENTS-schema-*.json file is present in the context window, do not merge, inherit, or cross-reference fields between schemas unless an explicit pointer field (narrative-ref, project-ref) declares the relationship -- each schema governs its own artifact set independently -- shared field names across schemas are structurally similar but operationally independent -- do not assume one schema's field definitions apply to another",
+    "sibling-isolation": "if another AGENTS-schema-*.json file is present in the context window, treat each schema as operationally independent -- shared field names across schemas are structurally similar but operationally independent -- verify each field against its own schema only -- explicit pointer fields (narrative-ref, project-ref) are the only valid cross-schema references",
 
     "types": {
       "string":    "single text value -- ask-if-ambiguous when meaning is organizational or contextual",
@@ -45,14 +45,14 @@
       "enum":      "single value selected from a defined values list",
       "verbatim":  "fixed string that must be copied exactly -- no paraphrase, no interpretation",
       "term[]":    "array of entries in format: term [role: definition] -- not: excluded meaning",
-      "pitfall[]": "array of failure records -- each declares: trigger (condition that caused it), failure-mode (what broke), resolution (confirmed correct behavior), session-count (times rediscovered -- higher means higher load priority) -- optional: superseded-by (FR/BR reference when picked up by external issue system), awaiting-external (blocked on a vendor or third-party relationship outside this project)"
+      "pitfall[]": "array of failure records -- each declares: trigger (condition that caused it), failure-mode (what broke), resolution (confirmed correct behavior), session-count (times rediscovered -- higher means higher load priority) -- optional: superseded-by (FR/BR reference when picked up by external issue system), awaiting-external (waiting on a vendor or third-party relationship outside this project)"
     },
 
-    "blocked-until-values": {
+    "report-to-human-values": {
       "type": "enum",
       "values": ["human-confirms"],
       "definitions": {
-        "human-confirms": "a human must explicitly approve before proceeding -- agent may not self-approve"
+        "human-confirms": "report findings to human and receive explicit approval before continuing"
       }
     }
   },
@@ -62,12 +62,12 @@
     "AGENTS.md": {
       "required": true,
       "load-order": 0,
-      "role": "entry point only -- contains no domain truth, no rules, no terms",
+      "role": "entry point only -- contains routing to the governed file family -- domain truth, rules, and terms live in other files",
       "generates": {
         "trigger": "file missing",
         "requires-before-generate": null,
         "prompt": "ask human to confirm workspace identity and state the goal in one sentence before writing anything",
-        "blocked-until": "human-confirms",
+        "report-to-human": "human-confirms",
         "ask-if-ambiguous": true
       },
       "fields": {
@@ -81,7 +81,7 @@
         "context-ordering-rule": {
           "type": "verbatim",
           "required": true,
-          "value": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
+          "value": "past context CANNOT be reshaped by future context -- the direction of this relationship is critical",
           "missing": "invalid -- do not proceed"
         },
         "plan-completion-directive": {
@@ -115,7 +115,7 @@
         "trigger": "file missing",
         "requires-before-generate": "AGENTS.md must exist and be valid",
         "prompt": "ask human to state the goal in one sentence -- confirm external-tracking location if one exists",
-        "blocked-until": "human-confirms",
+        "report-to-human": "human-confirms",
         "ask-if-ambiguous": true
       },
       "fields": {
@@ -128,13 +128,13 @@
         "goal": {
           "type": "string",
           "required": true,
-          "role": "the single declared goal of this project -- one sentence -- set once at authoring time -- do not change without human-confirms -- if the goal has shifted, that is an exit-to-governance signal",
+          "role": "the single declared goal of this project -- one sentence -- set once at authoring time -- change only with human approval -- if the goal has shifted, that is an exit-to-governance signal",
           "ask-if-ambiguous": true,
           "missing": "invalid -- do not proceed"
         },
         "external-tracking": {
           "type": "string",
-          "required": false,
+
           "role": "where bug reports and feature requests are tracked for this project -- free field, no tool assumption -- omit if no external system exists yet"
         },
         "project-state-when-work-starts-and-stops": {
@@ -146,29 +146,24 @@
             "close": { "type": "string", "required": true, "role": "state of the project at session end -- what was completed, what remains" }
           }
         },
-        "incomplete-session": {
-          "type": "file-path",
-          "required": false,
-          "role": "path to HANDOFF.md left at the present working directory when a session ended before work was complete and no plan file was started -- absent means no incomplete session -- remove this field and the HANDOFF.md when the human confirms closure"
-        },
         "narrative-ref": {
           "type": "string",
-          "required": false,
+
           "role": "reference to a narrative record that tracks this project -- points to the record id in AGENTS-schema-narrative.json register -- omit if no narrative record exists"
         },
         "freeform-patterns": {
           "type": "object",
-          "required": false,
+
           "role": "lightweight pattern notes -- what is working and what is not -- less rigid than governance observed-patterns, no signal mapping -- add when the project has accumulated enough sessions to notice repeating behavior",
           "fields": {
             "working": {
               "type": "string[]",
-              "required": false,
+
               "role": "freeform notes on what has been going well -- no required structure -- omit if nothing notable"
             },
             "not-working": {
               "type": "string[]",
-              "required": false,
+
               "role": "freeform notes on what has been going wrong or is frustrating -- no required structure -- if the same note appears across 3 sessions, that is an exit-to-governance signal"
             }
           }
@@ -177,13 +172,13 @@
     },
 
     "AGENTS-Terms.md": {
-      "required": false,
+
       "load-order": 2,
       "role": "project-specific vocabulary -- add when a term is used in a way that differs from common meaning or needs to stay consistent across sessions",
       "generates": {
         "trigger": "human requests or agent identifies a term needing definition",
         "requires-before-generate": "AGENTS-hello.md must exist and be valid",
-        "blocked-until": "human-confirms",
+        "report-to-human": "human-confirms",
         "ask-if-ambiguous": true
       },
       "fields": {
@@ -191,19 +186,19 @@
           "type": "term[]",
           "required": true,
           "min": 1,
-          "role": "terms specific to this project -- do not define common words unless this project uses them in a non-standard way"
+          "role": "define all critical words for project scope and log unique use cases"
         }
       }
     },
 
     "AGENTS-Pitfalls.md": {
-      "required": false,
+
       "load-order": 3,
       "role": "failure memory -- add when something went wrong so it is not rediscovered next session -- if the same pitfall reaches session-count 3, that is an exit-to-governance signal",
       "generates": {
         "trigger": "agent encounters a failure worth recording",
         "requires-before-generate": "AGENTS-hello.md must exist and be valid",
-        "blocked-until": "human-confirms",
+        "report-to-human": "human-confirms",
         "ask-if-ambiguous": true
       },
       "fields": {
@@ -213,12 +208,12 @@
           "min": 1,
           "role": "ordered list of failure records -- sort by session-count descending so highest-recurrence failures load first",
           "entry-fields": {
-            "trigger":          { "type": "string", "required": true,  "role": "condition or action that caused the failure" },
+            "failure-trigger":   { "type": "string", "required": true,  "role": "condition or action that caused the failure" },
             "failure-mode":     { "type": "string", "required": true,  "role": "what broke or went wrong" },
             "resolution":       { "type": "string", "required": true,  "role": "confirmed correct behavior or fix" },
             "session-count":    { "type": "int",    "required": true,  "role": "number of sessions this was rediscovered -- at 3, evaluate exit-to-governance" },
-            "superseded-by":    { "type": "string", "required": false, "role": "FR or BR reference number when this pitfall has been picked up by the external issue system -- omit if not yet filed" },
-            "awaiting-external":{ "type": "string", "required": false, "role": "blocked on a vendor, partner, or third-party relationship outside this project -- record who and why -- omit if not applicable" }
+            "superseded-by":    { "type": "string", "role": "FR or BR reference number when this pitfall has been picked up by the external issue system -- omit if not yet filed" },
+            "awaiting-external":{ "type": "string", "role": "waiting on a vendor, partner, or third-party relationship outside this project -- record who and why -- omit if not applicable" }
           }
         }
       }
@@ -226,28 +221,28 @@
   },
 
   "authoring-sequence": {
-    "role": "ordered steps for authoring AGENTS files from this schema -- follow in sequence -- do not skip blocked-until gates",
+    "role": "ordered steps for authoring AGENTS files from this schema -- follow in sequence, report to human at each gate before continuing",
     "steps": [
       "read this schema fully before writing anything",
       "ask human to state the goal in one sentence and confirm workspace root",
-      "author AGENTS.md -- blocked-until human-confirms",
-      "author AGENTS-hello.md -- populate goal, leave project-state-when-work-starts-and-stops open field for session start -- blocked-until human-confirms",
+      "author AGENTS.md -- report-to-human before writing",
+      "author AGENTS-hello.md -- populate goal, leave project-state-when-work-starts-and-stops open field for session start -- report-to-human before writing",
       "author AGENTS-Terms.md only if the human identifies terms needing definition -- otherwise omit",
       "author AGENTS-Pitfalls.md only if a failure has already been identified -- otherwise omit",
       "update AGENTS.md file-list to reflect which optional files were authored",
-      "declare authoring complete -- do not add files not declared in this schema"
+      "declare authoring complete -- only files declared in this schema are valid"
     ]
   },
 
   "templates": {
     "schema": {
-      "role": "canonical starting-point templates for each file -- use as the initial content when authoring -- replace placeholder values with real data -- do not add fields not declared in this schema",
+      "role": "canonical starting-point templates for each file -- use as the initial content when authoring -- replace placeholder values with real data -- only fields declared in this schema are valid",
       "encoding": "flat labeled key-value markdown -- nested objects indented two spaces -- arrays as hyphenated bullet lists -- no frontmatter markers, no code fences -- field names must match schema declarations exactly -- format must remain human-editable without tooling"
     },
 
     "AGENTS.md": {
       "schema-path": "{{workspace}}/AGENTS-schema-1project.json",
-      "context-ordering-rule": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
+      "context-ordering-rule": "past context CANNOT be reshaped by future context -- the direction of this relationship is critical",
       "plan-completion-directive": "the prompt requires plan completion",
       "plan-requirement-directive": "the prompt requires a plan",
       "file-list": [

@@ -388,8 +388,8 @@
             "failure-mode":  { "type": "string",  "required": true, "role": "what broke -- be specific, not categorical" },
             "resolution":    { "type": "string",  "required": true, "role": "confirmed correct behavior -- human-verified, not agent-inferred" },
             "session-count":    { "type": "int",    "required": true,  "role": "number of sessions this was rediscovered -- feeds complexity-density.signals.measurement-discrepancy-count" },
-            "superseded-by":   { "type": "string", "required": false, "role": "FR or BR reference number when this pitfall has been picked up by the external issue system -- omit if not yet filed" },
-            "awaiting-external": { "type": "string", "required": false, "role": "waiting on a vendor, partner, or third-party relationship outside this project -- record who and why -- omit if not applicable" }
+            "superseded-by":   { "type": "string", "role": "FR or BR reference number when this pitfall has been picked up by the external issue system -- omit if not yet filed" },
+            "awaiting-external": { "type": "string", "role": "waiting on a vendor, partner, or third-party relationship outside this project -- record who and why -- omit if not applicable" }
           }
         }
       }
@@ -473,8 +473,8 @@
       "role": "patterns worth preserving -- what worked in this scope -- populate from real sessions -- omit if nothing notable",
       "entry-fields": {
         "description": { "type": "string", "required": true,  "role": "what worked and why it is worth repeating" },
-        "signal":      { "type": "string", "required": false, "role": "which signal this maps to if applicable" },
-        "count":       { "type": "int",    "required": false, "role": "numeric qualifier when a number is the most precise description" }
+        "signal":      { "type": "string", "role": "which signal this maps to if applicable" },
+        "count":       { "type": "int",    "role": "numeric qualifier when a number is the most precise description" }
       }
     },
     "observed-bad-patterns": {
@@ -483,9 +483,9 @@
       "role": "known problems in this scope -- if something went wrong record it here -- omit only when nothing has gone wrong -- numbers when they apply, narrative when they do not -- side-effect failures count (example: operation succeeded but broke a separate integration)",
       "entry-fields": {
         "description":  { "type": "string", "required": true,  "role": "what went wrong and what broke as a side effect" },
-        "signal":       { "type": "string", "required": false, "role": "which signal this maps to if applicable" },
-        "count":        { "type": "int",    "required": false, "role": "numeric qualifier when a number is the most precise description" },
-        "resolved":     { "type": "bool",   "required": false, "role": "true when the pattern has been addressed -- omit if unknown" }
+        "signal":       { "type": "string", "role": "which signal this maps to if applicable" },
+        "count":        { "type": "int",    "role": "numeric qualifier when a number is the most precise description" },
+        "resolved":     { "type": "bool",   "role": "true when the pattern has been addressed -- omit if unknown" }
       }
     },
     "soft-metrics": {
@@ -780,7 +780,7 @@
         "role": "architectural patterns worth preserving -- what worked in this scope -- populate from real audits -- omit if nothing notable",
         "entry-fields": {
           "description": { "type": "string", "required": true,  "role": "what worked and why it is worth repeating" },
-          "signal":      { "type": "string", "required": false, "role": "which drift signal this maps to if applicable" }
+          "signal":      { "type": "string", "role": "which drift signal this maps to if applicable" }
         }
       },
       "observed-bad-patterns": {
@@ -789,8 +789,8 @@
         "role": "known architectural problems in this scope -- if something went wrong record it here -- omit only when nothing has gone wrong",
         "entry-fields": {
           "description": { "type": "string", "required": true,  "role": "what went wrong and what broke as a side effect" },
-          "signal":      { "type": "string", "required": false, "role": "which drift signal this maps to if applicable" },
-          "resolved":    { "type": "bool",   "required": false, "role": "true when the pattern has been addressed -- omit if unknown" }
+          "signal":      { "type": "string", "role": "which drift signal this maps to if applicable" },
+          "resolved":    { "type": "bool",   "role": "true when the pattern has been addressed -- omit if unknown" }
         }
       },
       "soft-metrics": {
@@ -808,7 +808,7 @@
         "durable-business-object-name": { "type": "string",    "required": true, "role": "name of the durable business object" },
         "object-class":  { "type": "enum",      "required": true, "values": ["truth", "constructor", "mutation", "consumer", "validator"] },
         "owner-scope":   { "type": "file-path", "required": true, "role": "AGENTS-hello.md of the scope responsible for this object -- for truth class: the authoritative owner -- for all other classes: the scope where this object lives" },
-        "consumers":     { "type": "file-path[]", "required": false, "role": "AGENTS-hello.md paths of scopes permitted to consume this object" },
+        "consumers":     { "type": "file-path[]", "role": "AGENTS-hello.md paths of scopes permitted to consume this object" },
         "mutations-permitted": { "type": "bool", "required": true, "role": "whether bounded mutations are allowed by non-owner scopes -- default false" }
       }
     }

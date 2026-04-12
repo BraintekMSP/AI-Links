@@ -62,6 +62,23 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 - `./DOCUMENTATION_CLEANUP_METHOD.md`
 - `./PUBLICATION_CHECKLIST.md`
 
+## Harness scaffold
+
+- `../harness/README.md` - local execution-harness scaffold and boundary
+- `../harness/contracts/schema-reality.contract.json` - first harness contract for `is_schema_real_or_shadow_copied`
+- `../harness/contracts/gov2gov-migration.contract.json` - second harness contract for `run_gov2gov_migration`
+- `../harness/server/README.md` - local MCP launch lane and Codex hookup notes
+- `../harness/server/dotnet/SpindleMcp.Server.csproj` - Windows-first dual-target C# MCP server scaffold (`net8.0` primary, `net48` fallback)
+- `../harness/server/dotnet/Program.cs` - scaffolded C# MCP entrypoint for the first two harness tools
+
+## Plugin delivery scaffold
+
+- `../plugins/anarchy-ai/.codex-plugin/plugin.json` - repo-local plugin manifest for harness delivery
+- `../plugins/anarchy-ai/.mcp.json` - plugin MCP declaration
+- `../plugins/anarchy-ai/scripts/start-anarchy-ai.cmd` - launcher that locates and starts the local harness server
+- `../plugins/anarchy-ai/skills/anarchy-ai-harness/SKILL.md` - thin usage layer for the first two harness tools
+- `../.agents/plugins/marketplace.json` - repo-local plugin marketplace entry
+
 ## Templates
 
 - `../templates/AGENTS_TEMPLATE.md`

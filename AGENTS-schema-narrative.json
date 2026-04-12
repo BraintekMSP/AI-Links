@@ -1,6 +1,6 @@
 {
   "meta": {
-    "context-ordering-rule": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
+    "context-ordering-rule": "past context CANNOT be reshaped by future context -- the direction of this relationship is critical",
     "context-compression-warning": "acceptable context compression from your current context window in no way guarantees context fidelity in future context -- do not assume that what survives compression now will survive the next compression -- write durable state to files, not to context",
     "version": "0.1.0",
     "role": "narrative protocol schema -- governs the structure of evolving narrative records for any entity with multiple parties and a story that changes over time",
@@ -95,49 +95,46 @@
         "date":      { "type": "string", "required": true,  "role": "ISO 8601 date this entry was recorded" },
         "type":      { "type": "string", "required": true,  "role": "event, decision, thread-open, thread-close, beat, correction" },
         "summary":   { "type": "string", "required": true,  "role": "what happened -- preserve the human language, do not normalize or compress -- this is the narrative" },
-        "tribal":    { "type": "bool",   "required": false, "role": "true when this information exists only in one person's account with no corroborating record -- tribal entries are highest criticality regardless of apparent significance" },
+        "tribal":    { "type": "bool",   "role": "true when this information exists only in one person's account with no corroborating record -- tribal entries are highest criticality regardless of apparent significance" },
 
         "cast": {
           "role": "who was involved in this entry -- omit roles that do not apply",
-          "owner":          { "type": "string", "required": false, "role": "who owns this issue or thread" },
-          "context-holder": { "type": "string", "required": false, "role": "who has the most context -- may differ from owner" },
-          "requested-by":   { "type": "string", "required": false, "role": "who made the original request" },
-          "finalized-by":   { "type": "string", "required": false, "role": "who made the final call" }
+          "owner":          { "type": "string", "role": "who owns this issue or thread" },
+          "context-holder": { "type": "string", "role": "who has the most context -- may differ from owner" },
+          "requested-by":   { "type": "string", "role": "who made the original request" },
+          "finalized-by":   { "type": "string", "role": "who made the final call" }
         },
 
         "definition-of-fixed": {
           "role": "required when this entry involves a resolution or closure -- a resolution is only real if definitions align",
-          "required": false,
           "fields": {
-            "fixed-per-client":        { "type": "string", "required": false, "role": "what the client or requester considers resolved -- in their words" },
-            "fixed-per-tech":          { "type": "string", "required": false, "role": "what the technician or executor considers resolved -- in their words" },
-            "definitions-match":       { "type": "bool",   "required": false, "role": "true when both definitions describe the same outcome -- when false, explain in narrative" },
-            "matches-original-request":{ "type": "bool",   "required": false, "role": "true when the resolution matches what was originally asked for -- when false, explain in narrative" },
-            "divergence-narrative":    { "type": "string", "required": false, "role": "required when definitions-match or matches-original-request is false -- describe the gap and how it was handled or left open" }
+            "fixed-per-client":        { "type": "string", "role": "what the client or requester considers resolved -- in their words" },
+            "fixed-per-tech":          { "type": "string", "role": "what the technician or executor considers resolved -- in their words" },
+            "definitions-match":       { "type": "bool",   "role": "true when both definitions describe the same outcome -- when false, explain in narrative" },
+            "matches-original-request":{ "type": "bool",   "role": "true when the resolution matches what was originally asked for -- when false, explain in narrative" },
+            "divergence-narrative":    { "type": "string", "role": "required when definitions-match or matches-original-request is false -- describe the gap and how it was handled or left open" }
           }
         },
 
         "constraints": {
           "role": "what shaped or limited the outcome -- omit if not applicable",
-          "technical-limitations":  { "type": "string", "required": false, "role": "what was not possible and why" },
-          "budgetary-limitations":  { "type": "string", "required": false, "role": "what was descoped or deferred due to cost" },
-          "awaiting-external":      { "type": "string", "required": false, "role": "blocked on a vendor, partner, or third party -- record who and why" }
+          "technical-limitations":  { "type": "string", "role": "what was not possible and why" },
+          "budgetary-limitations":  { "type": "string", "role": "what was descoped or deferred due to cost" },
+          "awaiting-external":      { "type": "string", "role": "blocked on a vendor, partner, or third party -- record who and why" }
         },
 
         "sentiment-and-tension": {
           "type": "string",
-          "required": false,
           "role": "the emotional reality of this entry -- not a score -- a narrative note -- did the client feel heard, was there friction, did a relationship shift -- medium criticality by default, high when it predicts churn or disengagement"
         },
 
         "beat": {
           "type": "string",
-          "required": false,
           "role": "required when type is beat -- describe the direction shift -- a decision reversed, a scope expanded, a new stakeholder appeared, a definition changed -- beats are the moments that rewrite everything that follows and are the first thing tribal memory loses"
         },
 
-        "status":       { "type": "string", "required": false, "role": "open, resolved, archived, superseded -- omit if entry type does not have a lifecycle" },
-        "superseded-by":{ "type": "string", "required": false, "role": "entry id or external reference that replaces this entry -- preserve original entry, do not delete" }
+        "status":       { "type": "string", "role": "open, resolved, archived, superseded -- omit if entry type does not have a lifecycle" },
+        "superseded-by":{ "type": "string", "role": "entry id or external reference that replaces this entry -- preserve original entry, do not delete" }
       }
     },
 
@@ -147,9 +144,9 @@
         "id":           { "type": "string", "required": true,  "role": "matches entry id that opened this thread" },
         "summary":      { "type": "string", "required": true,  "role": "what is unresolved" },
         "opened-date":  { "type": "string", "required": true,  "role": "ISO 8601 date" },
-        "owner":        { "type": "string", "required": false, "role": "who is responsible for resolving this thread" },
-        "stale":        { "type": "bool",   "required": false, "role": "true when no activity past the declared stale window for this record -- stale open threads are a signal-cue" },
-        "stale-window": { "type": "string", "required": false, "role": "how long without activity before this thread is considered stale -- overrides record default if set" }
+        "owner":        { "type": "string", "role": "who is responsible for resolving this thread" },
+        "stale":        { "type": "bool",   "role": "true when no activity past the declared stale window for this record -- stale open threads are a signal-cue" },
+        "stale-window": { "type": "string", "role": "how long without activity before this thread is considered stale -- overrides record default if set" }
       }
     },
 
@@ -160,37 +157,34 @@
         "date":          { "type": "string", "required": true,  "role": "ISO 8601 date decision was made" },
         "decision":      { "type": "string", "required": true,  "role": "what was decided -- in plain language" },
         "decided-by":    { "type": "string", "required": true,  "role": "who made the call -- attribution is mandatory for known-decisions" },
-        "requested-by":  { "type": "string", "required": false, "role": "who asked for this outcome -- may differ from decided-by" },
-        "reversed":      { "type": "bool",   "required": false, "role": "true if this decision was later reversed -- add a beat entry to entries when this happens" },
-        "project-ref":   { "type": "string", "required": false, "role": "reference to a sibling schema record if this decision spawned concrete work -- e.g. 1project goal id or governance scope" }
+        "requested-by":  { "type": "string", "role": "who asked for this outcome -- may differ from decided-by" },
+        "reversed":      { "type": "bool",   "role": "true if this decision was later reversed -- add a beat entry to entries when this happens" },
+        "project-ref":   { "type": "string", "role": "reference to a sibling schema record if this decision spawned concrete work -- e.g. 1project goal id or governance scope" }
       }
     },
 
     "observed-patterns": {
       "good": {
         "type": "array",
-        "required": false,
         "role": "patterns worth repeating -- what worked in this relationship or context -- omit if nothing notable",
         "entry-fields": {
           "description": { "type": "string", "required": true,  "role": "what worked and why it is worth repeating" },
-          "tribal":      { "type": "bool",   "required": false, "role": "true if this pattern exists only in undocumented practice" }
+          "tribal":      { "type": "bool",   "role": "true if this pattern exists only in undocumented practice" }
         }
       },
       "bad": {
         "type": "array",
-        "required": false,
         "role": "known problems -- if something went wrong record it here -- omit only when nothing has gone wrong -- numbers when they apply, narrative when they do not",
         "entry-fields": {
           "description": { "type": "string", "required": true,  "role": "what went wrong and what broke as a side effect" },
-          "resolved":    { "type": "bool",   "required": false, "role": "true when addressed -- omit if unknown" },
-          "tribal":      { "type": "bool",   "required": false, "role": "true if this pattern exists only in undocumented practice" }
+          "resolved":    { "type": "bool",   "role": "true when addressed -- omit if unknown" },
+          "tribal":      { "type": "bool",   "role": "true if this pattern exists only in undocumented practice" }
         }
       }
     },
 
     "handoff-note": {
       "type": "string",
-      "required": false,
       "role": "what the next person needs to know that is not obvious from the entries -- required on any session that closes a thread or transfers ownership -- this is the tribal knowledge capture point"
     }
   },
@@ -211,7 +205,7 @@
     "compress": {
       "description": "multiple entries consolidate into a summary -- highest-risk mode -- governed by compression rules",
       "permitted-when": "quarterly review only -- never during monthly or transient cycles",
-      "blocked-until": "human-confirms",
+      "report-to-human": "human-confirms",
       "lossy-artifact-warning": "compressed entries are lossy artifacts -- detail that was not promoted to a durable section (known-decisions, open-threads, observed-patterns, handoff-note) during authoring is lost after compression -- this is the accepted cost of compression and the incentive to author well -- do not treat compressed summaries as authoritative for detail-level questions",
       "compression-rules": {
         "never-drop": [
@@ -336,7 +330,7 @@
       "ask human to identify any existing fragments -- emails, tickets, notes, memory -- that contain context about this entity",
       "ask human to declare the cadence: monthly, quarterly, or transient",
       "scan available fragments for signal cues before writing the first entry",
-      "author the header block -- blocked-until human-confirms subject and primary-parties",
+      "author the header block -- report-to-human before writing subject and primary-parties",
       "reconstruct known-decisions from fragments -- flag attribution gaps where owner cannot be determined",
       "reconstruct open-threads from fragments -- mark stale where applicable",
       "record observed-patterns from fragments if any are identifiable",

@@ -163,7 +163,7 @@ human confirmation.
 WHAT AGENTS CANNOT DO
 ---------------------
 
-  - Approve their own blocked-until gates
+  - Approve their own report-to-human gates
   - Promote a pitfall to a rule without human confirmation
   - Change scope boundaries without human confirmation
   - Generate MODULE-Boundary.md (extraction prompt) without human confirmation
@@ -198,7 +198,7 @@ you need multi-scope governance:
 4. The agent will ask you to confirm workspace identity before writing anything.
    Answer precisely. This is the first load-bearing decision.
 5. Review each file before the agent writes the next one.
-   The blocked-until human-confirms gates exist for this reason.
+   The report-to-human gates exist for this reason.
 6. After authoring is complete, populate agent-session-open-close-measurement fields in AGENTS-hello.md.
    These cannot be guessed. They come from you.
 7. If this is a migration, classify the conflict-surface docs before declaring the migration complete:

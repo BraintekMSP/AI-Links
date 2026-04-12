@@ -1626,6 +1626,157 @@ That would make the best-performing projects a compound system rather than a pur
 
 ---
 
+## Current Notes: Human Governance Versus Interpretation-First Governance
+
+Another observation worth preserving is that the linguistic artifact layer seems to be largely missing from traditional human governance.
+
+The relationship between humans and governance is often adversarial:
+
+- it is often more about making the human feel stupid for not understanding more than what the clerk already understands
+- the best outcome in many ordinary governance encounters feels like: wait in line for an hour and only get yelled at once
+- this extends beyond one office or one bad clerk:
+  - DMV interactions
+  - mishandled property taxes
+  - filing taxes
+  - and many other encounters with human governance
+
+The deeper claim may be:
+
+- traditional governance is often more concerned with reactive punishment mechanisms masquerading as system enforcement mechanisms
+- it is rarely concerned with helping the individual succeed
+
+If that is directionally true, then the underlay is trying to do something meaningfully different.
+
+Possible framing:
+
+- it assumes little to no trust and tries to build trust anyway
+- it treats misunderstanding as a design condition rather than a personal deficiency
+- it tries to let faulty information and weak processes become enriched and valuable information
+- it tries to convert confusion into better structure rather than punishment, blame, or bureaucratic dead-end
+
+That makes the underlay feel less like ordinary compliance language and more like interpretation-first governance.
+
+This may be one of the clearest distinctions between:
+
+- adversarial human governance written for liability, blame, and exception handling
+- versus governance artifacts deliberately written to improve interpretation, continuity, and safe correction
+
+If this note survives contact with more evidence, then a strong compact formulation may be:
+
+- Traditional governance often treats misunderstanding as user failure.
+- This system tries to treat misunderstanding as a design condition and convert weak inputs into stronger truth.
+
+---
+
+## Current Notes: Taxonomy As A Backstage Build Layer
+
+Another useful distinction is that taxonomy should probably exist mostly outside the canonical delivery.
+
+For this system, taxonomy is not the operating artifact itself.
+
+It is the classification layer that helps build the operating artifacts well.
+
+Possible framing:
+
+- taxonomy builds the system
+- schemas deliver the system
+
+That suggests a layered placement:
+
+- backstage / build-time layer:
+  - scratchpads
+  - change notes
+  - authoring guides
+  - review checklists
+  - future lint or validator rules
+- canonical delivery layer:
+  - schema JSONs
+  - triage
+  - getting-started docs
+  - README-level framing
+- implied helper layer:
+  - preferred vocabulary tables
+  - high-risk term lists
+  - bare-name review checklists
+  - exit-energy review checklists
+  - future schema-lint rules
+
+The important point is:
+
+- taxonomy should shape the delivery
+- taxonomy should not dominate the delivery
+
+If too much taxonomy becomes agent-facing or human-facing in the primary artifacts, the system starts adding more language around language and recreates the same composition problem it is trying to solve.
+
+So the cleaner model may be:
+
+- taxonomy is a support layer for authoring, review, and future validation
+- the schemas mostly contain the chosen outputs of that taxonomy, not the taxonomy itself
+
+That means taxonomy is not fully outside delivery, but it is outside the canonical operating delivery.
+
+It builds the system, then hands off distilled helpers, preferred constructions, and later validation rules into the system that agents actually read.
+
+---
+
+## Current Notes: Frontier Analogy For Underlay And Harness
+
+One useful metaphor may be:
+
+- we are in a new frontier
+- the model defines the terrain
+- its subgraphs define the roads already worn into it
+- the AI agent is the horse
+- the human is the rider
+- a prompt is merely a direction
+- `AGENTS.md` alone is a blanket where a saddle ought to be
+- the schemas and linguistic artifacts are the trail markers, cairns, cleared brush, and waypoints that make the right route visible and safer when one ought to leave the common road
+- the execution harness is the saddle, stirrups, and tack
+
+The strongest version of the harness line may be:
+
+- the execution harness is not a theory of travel, but the system that keeps rider and horse from training each other into worse habits
+
+That matters because the deeper risk is not only error.
+
+It is mutual degradation:
+
+- the rider becomes frustrated, reactive, and imprecise
+- the horse becomes tense, overcorrective, or pattern-locked
+- bad exchanges stop being incidents and start becoming the ride itself
+- frustration hardens into language
+- language hardens into project state
+
+Another compact claim from the same metaphor:
+
+- the common roads are not worthless; they are simply exhausted
+- they offer patterns that are often usable, but rarely sufficient for novel work and rarely resilient enough for generalized solutions
+
+So the practical need is:
+
+- make off-path exploration survivable, faithful, and repeatable before heavier governance slows the work and mistakes compliance for understanding
+
+The more poetic formulation should stay separate from product language, but the metaphor still appears useful because it keeps the relationships between:
+
+- model
+- agent
+- human
+- prompt
+- schemas
+- harness
+
+legible in one frame.
+
+### Paper-Language Formulation
+
+> We are in a new frontier. The model defines the terrain and its subgraphs define the roads already worn into it. We have a horse that is our AI agent, and we, of course, are the rider. A prompt is merely a direction. `AGENTS.md` alone is a blanket where a saddle ought to be. The schemas and linguistic artifacts are the trail markers, cairns, cleared brush, and waypoints that make the right route visible and safer, when one should have left the common road, long ago. The execution harness is the saddle, stirrups, and tack: not a theory of travel, but the system that keeps rider and horse from training each other into worse habits.
+>
+> The common roads are not worthless. They are simply exhausted. They offer patterns that are often usable, but rarely sufficient for novel work and rarely resilient enough for generalized solutions. So the need is clear: to make off-path exploration survivable, faithful, and repeatable before heavier governance slows the work and mistakes compliance for understanding.
+>
+> And so what we endeavor to do is make of wilderness a playground: safe, useful anarchy.
+
+---
+
 ## Working Claim
 
 Draft claim:
@@ -1666,4 +1817,3 @@ If that is true, then the central research problem is not accuracy.
 It is prophecy:
 
 - can upstream structure shape downstream outcomes before downstream context has had its say?
-

@@ -1,0 +1,120 @@
+{
+  "contract_name": "gov2gov_migration_contract",
+  "contract_version": "0.1.0",
+  "function_name": "run_gov2gov_migration",
+  "purpose": "Non-destructively reconcile a partial or copied-only schema package using the AGENTS-schema-gov2gov-migration model, then return the resulting schema reality state.",
+  "input_contract": {
+    "workspace_root": {
+      "type": "absolute_path",
+      "required": true,
+      "description": "Workspace root to inspect and reconcile."
+    },
+    "expected_schema_package": {
+      "type": "string",
+      "required": true,
+      "description": "Expected schema family or package name."
+    },
+    "schema_reality_state": {
+      "type": "enum",
+      "required": true,
+      "values": [
+        "partial",
+        "copied_only"
+      ],
+      "description": "Input state from is_schema_real_or_shadow_copied. This function is not the bootstrap lane for fully missing packages."
+    },
+    "active_reasons": {
+      "type": "string_array",
+      "required": true,
+      "description": "Reason list from the active schema reality state."
+    },
+    "startup_surfaces": {
+      "type": "string_array",
+      "required": false,
+      "description": "Optional startup or package surfaces that should align with the schema package."
+    },
+    "migration_mode": {
+      "type": "enum",
+      "required": true,
+      "values": [
+        "plan_only",
+        "non_destructive_apply"
+      ],
+      "description": "Plan changes only, or apply only non-destructive reconciliation steps."
+    }
+  },
+  "output_contract": {
+    "migration_result_state": {
+      "type": "enum",
+      "values": [
+        "no_action_needed",
+        "planned",
+        "partially_applied",
+        "materialized",
+        "manual_review_required"
+      ],
+      "description": "Current outcome of the gov2gov-backed reconciliation lane."
+    },
+    "planned_actions": {
+      "type": "string_array",
+      "description": "Ordered non-destructive actions proposed from the migration contract."
+    },
+    "actions_taken": {
+      "type": "string_array",
+      "description": "Actions actually taken when migration_mode is non_destructive_apply."
+    },
+    "touched_surfaces": {
+      "type": "string_array",
+      "description": "Files or surfaces reviewed or updated during reconciliation."
+    },
+    "audit_needed": {
+      "type": "string_array",
+      "description": "Places where the contract found real divergence, ambiguity, or unresolved migration pressure that should be surfaced for audit rather than auto-resolved."
+    },
+    "remaining_findings": {
+      "type": "string_array",
+      "description": "Residual issues that keep the package from being fully real after this pass."
+    },
+    "resulting_schema_reality_state": {
+      "type": "enum",
+      "values": [
+        "real",
+        "partial",
+        "copied_only",
+        "fully_missing"
+      ],
+      "description": "Schema reality state after planning or applying the gov2gov migration lane."
+    }
+  },
+  "gov2gov_alignment_targets": [
+    "package_surface_alignment",
+    "startup_discovery_path_alignment",
+    "stale_companion_artifact_refresh",
+    "folder_topology_reconciliation",
+    "GOV2GOV_hello_materialization_when_required",
+    "GOV2GOV_source_target_map_materialization_when_required",
+    "GOV2GOV_registry_materialization_when_required",
+    "GOV2GOV_rules_materialization_when_required",
+    "historical_lane_preservation_for_demoted_surfaces"
+  ],
+  "result_example": {
+    "migration_result_state": "planned",
+    "planned_actions": [
+      "refresh_package_surface",
+      "realign_startup_discovery_paths",
+      "update_stale_companion_artifacts",
+      "build_GOV2GOV_registry_if_parallel_authority_surfaces_exist"
+    ],
+    "actions_taken": [],
+    "touched_surfaces": [
+      "AGENTS package surface",
+      "startup spine",
+      "schema companion surfaces"
+    ],
+    "audit_needed": [],
+    "remaining_findings": [
+      "folder_topology_mismatch"
+    ],
+    "resulting_schema_reality_state": "partial"
+  }
+}

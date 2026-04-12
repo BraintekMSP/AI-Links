@@ -107,19 +107,20 @@ If the new term is too long and compresses away, or if agents treat the recovery
 ```
 
 ### Problem
-- The agent-session-open-close-measurement already captures whether a session completed cleanly.
 - The incomplete-session field adds clerical overhead without adding value.
-- The concept of writing a HANDOFF.md feels similar to the "if-unresolved" debug territory — satisfying clerical exit that substitutes for continuing work.
+- It creates a named incompletion mode and a satisfying clerical exit artifact.
+- Without runtime enforcement, it is pseudo-state: it describes interruption without creating consequence.
+- Open/close session state already surfaces incompletion without canonizing abandonment as a first-class outcome.
 - The plan-completion-directive and plan-requirement-directive now cover the "session must complete" intent.
 
 ### Human's framing
 "Also feels unneeded. The check would be agent-start-stop-whatever. That one informs if the session was likely abandoned. And an agent prompt acting on incomplete-session probably is not benefitting from the additional clerical work."
 
 ### Action
-Remove the field from AGENTS-hello.md fields and template. The measurement system and plan directives cover the intent.
+Remove the field from AGENTS-hello.md fields and template. Open/close state and the plan directives cover the schema-layer intent; richer interrupted-work state belongs to a future harness if one exists.
 
 ### Reversion notes
-If sessions end without any record of what was incomplete and the measurement diff doesn't capture enough detail, the field may need to return in a different form.
+If sessions end without enough usable stop-state and a future harness does not materialize, the field may need to return in a different form that does not legitimize early exit.
 
 ---
 

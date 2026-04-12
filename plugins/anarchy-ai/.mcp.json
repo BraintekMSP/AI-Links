@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "anarchy-ai": {
+      "command": "cmd.exe",
+      "args": [
+        "/c",
+        "scripts\\start-anarchy-ai.cmd"
+      ],
+      "cwd": "."
+    }
+  }
+}

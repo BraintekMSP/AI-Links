@@ -1,0 +1,45 @@
+{
+  "name": "anarchy-ai",
+  "version": "0.1.0",
+  "description": "Local delivery plugin for the Anarchy AI harness and AGENTS Heuristic Underlay.",
+  "author": {
+    "name": "[TODO: Author Name]",
+    "email": "[TODO: author@example.com]",
+    "url": "[TODO: https://github.com/author]"
+  },
+  "homepage": "[TODO: https://docs.example.com/plugin]",
+  "repository": "[TODO: https://github.com/author/plugin]",
+  "license": "[TODO: MIT]",
+  "keywords": [
+    "mcp",
+    "schema",
+    "governance",
+    "harness",
+    "codex"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Anarchy AI",
+    "shortDescription": "Local harness delivery for schema reality and gov2gov reconciliation",
+    "longDescription": "Installs the local Anarchy AI harness surface into Codex so schema reality checks and gov2gov reconciliation can run through a local MCP lane instead of manual setup.",
+    "developerName": "[TODO: Developer Name]",
+    "category": "Coding",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "[TODO: https://docs.example.com/plugin]",
+    "privacyPolicyURL": "[TODO: https://example.com/privacy]",
+    "termsOfServiceURL": "[TODO: https://example.com/terms]",
+    "defaultPrompt": [
+      "Check whether the schema package is real or shadow-copied.",
+      "Run gov2gov reconciliation for a copied-only schema package.",
+      "Use the local Anarchy AI harness instead of manual schema wiring."
+    ],
+    "brandColor": "#2F6E5B",
+    "composerIcon": "./assets/anarchy-ai.svg",
+    "logo": "./assets/anarchy-ai.svg",
+    "screenshots": []
+  }
+}

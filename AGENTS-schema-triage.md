@@ -38,7 +38,7 @@ Listen for the shape of the answer, not specific words.
 | "We already have governance but it's wrong" / "we're replacing our current system" / "the old docs don't match the new structure" | **AGENTS-schema-gov2gov-migration.json** |
 
 **Important:** If the answer points toward governance, do NOT load governance yet. Continue to Question 2.
-Gov2gov is routinely missed at this stage because "I need governance" sounds like a governance-greenfield answer, but the workspace may already have authority that must be reconciled, not ignored.
+Gov2gov is routinely missed at this stage because "I need governance" sounds like a first-time-governance-authoring answer, but the workspace may already have authority that must be reconciled, not ignored.
 
 ### Question 2: Does this workspace already have existing authority?
 
@@ -51,9 +51,9 @@ This question must be asked before choosing between governance and gov2gov. "Exi
 
 | If... | Route to... |
 |---|---|
-| No existing authority of any kind — truly empty workspace or brand new project | **AGENTS-schema-governance.json** (greenfield mode) |
+| No existing authority of any kind — truly empty workspace or brand new project | **AGENTS-schema-governance.json** (first-time-governance-authoring mode) |
 | Some existing authority exists — docs, configs, conventions, or informal rules that carry meaning the new governance must absorb | **AGENTS-schema-gov2gov-migration.json** — even if the existing authority is not a formal governance system, it is still authority that must be reconciled, not overwritten |
-| Existing authority is minimal and the human confirms it can be safely ignored | **AGENTS-schema-governance.json** (greenfield mode — but document what was deliberately ignored) |
+| Existing authority is minimal and the human confirms it can be safely ignored | **AGENTS-schema-governance.json** (first-time-governance-authoring mode — but document what was deliberately ignored) |
 
 If the answer from Question 1 did not point toward governance, continue to Question 3.
 
@@ -66,6 +66,8 @@ This question resolves remaining ambiguity between 1project and narrative.
 | One person or agent, working alone on a bounded task | **AGENTS-schema-1project.json** |
 | Multiple people or agents, but the subject is a relationship or evolving story, not code | **AGENTS-schema-narrative.json** |
 | Multiple people or agents working on shared code or operations | Return to Question 2 — this is a governance case |
+
+**1project posture:** Move to governance if your intent is a generalized solution. `1project` is arguably better for limited projects than basic prompting is, but where it shines, you're likely already done before implementing it.
 
 ---
 
@@ -87,7 +89,7 @@ Every schema except governance has exit conditions that route to a different sch
 
 1. **Has the problem actually changed?** If the goal shifted, rules emerged, or multiple scopes appeared, the exit is legitimate. If the current work is just hard, the exit is an escape.
 2. **Would the destination schema actually help?** Loading governance because 1project feels hard does not make the work easier — it adds overhead to work that was already difficult.
-3. **Is the human aware this is happening?** Exit conditions are blocked-until human-confirms for a reason. The human must understand that the schema is changing, not just that the agent is "moving to the next step."
+3. **Is the human aware this is happening?** Exit conditions use report-to-human for a reason. The human must understand that the schema is changing, not just that the agent is "moving to the next step."
 
 If the agent cannot clearly answer all three, the exit condition has not been met. Continue in the current schema.
 
@@ -108,7 +110,7 @@ This happens most often during migration and governance setup. The agent finishe
 This triage document handles the initial routing. But human uncertainty does not end at triage. Throughout any schema's lifecycle:
 
 - **Humans will say "yes" when they mean "I think so."** Any field marked ask-if-ambiguous exists because the schema designers expected this. Use it.
-- **Humans will approve things they do not fully understand to keep things moving.** blocked-until human-confirms is not a rubber stamp. If the human's approval feels too fast, ask what they understood about what they just approved.
+- **Humans will approve things they do not fully understand to keep things moving.** report-to-human is not a rubber stamp. If the human's approval feels too fast, ask what they understood about what they just approved.
 - **Humans will forget what they decided.** This is not a failure of the human. It is the problem the entire schema family exists to solve. The DECISION-Record (governance), known-decisions (narrative), and pitfalls (all schemas) exist so that "did we already decide this?" has an answer.
 - **Humans will resist changing something they built.** This is rational attachment to invested effort. The distribution-and-realtime-copies concept in the gov2gov schema addresses this directly: the system is portable, the instance is local, protecting the system does not require protecting every instance.
 

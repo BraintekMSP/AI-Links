@@ -16,7 +16,7 @@
     },
     "use-when": [
       "the source workspace already has a governed or semi-governed operating model",
-      "the target workspace also has a governance model rather than a greenfield AGENTS family",
+      "the target workspace also has a governance model rather than a first-time-governance-authoring workspace",
       "the migration risk is semantic drift, shadow governance, or parallel authority, not just missing file creation"
     ],
     "do-not-use-when": [
@@ -50,11 +50,11 @@
       "object": "nested field group",
       "object[]": "ordered array of object entries"
     },
-    "blocked-until-values": {
+    "report-to-human-values": {
       "type": "enum",
       "values": ["human-confirms", "measurement-passes"],
       "definitions": {
-        "human-confirms": "a human must explicitly approve before proceeding",
+        "human-confirms": "report findings to human and receive explicit approval before continuing",
         "measurement-passes": "the declared open or close measurement must return a clean result before proceeding"
       }
     }
@@ -234,7 +234,7 @@
             "blocker": { "type": "string", "required": true, "role": "use `none` when not blocked" },
             "first-unknown-encountered": { "type": "string", "required": true },
             "next-automatic-action": { "type": "string", "required": true },
-            "divergence-question-for-human": { "type": "string", "required": false }
+            "divergence-question-for-human": { "type": "string" }
           }
         }
       }
@@ -266,7 +266,6 @@
         },
         "historical-preservation-lane": {
           "type": "file-path[]",
-          "required": false,
           "role": "where preserved older wording or snapshots may live after demotion"
         },
         "mandatory-reads-to-preserve": {
@@ -331,9 +330,9 @@
               "role": "how far along the migration is for this specific file"
             },
             "load-bearing-truth-summary": { "type": "string", "required": true },
-            "target-home": { "type": "file-path", "required": false },
-            "max-line-count": { "type": "int", "required": false },
-            "required-authority-anchor": { "type": "string", "required": false }
+            "target-home": { "type": "file-path" },
+            "max-line-count": { "type": "int" },
+            "required-authority-anchor": { "type": "string" }
           }
         }
       }
@@ -382,7 +381,6 @@
       }
     },
     "GOV2GOV-pitfalls.md": {
-      "required": false,
       "load-order": 4,
       "role": "migration-specific recurring failure patterns that future governance migrations should not rediscover",
       "fields": {
