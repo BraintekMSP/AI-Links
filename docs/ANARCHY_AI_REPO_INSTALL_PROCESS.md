@@ -38,7 +38,8 @@ That file now handles:
 - repo-local marketplace registration
 - readiness assessment
 - bundle refresh from local source path or public source url
-- optional portable schema family materialization when requested
+- default seeding of missing portable schema-family files during install
+- explicit root schema-family refresh when requested
 
 The older script-first lane still exists, but it is now the compatibility/fallback path after the bundle already exists.
 
@@ -86,9 +87,13 @@ It enforces this plugin entry shape:
 }
 ```
 
-### 3. Optional root schema family
+### 3. Portable root schema family
 
-If the target repo is adopting the AGENTS Heuristic Underlay, setup can also materialize the portable schema family into repo root when explicitly requested.
+If the target repo is adopting the AGENTS Heuristic Underlay, setup now seeds missing portable schema-family files into repo root during install by default.
+
+If those repo-root schema files already exist, install leaves them in place.
+
+Use explicit schema refresh only when you want the embedded portable schema family to overwrite repo-root copies.
 
 That set is:
 
@@ -162,9 +167,11 @@ Expected good result shape:
 If that result is not reached, the harness is present but not yet accessible enough to count as installed.
 It is just partially delivered files.
 
-### Step 4. Optional schema materialization
+### Step 4. Default schema seeding and optional schema refresh
 
-If the target repo is adopting the underlay and you want the portable schema family copied into repo root during install, run:
+Plain install now seeds missing portable schema-family files by default.
+
+If you want install to overwrite repo-root schema files from the embedded portable schema family, run:
 
 ```powershell
 .\plugins\AnarchyAi.Setup.exe /install /refreshschemas
@@ -195,7 +202,8 @@ Refresh the plugin bundle and root portable schema family together:
 Current update behavior:
 
 - refreshes the local plugin bundle surfaces in `./plugins/anarchy-ai/`
-- refreshes the root portable schema family only when `/refreshschemas` is passed
+- seeds missing portable root schema files during install by default
+- force-refreshes the root portable schema family only when `/refreshschemas` is passed
 - returns bounded update state in the JSON result
 - cannot replace a running `AnarchyAi.Mcp.Server.exe` in place; the active runtime must be stopped before retrying an update that touches the bundled runtime
 
@@ -408,7 +416,7 @@ Current limitations:
 2. Run `AnarchyAi.Setup.exe /install` or double-click it.
 3. Require install to provision or update `.agents/plugins/marketplace.json` with `INSTALLED_BY_DEFAULT`.
 4. Run `AnarchyAi.Setup.exe /assess` and require `bootstrap_state = ready`.
-5. If using the underlay, use `/refreshschemas` when the portable schema family should be copied into repo root.
+5. Install now seeds missing portable schema-family files by default; use `/refreshschemas` only when repo-root schema copies should be overwritten from the embedded payload.
 6. Use `AnarchyAi.Setup.exe /update` when the carried bundle needs to be refreshed.
 7. Add a startup/control-plane instruction that meaningful governed work starts with `preflight_session`.
 8. Verify schema reality before trusting copied schema presence.

@@ -153,7 +153,8 @@ AnarchyAi.Setup.exe /install /repo "C:\path\to\other-repo" /silent /json
 - `/json` means emit machine-readable result to stdout
 - `/repo` overrides repo auto-detection
 - `/sourcepath` allows local source refresh without depending on public TLS
-- `/refreshschemas` means refresh the portable root schema family in addition to the plugin bundle
+- install seeds missing portable root schema files by default
+- `/refreshschemas` means force-refresh the portable root schema family in addition to the plugin bundle
 - help aliases should print plain-text usage plus a generated repo-availability summary instead of raw JSON
 - the help summary should tell the actor what Anarchy-AI adds here and what it changes in the repo
 

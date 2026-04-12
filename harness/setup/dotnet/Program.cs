@@ -127,33 +127,38 @@ internal sealed class SetupForm : Form
     public SetupForm()
     {
         Text = "Anarchy-AI Setup";
-        Width = 820;
-        Height = 560;
+        Width = 1200;
+        Height = 720;
+        MinimumSize = new System.Drawing.Size(1100, 660);
         StartPosition = FormStartPosition.CenterScreen;
+        Font = new System.Drawing.Font("Segoe UI", 10);
+        AutoScaleMode = AutoScaleMode.Dpi;
+        Icon = SetupWindowIcon.Create();
 
         var rootPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 4,
-            Padding = new Padding(12)
+            RowCount = 5,
+            Padding = new Padding(14)
         };
+        rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        rootPanel.Controls.Add(new Label
-        {
-            AutoSize = true,
-            Text = "Install or assess Anarchy-AI in a repo. The local repo is preferred when this setup EXE is placed inside a repo's plugins folder."
-        }, 0, 0);
+        rootPanel.Controls.Add(BuildHeaderPanel(), 0, 0);
+        rootPanel.Controls.Add(BuildIntroLabel(
+            "Install or assess Anarchy-AI in a repo. " +
+            "Repo-local use is preferred when this setup executable is placed inside that repo's plugins folder."), 0, 1);
 
         var pathPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
             ColumnCount = 3,
-            AutoSize = true
+            AutoSize = true,
+            Margin = new Padding(0, 8, 0, 0)
         };
         pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -163,47 +168,56 @@ internal sealed class SetupForm : Form
         {
             AutoSize = true,
             Text = "Repo Path:",
-            Margin = new Padding(0, 8, 8, 0)
+            Margin = new Padding(0, 10, 10, 0)
         }, 0, 0);
 
         _repoPathTextBox = new TextBox
         {
             Dock = DockStyle.Fill,
-            Text = SetupEngine.TryResolveDefaultRepoRoot() ?? string.Empty
+            Text = SetupEngine.TryResolveDefaultRepoRoot() ?? string.Empty,
+            Margin = new Padding(0, 6, 8, 0)
         };
         pathPanel.Controls.Add(_repoPathTextBox, 1, 0);
 
-        var browseButton = new Button { Text = "Browse..." };
+        var browseButton = new Button
+        {
+            Text = "Choose Repo...",
+            AutoSize = false,
+            Width = 165,
+            Height = 34,
+            Margin = new Padding(0, 4, 0, 0)
+        };
         browseButton.Click += BrowseButton_Click;
         pathPanel.Controls.Add(browseButton, 2, 0);
-        rootPanel.Controls.Add(pathPanel, 0, 1);
+        rootPanel.Controls.Add(pathPanel, 0, 2);
 
         var buttonPanel = new FlowLayoutPanel
         {
             Dock = DockStyle.Top,
-            AutoSize = true
+            AutoSize = true,
+            Margin = new Padding(0, 12, 0, 0)
         };
 
-        var assessButton = new Button { Text = "Assess", AutoSize = true };
+        var assessButton = new Button { Text = "Assess", AutoSize = false, Width = 110, Height = 36 };
         assessButton.Click += (_, _) => Execute(OperationMode.Assess);
         buttonPanel.Controls.Add(assessButton);
 
-        var installButton = new Button { Text = "Install", AutoSize = true };
+        var installButton = new Button { Text = "Install", AutoSize = false, Width = 110, Height = 36 };
         installButton.Click += (_, _) => Execute(OperationMode.Install);
         buttonPanel.Controls.Add(installButton);
 
-        var closeButton = new Button { Text = "Close", AutoSize = true };
+        var closeButton = new Button { Text = "Close", AutoSize = false, Width = 110, Height = 36 };
         closeButton.Click += (_, _) => Close();
         buttonPanel.Controls.Add(closeButton);
 
         _statusLabel = new Label
         {
             AutoSize = true,
-            Margin = new Padding(16, 8, 0, 0),
+            Margin = new Padding(18, 10, 0, 0),
             Text = "Ready."
         };
         buttonPanel.Controls.Add(_statusLabel);
-        rootPanel.Controls.Add(buttonPanel, 0, 2);
+        rootPanel.Controls.Add(buttonPanel, 0, 3);
 
         _resultTextBox = new TextBox
         {
@@ -211,11 +225,97 @@ internal sealed class SetupForm : Form
             ScrollBars = ScrollBars.Both,
             Dock = DockStyle.Fill,
             ReadOnly = true,
-            Font = new System.Drawing.Font("Consolas", 9.0f)
+            WordWrap = false,
+            BorderStyle = BorderStyle.FixedSingle,
+            Font = new System.Drawing.Font("Consolas", 10.0f),
+            Margin = new Padding(0, 12, 0, 0)
         };
-        rootPanel.Controls.Add(_resultTextBox, 0, 3);
+        rootPanel.Controls.Add(_resultTextBox, 0, 4);
 
         Controls.Add(rootPanel);
+    }
+
+    private Control BuildHeaderPanel()
+    {
+        var headerPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            ColumnCount = 2,
+            AutoSize = true,
+            Margin = new Padding(0)
+        };
+        headerPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        headerPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+        var logo = BuildLogoPictureBox();
+        if (logo is not null)
+        {
+            headerPanel.Controls.Add(logo, 0, 0);
+        }
+
+        var titlePanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            AutoSize = true,
+            Margin = new Padding(16, 14, 0, 0)
+        };
+        titlePanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        titlePanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        var titleLabel = new Label
+        {
+            AutoSize = true,
+            Text = "Anarchy-AI Setup",
+            Font = new System.Drawing.Font("Segoe UI Semibold", 21.0f),
+            Margin = new Padding(0)
+        };
+        titlePanel.Controls.Add(titleLabel, 0, 0);
+
+        var subtitleLabel = new Label
+        {
+            AutoSize = true,
+            Text = "Repo-local harness install and assessment",
+            Font = new System.Drawing.Font("Segoe UI", 11.0f),
+            ForeColor = System.Drawing.Color.FromArgb(80, 80, 80),
+            Margin = new Padding(2, 4, 0, 0)
+        };
+        titlePanel.Controls.Add(subtitleLabel, 0, 1);
+
+        headerPanel.Controls.Add(titlePanel, 1, 0);
+
+        return headerPanel;
+    }
+
+    private static PictureBox? BuildLogoPictureBox()
+    {
+        var image = ResourceImageLoader.TryLoadPng("SetupPayload/plugins/anarchy-ai/assets/anarchy-ai.png");
+        if (image is null)
+        {
+            return null;
+        }
+
+        return new PictureBox
+        {
+            Image = image,
+            SizeMode = PictureBoxSizeMode.Zoom,
+            Width = 96,
+            Height = 96,
+            Margin = new Padding(0, 4, 12, 0)
+        };
+    }
+
+    private static Label BuildIntroLabel(string text)
+    {
+        return new Label
+        {
+            AutoSize = true,
+            Text = text,
+            MaximumSize = new System.Drawing.Size(900, 0),
+            Margin = new Padding(0, 8, 0, 0),
+            Font = new System.Drawing.Font("Segoe UI", 12.0f)
+        };
     }
 
     private void BrowseButton_Click(object? sender, EventArgs e)
@@ -279,12 +379,15 @@ internal sealed class InstallDisclosureForm : Form
     public InstallDisclosureForm(string repoPath, string disclosureText)
     {
         Text = "Install Disclosure";
-        Width = 780;
-        Height = 500;
+        Width = 920;
+        Height = 660;
+        MinimumSize = new System.Drawing.Size(860, 620);
         StartPosition = FormStartPosition.CenterParent;
         MinimizeBox = false;
         MaximizeBox = false;
-        FormBorderStyle = FormBorderStyle.FixedDialog;
+        FormBorderStyle = FormBorderStyle.Sizable;
+        Font = new System.Drawing.Font("Segoe UI", 10);
+        Icon = SetupWindowIcon.Create();
 
         var rootPanel = new TableLayoutPanel
         {
@@ -298,27 +401,43 @@ internal sealed class InstallDisclosureForm : Form
         rootPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-        rootPanel.Controls.Add(new Label
-        {
-            AutoSize = true,
-            Text = "Review expected repo, user, and agent impact before continuing."
-        }, 0, 0);
-
-        rootPanel.Controls.Add(new Label
-        {
-            AutoSize = true,
-            Text = $"Target repo: {repoPath}",
-            Margin = new Padding(0, 6, 0, 10)
-        }, 0, 1);
-
-        var disclosureBox = new TextBox
+        rootPanel.Controls.Add(new TextBox
         {
             Multiline = true,
             ReadOnly = true,
-            ScrollBars = ScrollBars.Vertical,
+            BorderStyle = BorderStyle.None,
+            BackColor = System.Drawing.SystemColors.Control,
+            Dock = DockStyle.Top,
+            Height = 44,
+            Text = "Review expected repo, user, and agent impact before continuing.",
+            Font = new System.Drawing.Font("Segoe UI Semibold", 11.0f),
+            TabStop = false
+        }, 0, 0);
+
+        rootPanel.Controls.Add(new TextBox
+        {
+            Multiline = true,
+            ReadOnly = true,
+            BorderStyle = BorderStyle.None,
+            BackColor = System.Drawing.SystemColors.Control,
+            Dock = DockStyle.Top,
+            Height = 54,
+            Text = $"Target repo:{Environment.NewLine}{repoPath}",
+            Margin = new Padding(0, 6, 0, 10),
+            TabStop = false
+        }, 0, 1);
+
+        var disclosureBox = new RichTextBox
+        {
+            ReadOnly = true,
             Dock = DockStyle.Fill,
             Text = disclosureText,
-            Font = new System.Drawing.Font("Consolas", 9.0f)
+            BorderStyle = BorderStyle.FixedSingle,
+            BackColor = System.Drawing.SystemColors.Window,
+            Font = new System.Drawing.Font("Consolas", 10.0f),
+            DetectUrls = false,
+            ScrollBars = RichTextBoxScrollBars.Vertical,
+            Margin = new Padding(0, 0, 0, 10)
         };
         rootPanel.Controls.Add(disclosureBox, 0, 2);
 
@@ -332,7 +451,9 @@ internal sealed class InstallDisclosureForm : Form
         var continueButton = new Button
         {
             Text = "Continue Install",
-            AutoSize = true,
+            AutoSize = false,
+            Width = 140,
+            Height = 36,
             DialogResult = DialogResult.OK
         };
         buttonPanel.Controls.Add(continueButton);
@@ -340,7 +461,9 @@ internal sealed class InstallDisclosureForm : Form
         var backButton = new Button
         {
             Text = "Back",
-            AutoSize = true,
+            AutoSize = false,
+            Width = 100,
+            Height = 36,
             DialogResult = DialogResult.Cancel
         };
         buttonPanel.Controls.Add(backButton);
@@ -350,6 +473,71 @@ internal sealed class InstallDisclosureForm : Form
         AcceptButton = continueButton;
         CancelButton = backButton;
         Controls.Add(rootPanel);
+    }
+}
+
+internal static class SetupWindowIcon
+{
+    public static System.Drawing.Icon? Create()
+    {
+        return ResourceIconLoader.TryLoadIcon("SetupPayload/plugins/anarchy-ai/assets/anarchy-ai.ico")
+            ?? SafeExtractExecutableIcon();
+    }
+
+    private static System.Drawing.Icon? SafeExtractExecutableIcon()
+    {
+        try
+        {
+            return System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+}
+
+internal static class ResourceImageLoader
+{
+    public static System.Drawing.Image? TryLoadPng(string logicalSuffix)
+    {
+        using var stream = TryOpenResourceStream(logicalSuffix);
+        if (stream is null)
+        {
+            return null;
+        }
+
+        using var image = System.Drawing.Image.FromStream(stream);
+        return new System.Drawing.Bitmap(image);
+    }
+
+    private static Stream? TryOpenResourceStream(string logicalSuffix)
+    {
+        var normalizedSuffix = logicalSuffix.Replace('\\', '/');
+        var resourceName = PayloadResources.GetPluginBundleResources()
+            .FirstOrDefault(name =>
+                name.Replace('\\', '/').EndsWith(normalizedSuffix, StringComparison.OrdinalIgnoreCase));
+
+        return resourceName is null ? null : PayloadResources.OpenResource(resourceName);
+    }
+}
+
+internal static class ResourceIconLoader
+{
+    public static System.Drawing.Icon? TryLoadIcon(string logicalSuffix)
+    {
+        using var stream = TryOpenResourceStream(logicalSuffix);
+        return stream is null ? null : new System.Drawing.Icon(stream);
+    }
+
+    private static Stream? TryOpenResourceStream(string logicalSuffix)
+    {
+        var normalizedSuffix = logicalSuffix.Replace('\\', '/');
+        var resourceName = PayloadResources.GetPluginBundleResources()
+            .FirstOrDefault(name =>
+                name.Replace('\\', '/').EndsWith(normalizedSuffix, StringComparison.OrdinalIgnoreCase));
+
+        return resourceName is null ? null : PayloadResources.OpenResource(resourceName);
     }
 }
 
@@ -553,7 +741,8 @@ internal sealed class SetupEngine
             "- Creates or updates .agents\\plugins\\marketplace.json.",
             "- Registers anarchy-ai as INSTALLED_BY_DEFAULT in the target repo.",
             "- Current GUI install does not rewrite AGENTS.md.",
-            "- Current GUI install does not copy root schema files unless a schema-refresh path is added later.",
+            "- Seeds missing portable root schema files from the embedded payload.",
+            "- Existing root schema files are left in place unless an explicit schema refresh is requested.",
             "Product behavior:",
             $"- Exposes {CurrentToolNames.Length} harness tools for preflight, gap assessment, active-work compilation, schema reality, and gov2gov reconciliation.",
             "Human impact:",
@@ -600,13 +789,14 @@ internal sealed class SetupEngine
             "- Registers anarchy-ai as INSTALLED_BY_DEFAULT in the target repo.",
             $"- Makes {CurrentToolNames.Length} bounded harness tools available to supported hosts.",
             "- Does not rewrite AGENTS.md.",
-            "- Does not copy portable root schema files unless /refreshschemas is passed.",
+            "- Seeds missing portable root schema files during install.",
+            "- Leaves existing root schema files in place unless /refreshschemas is passed.",
             string.Empty,
             "Flags:",
             "  /repo <path>            Override repo auto-detection.",
             "  /sourcepath <path>      Refresh from a local AI-Links source path.",
             "  /sourceurl <url>        Refresh from a zip source URL.",
-            "  /refreshschemas         Also materialize the portable schema family into repo root.",
+            "  /refreshschemas         Force-refresh the portable schema family into repo root.",
             "  /json                   Emit JSON result for assess/install/update operations.",
             "  /silent                 Suppress GUI/prompt behavior for CLI use.",
             "  /host <name>            Carry host context such as codex, claude, cursor, or generic."
@@ -644,6 +834,10 @@ internal sealed class SetupEngine
             if (options.RefreshPortableSchemaFamily)
             {
                 ExtractEmbeddedPortableSchemaFamily(repoRoot, actionsTaken);
+            }
+            else
+            {
+                SeedMissingEmbeddedPortableSchemaFamily(repoRoot, actionsTaken);
             }
         }
         else if (options.Mode == OperationMode.Update)
@@ -859,6 +1053,34 @@ internal sealed class SetupEngine
         }
 
         actionsTaken.Add("materialized_portable_schema_family_from_embedded_payload");
+    }
+
+    private static void SeedMissingEmbeddedPortableSchemaFamily(string repoRoot, HashSet<string> actionsTaken)
+    {
+        var copiedAny = false;
+
+        foreach (var resource in PayloadResources.GetPortableSchemaResources())
+        {
+            var fileName = resource["SetupPayload/portable-schema/".Length..]
+                .Replace('/', Path.DirectorySeparatorChar)
+                .Replace('\\', Path.DirectorySeparatorChar);
+
+            var targetPath = Path.Combine(repoRoot, fileName);
+            if (File.Exists(targetPath))
+            {
+                continue;
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
+            using var stream = PayloadResources.OpenResource(resource);
+            using var output = File.Create(targetPath);
+            stream.CopyTo(output);
+            copiedAny = true;
+        }
+
+        actionsTaken.Add(copiedAny
+            ? "seeded_missing_portable_schema_family_from_embedded_payload"
+            : "portable_schema_family_already_present");
     }
 
     private static void EnsureMarketplaceRegistration(string marketplacePath, HashSet<string> actionsTaken)

@@ -13,6 +13,7 @@
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <ApplicationIcon>..\..\..\plugins\anarchy-ai\assets\anarchy-ai.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

@@ -59,6 +59,8 @@
   - that Anarchy-AI is available in the repo
   - that install provides preflight, gap assessment, and schema reality checks
   - what repo-local changes install will make
+- Changed install semantics so setup now seeds missing portable schema-family files into repo root by default.
+- Kept `/refreshschemas` as the explicit force-refresh lane when repo-root schema files should be overwritten from the embedded payload.
 - Validated locally against disposable temp repos:
   - repo-local install
   - repo-local assess
