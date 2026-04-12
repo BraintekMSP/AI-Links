@@ -1,4 +1,204 @@
-# Changelog - AI-Links
+﻿# Changelog - AI-Links
+
+## 2026-04-12
+
+### Anarchy-AI repo install runbook
+
+- Added `docs/ANARCHY_AI_REPO_INSTALL_PROCESS.md` as the exact current repo-bootstrap install process for bringing Anarchy-AI into another repository.
+- The runbook explicitly separates:
+  - delivery of files
+  - accessibility
+  - enforcement
+  - realness
+- It records the current honest posture:
+  - repo bootstrap first
+  - Windows-first packaged delivery
+  - Codex-first packaged host
+  - Claude and Cursor still limited by adapter gaps
+- Extended the repo-bootstrap update story so it now documents both:
+  - public zip refresh through `-Update`
+  - local source fallback through `-UpdateSourcePath` when machine trust/TLS is unreliable
+- Tightened the same update story so it now distinguishes:
+  - plugin-bundle refresh from optional root schema refresh
+  - public-access failures from live-runtime file-lock failures
+- Added `plugins/anarchy-ai/scripts/stop-anarchy-ai.ps1` as a bounded runtime-lock command for repo-local Anarchy-AI processes so live-runtime update failures have an explicit repair lane.
+- Refined the stop command into explicit operator-facing modes:
+  - `AssessRuntimeLock`
+  - `SafeReleaseRuntimeLock`
+  - `ForceReleaseRuntimeLock`
+- Kept the underlying release behavior modular while making UAC-triggering force behavior explicit to the user instead of bundling it into one ambiguous stop action.
+- Preserved the stronger rationale for that split:
+  - better feedback to the agent about the actual blocking condition
+  - a bounded repair lane before broader file/path actions
+  - a clearer user-visible choice before UAC-backed force behavior
+
+### Scratchpad #2 negation refinement
+
+- Replaced the narrower "negation as a wrapper over prior context" framing in Scratchpad #2 with a broader rule: negation is better treated as a contextual relationship inflection that may operate across prior, current, or future context spans.
+- Preserved the stronger claim that negation is usually lossy and underdetermined because it reshapes relationships without fully restating positive structure.
+- Separated that semantic-loss claim from the distinct human-vs-AI problem where humans intuit logical inversion while models resolve negation statistically.
+
+### Vision artifacts for Anarchy-AI harness direction
+
+- Captured the April 12, 2026 harness prompt series into two explicit vision artifacts:
+  - `docs/VISION_anarchy_ai_harness_core.md`
+  - `docs/VISION_anarchy_ai_delivery_and_access.md`
+- Kept both in an `AGENTS-Vision`-style structure:
+  - `scope-statement`
+  - `what-done-looks-like-at-this-scope`
+  - `commitments-that-must-survive-scope-evolution`
+- Added `docs/VISION_negation_context_span_verbatim.md` to preserve the user's exact negation wording separately from the cleaned Scratchpad #2 theory language.
+- Split them intentionally so the repo now carries separate durable vision for:
+  - shared harness core and first-class contract boundaries
+  - compatibility, accessibility, delivery, and adoption expectations across User, Agent, and Environment
+
+### Anarchy-AI preflight, gap assessment, and repo bootstrap
+
+- Added two new first-class harness contracts:
+  - `preflight_session`
+  - `assess_harness_gap_state`
+- Implemented both tools in the shared `.NET` MCP runtime by composing existing shared logic instead of creating a second host-specific logic path.
+- Kept the core/runtime split explicit:
+  - shared logic still lives in contracts and runtime code
+  - host surfaces still live in adapters such as MCP, skill packaging, and future App Server / SDK orchestration
+- Added `plugins/anarchy-ai/scripts/bootstrap-anarchy-ai.ps1` as the first repo-bootstrap lane so installation has one obvious assess/install command before machine-level rollout exists.
+- Reworked harness, plugin, skill, and repo docs so the current public surface now teaches:
+  - preflight-first for meaningful governed work
+  - explicit install/runtime/schema/adoption gap assessment
+  - repo bootstrap as the first install path
+  - reflection as a secondary workflow rather than a core contract
+- Published the updated Windows-first `net8.0` runtime bundle to `plugins/anarchy-ai/runtime/win-x64/`.
+- Verified the packaged `net8.0` lane and recorded that the legacy `net48` target remains source-only/provisional rather than a validated packaged path.
+- Added `docs/ANARCHY_AI_HARNESS_ARCHITECTURE.md` to preserve the current actor split:
+  - User
+  - Agent
+  - Environment
+  and the current adapter split:
+  - MCP
+  - App Server
+  - SDK
+
+### Anarchy-AI delivery alignment review
+
+- Created `docs/IMPLEMENTATION_GAP_REGISTER.md` as a stable place for semi-functional implementation gaps that do not belong in research scratchpads, samples, or one-pass changelog notes.
+- Corrected the rough architecture phrasing toward:
+  - schema family = canonical layer
+  - AGENTS Heuristic Underlay = operative layer
+  - Anarchy-AI = runtime framework harness
+- Collapsed the plugin / MCP / skill review into 4 high-level problems with 9 immediate action items covering:
+  - trust and user-delivery surfaces
+  - deployment-path consistency
+  - stale scaffold / tool-count framing
+  - the underdescribed user-facing promise
+- Expanded the same register to also hold:
+  - residual governance-language gaps
+  - delivery-surface gaps
+  - claim-discipline gaps
+- Added two more preserved gaps so they do not get lost in chat:
+  - narrative schema still needs its own deeper review pass
+  - a journal / accounting capture lane may eventually be warranted as a more rigid cousin of narrative, but should remain a guarded future distinction rather than a new schema right now
+- Added a further delivery-gap distinction:
+  - `INSTALLED_BY_DEFAULT` appears to solve harness presence better than `AVAILABLE`
+  - but default presence still does not make Anarchy-AI feel like a coherent harness if invocation remains manual and fragmented
+- Added another packaging-direction note to the implementation-gap register:
+  - prefer a self-contained `.exe` as the delivery center of gravity
+  - keep a heavy Windows-first bias for now
+  - expect some form of trust/signing story such as a self-signed cert after real install testing
+- Removed the operational Anarchy-AI delivery checklist from scratchpad `#2` so that scratchpad can remain theory-shaped instead of becoming an implementation residue bin.
+
+### Anarchy-AI delivery and schema cleanup implementation
+
+- Reworked the Anarchy-AI plugin manifest so the user-facing surface now:
+  - uses `Anarchy-AI` as the display name
+  - identifies the repo owner instead of placeholder trust metadata
+  - links to real repository/plugin notice pages instead of placeholder URLs
+  - describes the three-tool runtime promise instead of only schema-reality plumbing
+  - states the current packaged delivery honestly as Windows-first
+- Added plugin-local `PRIVACY.md` and `TERMS.md` so the manifest can point to real trust surfaces instead of placeholders.
+- Updated plugin, harness, MCP-server, repo README, and runbook docs so they now share one cleaner architecture model:
+  - schema family = canonical layer
+  - AGENTS Heuristic Underlay = operative layer
+  - Anarchy-AI = runtime framework harness
+- Replaced stale maturity wording such as:
+  - `scaffold`
+  - `first two harness tools`
+  where the current local state already has three implemented bounded tools.
+- Updated the MCP server docs so the direct bundled runtime is the primary packaged launch path and `start-anarchy-ai.cmd` is treated as a development helper / fallback path instead of the default install story.
+- Tightened the Anarchy-AI skill so it now distinguishes:
+  - `schema_reality_state`
+  - `integrity_state`
+  - `possession_state`
+  instead of compressing them into one result axis.
+- Softened the overstrong scratchpad `#2` working claim from `can reliably improve` to `may improve` so the theory note stays closer to its current evidence standard.
+- Cleaned the most concentrated residual exit-language in the schema family:
+  - `invalid -- do not proceed` -> `invalid -- resolve before continuing` where that exact required-field pattern existed
+  - governance measurement/migration prose now routes through reporting, direction, and retention language rather than `block on discrepancy`, `sign-off`, `approval`, or `do not discard`
+- Synced the changed canonical schema files into `plugins/anarchy-ai/schemas/` and regenerated the schema-bundle manifest so the bundled canonical surface still matches the repo canon.
+
+### Anarchy AI active work compilation
+
+- Added `compile_active_work_state` as the third implemented harness tool.
+- The new tool compiles current work into a bounded operational packet covering:
+  - active objective
+  - active lane
+  - current status
+  - next required action
+  - ordered remaining steps
+  - blockers
+  - stop point
+  - evidence status
+  - session degradation signals
+- Kept the implementation intentionally bounded:
+  - no hidden persistence
+  - no planner theatrics
+  - no fake long-term memory surface
+- Updated the plugin README, skill, and plugin manifest prompts so the delivery surface now teaches all three implemented harness tools.
+
+### Anarchy AI canonical bundle and possession detection
+
+- Bundled the canonical schema family into `plugins/anarchy-ai/schemas/` and added a hash manifest so the plugin now carries:
+  - runtime
+  - contracts
+  - skill
+  - canonical schema files
+- Extended `is_schema_real_or_shadow_copied` so it now returns:
+  - `integrity_state`
+  - `possession_state`
+  - `integrity_findings`
+- Added canonical hash comparison so a workspace can be materially `real` while still being flagged as `possessed` when canonical schema files diverge from the trusted bundle.
+- Implemented the first real `run_gov2gov_migration` lane:
+  - `plan_only` proposes non-destructive reconciliation
+  - `non_destructive_apply` can copy missing canonical schema files from the bundled schema set into the target workspace
+  - canonical divergence is surfaced as audit pressure instead of being silently overwritten
+- Updated the plugin skill and plugin README so the public delivery surface now matches the implemented bundle and possession behavior.
+
+## 2026-04-11
+
+### Anarchy AI delivery-path correction
+
+- Corrected the `Anarchy AI` plugin delivery path so the plugin MCP declaration now launches the bundled self-contained Windows executable directly instead of chaining through `cmd.exe`.
+- Changed the repo-local marketplace policy for `anarchy-ai` from `AVAILABLE` to `INSTALLED_BY_DEFAULT` so repo-local delivery tests exercise default installation behavior instead of optional listing behavior.
+- Updated plugin and runbook docs to distinguish:
+  - direct bundled-exe delivery as the intended product path
+  - `start-anarchy-ai.cmd` as a development helper only
+
+### Anarchy AI schema-reality implementation
+
+- Implemented real workspace inspection behind `is_schema_real_or_shadow_copied` in `harness/server/dotnet/Program.cs`.
+- The tool now classifies AGENTS-family workspaces into the bounded contract states:
+  - `real`
+  - `partial`
+  - `copied_only`
+  - `fully_missing`
+- The result now includes:
+  - bounded active reasons
+  - recommended next action
+  - safe repair suggestions
+  - inspection details covering package files, governed files, startup surfaces, and startup discovery alignment
+- Validated the implemented tool against:
+  - `AI-Links` -> `copied_only`
+  - `Docker-Builder-Project` -> `real`
+- `run_gov2gov_migration` remains scaffold-only.
 
 ## 2026-04-10
 
@@ -19,7 +219,7 @@
   - `harness/contracts/gov2gov-migration.contract.json`
 - Added the first launchable harness server scaffold:
   - `harness/server/README.md`
-  - `harness/server/dotnet/SpindleMcp.Server.csproj`
+  - `harness/server/dotnet/AnarchyAi.Mcp.Server.csproj`
   - `harness/server/dotnet/Program.cs`
 - Defined the first harness function as `is_schema_real_or_shadow_copied`, with a bounded status model:
   - `real`
@@ -358,3 +558,9 @@ Validation:
 - Added a custom `LICENSE` with an all-rights-reserved, permission-required model.
 - Added a root `NOTICE` to make the public-reference-only stance explicit.
 - Updated `README.md` and `docs/PUBLICATION_CHECKLIST.md` to reflect the custom publication model.
+- Added a new Scratchpad #2 note that treats negation as a wrapper over prior context, preserving the deeper claim that negation can fail before token-level mitigation even begins when the rejected context is already compressed, ambiguous, or misidentified.
+
+
+
+
+- Added a Scratchpad #2 note preserving the bounded-incarnation/shared-substrate framing as a mental model for weak persistence across sessions without overclaiming individuality, hive-mind continuity, or literal consciousness.

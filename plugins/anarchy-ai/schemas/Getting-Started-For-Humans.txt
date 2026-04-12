@@ -1,0 +1,210 @@
+Getting Started For Humans
+==========================
+
+This file is for the person who owns and maintains the agent operating system.
+Not for AI agents. If an agent is reading this, it should return to AGENTS-schema-governance.json.
+
+
+WHAT THIS SYSTEM IS
+-------------------
+
+AGENTS-schema-governance.json is a governance schema. It describes the rules, file structures,
+and behavioral postures that AI agents use when working in your projects. Agents
+read it to understand how to operate, what files to author, and what the boundaries
+of their authority are.
+
+The schema does not build anything. It does not run anything. It is a precise
+description of a system, written so that agents can read it once and know what to do.
+No runtime required.
+
+
+WHAT YOU OWN
+------------
+
+You own:
+
+  - The schema (AGENTS-schema-governance.json and its siblings)
+  - The AGENTS files that get authored from it (AGENTS.md, AGENTS-hello.md, etc.)
+  - The decisions about scope boundaries, ownership, and terms
+  - The language inside all of these files
+
+Agents author and maintain files. Humans supply truth when it is missing.
+If an agent asks you a question mid-session, it is doing its job correctly.
+
+
+MIGRATION IS MORE THAN FILE CREATION
+------------------------------------
+
+If you are migrating an existing docs-heavy repo into the governance schema,
+do not stop when the AGENTS family files exist.
+
+You also own:
+
+  - The conflict surface: every doc that still refers to the old AGENTS model
+  - The active-vs-historical classification for those docs
+  - The edit-mode expectations for governance-surface changes
+  - The measurement contract that proves the migration is real
+
+A docs-repo migration is incomplete when agents can still read active docs
+that treat AGENTS.md like the whole authority payload.
+
+
+THE LANGUAGE PROBLEM
+--------------------
+
+Humans use poetic and whimsical language intentionally. A metaphor carries
+a rich network of meaning that a human reader dwells on and interprets over time.
+
+Agents do not have that luxury. They evaluate language in a single pass.
+Ambiguous language resolves to the most statistically common interpretation,
+not the one you intended. A clever term that feels precise to you may consistently
+misfire with every agent that reads it.
+
+When writing AGENTS files or schema content, use plain declarative language:
+
+  AVOID: "the source of truth is the north star"
+  USE:   "the source of truth is the database record, not the UI state"
+
+  AVOID: "sessions should breathe before closing"
+  USE:   "record open and close state before ending a session"
+
+  AVOID: "keep it clean"
+  USE:   "do not write files outside the declared scope directory"
+
+If you find yourself reaching for a vivid phrase because it feels right,
+stop and ask: what is the literal instruction? Write that instead.
+
+This is not a style preference. Poetic language in governance files
+is a reliability risk.
+
+
+SCOPE IS A BOUNDARY, NOT A FOLDER
+----------------------------------
+
+A scope (platform, repo, module) is not just an organizational label.
+It is a boundary of authority. Terms defined at one scope do not automatically
+apply at another. Rules written at repo scope do not govern platform behavior.
+
+When you are deciding whether something is a new scope or an extension of an
+existing one, ask: does this have distinct ownership, distinct rules, or distinct
+deliverables? If yes to any of those, it is probably its own scope.
+
+When in doubt, start smaller. A scope that grows can be split.
+A scope that was drawn too large creates governance debt that is hard to unwind.
+
+
+LANGUAGE IN AGENTS FILES IS LOAD-BEARING
+------------------------------------------
+
+Every term you define in AGENTS-Terms.md, every rule in AGENTS-Rules.md,
+every pitfall in AGENTS-Pitfalls.md — agents treat these as operating instructions,
+not documentation. An ambiguous term creates an ambiguous constraint.
+A vague rule creates a gap an agent will fill with its own judgment.
+
+Write terms as single-responsibility definitions. If a definition needs
+a "but also" clause, it may need to be two terms.
+
+Write rules as conditions and consequences: "if X, then Y."
+Avoid rules that are really aspirations: "maintain clarity" tells an agent nothing.
+
+
+THE 1PROJECT VARIANT
+--------------------
+
+For single-goal projects — a focused task with one deliverable and no complex
+governance needs — there is a lighter schema: AGENTS-schema-1project.json.
+
+Use it when:
+  - There is one clear goal and one expected output
+  - No ownership rules, scope boundaries, or cross-team coordination needed
+  - The work is bounded enough that drift is unlikely
+
+Exit to AGENTS-schema-governance.json (the full schema) when:
+  - Rules or ownership decisions need to be recorded
+  - Multiple agents or teams need to coordinate
+  - The scope grows to include multiple distinct deliverables
+
+
+OBSERVED PATTERNS
+-----------------
+
+The schema tracks observed-good-patterns and observed-bad-patterns inside
+the complexity-density block. These are not metrics dashboards.
+They are a known-problem register.
+
+Good patterns: record what worked so it can be repeated.
+Bad patterns: record what went wrong so it is not quietly forgotten.
+
+"We rehydrated the database but broke a separate integration" is a valid
+bad pattern entry. Numbers are welcome when they are the most precise
+description. Narrative is fine when they are not.
+
+The rule: known problems do not get dropped. If something broke,
+it lives in observed-bad-patterns until it is resolved and confirmed.
+
+
+WHEN TO ADD A PITFALL VS. A RULE
+----------------------------------
+
+Pitfalls and rules both prevent repeated failure, but they are different tools.
+
+A pitfall is a failure that happened and was resolved. It records what triggered it,
+what broke, and what the correct behavior is. It is historical and specific.
+
+A rule is a standing operating constraint. It prevents a class of failure,
+not a specific incident.
+
+If the same pitfall appears three or more times across sessions, that is a signal
+that it should become a rule. The auto-trigger mechanism in the schema will flag this.
+You still make the call — agents cannot promote a pitfall to a rule without
+human confirmation.
+
+
+WHAT AGENTS CANNOT DO
+---------------------
+
+  - Approve their own report-to-human gates
+  - Promote a pitfall to a rule without human confirmation
+  - Change scope boundaries without human confirmation
+  - Generate MODULE-Boundary.md (extraction prompt) without human confirmation
+  - Override the context-ordering-rule
+
+If an agent attempts any of these without asking first, that is a schema violation.
+Record it as a pitfall.
+
+
+IF YOU DO NOT KNOW WHICH SCHEMA TO USE
+---------------------------------------
+
+Start with AGENTS-schema-triage.md. Give it to an agent along with the schema
+files. The triage document asks 2-3 questions and routes to the correct schema.
+Do not load all four schemas at once.
+
+You do not need to understand the schema system to get started. You need to
+be able to describe what you are trying to accomplish in your own words.
+The triage document is designed to work with imprecise language, buzzwords
+you half-remember, or deep expertise you cannot articulate technically.
+
+
+GETTING STARTED (GOVERNANCE)
+----------------------------
+
+If the triage routed you to the governance schema, or you already know
+you need multi-scope governance:
+
+1. Decide your scope level: platform, repo, or module.
+2. Confirm your workspace root (the directory AGENTS.md will live in).
+3. Give an agent AGENTS-schema-governance.json and tell it to begin authoring.
+4. The agent will ask you to confirm workspace identity before writing anything.
+   Answer precisely. This is the first load-bearing decision.
+5. Review each file before the agent writes the next one.
+   The report-to-human gates exist for this reason.
+6. After authoring is complete, populate agent-session-open-close-measurement fields in AGENTS-hello.md.
+   These cannot be guessed. They come from you.
+7. If this is a migration, classify the conflict-surface docs before declaring the migration complete:
+   - active-control
+   - active-bridge
+   - historical-supporting
+8. Wire measurement so active docs fail when they drift back to AGENTS.md-only authority
+   and historical docs fail when they lose their label or live-authority redirect.
+9. Use `EditMode=none` only when no governance-surface file changed. If governance or conflict-surface files changed, close with `add`, `revise`, or `remove` instead.

@@ -76,25 +76,25 @@
           "required": true,
           "default": "{{workspace}}/AGENTS-schema-1project.json",
           "role": "path to AGENTS-schema-1project.json that governs this file set",
-          "missing": "invalid -- do not proceed"
+          "missing": "invalid -- resolve before continuing"
         },
         "context-ordering-rule": {
           "type": "verbatim",
           "required": true,
           "value": "past context CANNOT be reshaped by future context -- the direction of this relationship is critical",
-          "missing": "invalid -- do not proceed"
+          "missing": "invalid -- resolve before continuing"
         },
         "plan-completion-directive": {
           "type": "verbatim",
           "required": true,
           "value": "the prompt requires plan completion",
-          "missing": "invalid -- do not proceed"
+          "missing": "invalid -- resolve before continuing"
         },
         "plan-requirement-directive": {
           "type": "verbatim",
           "required": true,
           "value": "the prompt requires a plan",
-          "missing": "invalid -- do not proceed"
+          "missing": "invalid -- resolve before continuing"
         },
         "file-list": {
           "type": "file-path[]",
@@ -102,7 +102,7 @@
           "values": ["AGENTS-hello.md"],
           "optional-values": ["AGENTS-Terms.md", "AGENTS-Pitfalls.md"],
           "role": "files present in this project -- AGENTS-hello.md always included -- optional files added when authored",
-          "missing": "invalid -- do not proceed"
+          "missing": "invalid -- resolve before continuing"
         }
       }
     },
@@ -123,14 +123,14 @@
           "type": "file-path",
           "required": true,
           "default": "{{workspace}}/AGENTS-schema-1project.json",
-          "missing": "invalid -- do not proceed"
+          "missing": "invalid -- resolve before continuing"
         },
         "goal": {
           "type": "string",
           "required": true,
           "role": "the single declared goal of this project -- one sentence -- set once at authoring time -- change only with human approval -- if the goal has shifted, that is an exit-to-governance signal",
           "ask-if-ambiguous": true,
-          "missing": "invalid -- do not proceed"
+          "missing": "invalid -- resolve before continuing"
         },
         "external-tracking": {
           "type": "string",

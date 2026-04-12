@@ -8,7 +8,13 @@ AI-Links is a pre-context control layer for AI-assisted work. It shapes agent be
 
 Agent behavior is heuristic. It must be shaped before local heuristics take over.
 
-The system is not trying to maximize accuracy. It is trying to reliably improve the trajectory of future AI work sessions before those sessions' specific task context is known.
+The system is not trying to maximize accuracy. It is trying to bias future AI work sessions toward better trajectories before those sessions' specific task context is known.
+
+Current architecture:
+
+- schema family = canonical layer
+- AGENTS Heuristic Underlay = operative layer built from that family
+- Anarchy-AI = runtime framework harness that preflights meaningful governed work, assesses install and adoption gaps, compiles active work, evaluates schema reality, and reconciles local drift without replacing the schema family
 
 ## The AGENTS Schema Family
 
@@ -76,6 +82,7 @@ The methodology is grounded in two papers:
 - **Leviathan et al. (2025)** — "Prompt Repetition Improves Non-Reasoning LLMs" (Google Research). Repeated input exposure compensates for causal masking limitations. The schemas provide structured repeated exposure to critical context.
 
 See `docs/SCRATCHPAD_prompt_efficacy_patterns.md` and `docs/SCRATCHPAD_prophecy_precontext_influence.md` for the full research synthesis.
+See `docs/ANARCHY_AI_HARNESS_ARCHITECTURE.md` for the current harness architecture and actor split.
 
 ## Startup path
 

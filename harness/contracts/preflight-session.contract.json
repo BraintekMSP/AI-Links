@@ -1,0 +1,112 @@
+{
+  "contract_name": "preflight_session_contract",
+  "contract_version": "0.1.0",
+  "function_name": "preflight_session",
+  "purpose": "Decide whether the current repo/session is ready for meaningful governed work before the agent continues.",
+  "input_contract": {
+    "workspace_root": {
+      "type": "absolute_path",
+      "required": true,
+      "description": "Workspace root to inspect."
+    },
+    "current_objective": {
+      "type": "string",
+      "required": true,
+      "description": "Current work objective in plain language."
+    },
+    "host_context": {
+      "type": "string",
+      "required": false,
+      "description": "Optional host context such as codex, claude, cursor, or generic."
+    },
+    "startup_surfaces": {
+      "type": "string_array",
+      "required": false,
+      "description": "Optional startup or package surfaces that should align with the schema package."
+    },
+    "user_intent": {
+      "type": "string",
+      "required": false,
+      "description": "Optional user-intent summary that should sharpen preflight assessment."
+    }
+  },
+  "output_contract": {
+    "preflight_state": {
+      "type": "enum",
+      "values": [
+        "ready",
+        "ready_with_gaps",
+        "bootstrap_needed",
+        "manual_review_required"
+      ],
+      "description": "Bounded readiness result for the current repo/session."
+    },
+    "recommended_path": {
+      "type": "enum",
+      "values": [
+        "continue",
+        "compile_active_work",
+        "inspect_schema_reality",
+        "bootstrap_harness",
+        "stop_for_human"
+      ],
+      "description": "Best next lane after the preflight pass."
+    },
+    "active_gaps": {
+      "type": "string_array",
+      "description": "Current install, schema, or session gaps that still pressure the work."
+    },
+    "required_next_action": {
+      "type": "string",
+      "description": "Single next action the agent or human should take after preflight."
+    },
+    "adoption_state": {
+      "type": "enum",
+      "values": [
+        "fully_adopted",
+        "partially_adopted",
+        "bootstrap_required",
+        "adapter_gap_present"
+      ],
+      "description": "Current adoption state for the harness in this repo and host context."
+    },
+    "evidence_basis": {
+      "type": "string_array",
+      "description": "What the preflight pass used to ground the result."
+    },
+    "active_lane": {
+      "type": "string",
+      "description": "Best-fit lane inferred during preflight."
+    },
+    "current_status": {
+      "type": "string",
+      "description": "Current bounded work status as seen during preflight."
+    },
+    "schema_state": {
+      "type": "object",
+      "description": "Condensed schema reality summary used during preflight."
+    }
+  },
+  "result_example": {
+    "preflight_state": "ready_with_gaps",
+    "recommended_path": "inspect_schema_reality",
+    "active_gaps": [
+      "schema:package_surface_out_of_sync",
+      "session:no_declared_working_set"
+    ],
+    "required_next_action": "inspect_schema_reality_and_choose_safe_repair",
+    "adoption_state": "partially_adopted",
+    "evidence_basis": [
+      "AGENTS.md",
+      "schema_reality_inspection",
+      "harness_gap_assessment"
+    ],
+    "active_lane": "governance",
+    "current_status": "in_progress",
+    "schema_state": {
+      "schema_reality_state": "partial",
+      "integrity_state": "aligned",
+      "possession_state": "unpossessed"
+    }
+  }
+}

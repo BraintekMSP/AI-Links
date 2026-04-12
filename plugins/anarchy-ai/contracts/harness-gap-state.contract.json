@@ -1,0 +1,110 @@
+{
+  "contract_name": "harness_gap_state_contract",
+  "contract_version": "0.1.0",
+  "function_name": "assess_harness_gap_state",
+  "purpose": "Assess installation, runtime, schema, startup, and adoption gaps so the harness can report what is missing and what to do next.",
+  "input_contract": {
+    "workspace_root": {
+      "type": "absolute_path",
+      "required": true,
+      "description": "Workspace root to inspect."
+    },
+    "host_context": {
+      "type": "string",
+      "required": false,
+      "description": "Optional host context such as codex, claude, cursor, or generic."
+    },
+    "expected_capabilities": {
+      "type": "string_array",
+      "required": false,
+      "description": "Optional capabilities the current environment expects to have available."
+    }
+  },
+  "output_contract": {
+    "installation_state": {
+      "type": "enum",
+      "values": [
+        "repo_bootstrapped",
+        "repo_bundle_present_unregistered",
+        "external_runtime_only"
+      ],
+      "description": "Current repo/bootstrap state for Anarchy-AI in this workspace."
+    },
+    "runtime_state": {
+      "type": "enum",
+      "values": [
+        "callable_and_repo_bundled",
+        "repo_runtime_missing",
+        "callable_external"
+      ],
+      "description": "Current runtime state for the harness relative to the workspace."
+    },
+    "schema_state": {
+      "type": "object",
+      "description": "Condensed schema reality, integrity, and possession summary."
+    },
+    "adoption_state": {
+      "type": "enum",
+      "values": [
+        "fully_adopted",
+        "partially_adopted",
+        "bootstrap_required",
+        "adapter_gap_present"
+      ],
+      "description": "Overall adoption state for the harness in this workspace and host context."
+    },
+    "missing_components": {
+      "type": "string_array",
+      "description": "Missing or unresolved environment pieces preventing full adoption."
+    },
+    "safe_repairs": {
+      "type": "string_array",
+      "description": "Safe repair or completion moves suggested from the current state."
+    },
+    "admin_actions": {
+      "type": "string_array",
+      "description": "Actions intended for a human operator or bootstrap lane."
+    },
+    "agent_actions": {
+      "type": "string_array",
+      "description": "Actions the agent can take next without redefining the harness."
+    },
+    "evidence_basis": {
+      "type": "string_array",
+      "description": "What the assessment used to ground the result."
+    }
+  },
+  "result_example": {
+    "installation_state": "repo_bundle_present_unregistered",
+    "runtime_state": "callable_and_repo_bundled",
+    "schema_state": {
+      "schema_reality_state": "copied_only",
+      "integrity_state": "aligned",
+      "possession_state": "unpossessed",
+      "active_reasons": [
+        "schema_present_not_governing"
+      ]
+    },
+    "adoption_state": "partially_adopted",
+    "missing_components": [
+      "repo_marketplace_missing",
+      "codex_skill_surface_missing"
+    ],
+    "safe_repairs": [
+      "run_repo_bootstrap_script",
+      "materialize_governed_AGENTS_family"
+    ],
+    "admin_actions": [
+      "run_bootstrap_harness_install"
+    ],
+    "agent_actions": [
+      "run_preflight_session_before_meaningful_work",
+      "run_gov2gov_migration:plan_only"
+    ],
+    "evidence_basis": [
+      "repo_plugin_surfaces",
+      "marketplace_registration",
+      "schema_reality_inspection"
+    ]
+  }
+}

@@ -25,6 +25,7 @@ local.settings.json
 appsettings.secrets.json
 
 # Temp and artifacts
+.tmp/
 artifacts/
 dist/
 build/

@@ -18,10 +18,11 @@
       "type": "enum",
       "required": true,
       "values": [
+        "real",
         "partial",
         "copied_only"
       ],
-      "description": "Input state from is_schema_real_or_shadow_copied. This function is not the bootstrap lane for fully missing packages."
+      "description": "Input state from is_schema_real_or_shadow_copied. This function is not the bootstrap lane for fully missing packages, but it may still audit or reconcile a possessed real package."
     },
     "active_reasons": {
       "type": "string_array",
@@ -84,6 +85,25 @@
         "fully_missing"
       ],
       "description": "Schema reality state after planning or applying the gov2gov migration lane."
+    },
+    "resulting_integrity_state": {
+      "type": "enum",
+      "values": [
+        "aligned",
+        "diverged",
+        "unknown"
+      ],
+      "description": "Canonical schema bundle integrity state after planning or applying the migration lane."
+    },
+    "resulting_possession_state": {
+      "type": "enum",
+      "values": [
+        "unpossessed",
+        "possessed",
+        "not_applicable",
+        "unknown"
+      ],
+      "description": "Derived possession label after the migration lane completes."
     }
   },
   "gov2gov_alignment_targets": [
@@ -91,6 +111,8 @@
     "startup_discovery_path_alignment",
     "stale_companion_artifact_refresh",
     "folder_topology_reconciliation",
+    "canonical_schema_bundle_refresh_when_missing",
+    "canonical_schema_divergence_audit_when_detected",
     "GOV2GOV_hello_materialization_when_required",
     "GOV2GOV_source_target_map_materialization_when_required",
     "GOV2GOV_registry_materialization_when_required",
@@ -115,6 +137,8 @@
     "remaining_findings": [
       "folder_topology_mismatch"
     ],
-    "resulting_schema_reality_state": "partial"
+    "resulting_schema_reality_state": "partial",
+    "resulting_integrity_state": "aligned",
+    "resulting_possession_state": "unpossessed"
   }
 }

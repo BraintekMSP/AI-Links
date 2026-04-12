@@ -1,0 +1,123 @@
+{
+  "contract_name": "active_work_state_contract",
+  "contract_version": "0.1.0",
+  "function_name": "compile_active_work_state",
+  "purpose": "Compile current work into a bounded operational packet so the agent can work from stable state instead of raw session turbulence.",
+  "input_contract": {
+    "workspace_root": {
+      "type": "absolute_path",
+      "required": true,
+      "description": "Workspace root to inspect."
+    },
+    "current_objective": {
+      "type": "string",
+      "required": true,
+      "description": "Current work objective in plain language."
+    },
+    "working_set": {
+      "type": "string_array",
+      "required": false,
+      "description": "Optional files, directories, or named surfaces currently believed to be in play."
+    },
+    "known_blockers": {
+      "type": "string_array",
+      "required": false,
+      "description": "Explicit blockers already known to the agent or user."
+    },
+    "recent_residue": {
+      "type": "string_array",
+      "required": false,
+      "description": "Short recent facts, interruptions, or unfinished observations that should survive the current turn."
+    },
+    "preferred_lane": {
+      "type": "string",
+      "required": false,
+      "description": "Optional preferred lane if the user already knows the work should stay in governance, gov2gov, 1project, narrative, or triage."
+    }
+  },
+  "output_contract": {
+    "active_objective": {
+      "type": "string",
+      "description": "Normalized current objective."
+    },
+    "active_lane": {
+      "type": "string",
+      "description": "Best-fit working lane for the current objective."
+    },
+    "current_status": {
+      "type": "enum",
+      "values": [
+        "ready",
+        "in_progress",
+        "blocked",
+        "needs_clarification"
+      ],
+      "description": "Bounded current-work status."
+    },
+    "next_required_action": {
+      "type": "string",
+      "description": "Single next action that should move the work forward."
+    },
+    "ordered_remaining_steps": {
+      "type": "string_array",
+      "description": "Short ordered sequence for continuing the work from the compiled state."
+    },
+    "active_blockers": {
+      "type": "string_array",
+      "description": "Known blockers still in force."
+    },
+    "stop_point": {
+      "type": "string",
+      "description": "Best current continuation anchor if the work stops here."
+    },
+    "evidence_status": {
+      "type": "enum",
+      "values": [
+        "none",
+        "partial",
+        "grounded"
+      ],
+      "description": "How strongly the compiled state is anchored to observable workspace context or residue."
+    },
+    "session_degradation_signals": {
+      "type": "string_array",
+      "description": "Signals that the rider/horse relationship is degrading into drift, negation, or pseudo-state."
+    },
+    "working_surface_presence": {
+      "type": "object",
+      "description": "Present and missing path-like surfaces from the declared working set."
+    },
+    "measurement_basis": {
+      "type": "string_array",
+      "description": "What the compiler used to ground the packet."
+    }
+  },
+  "result_example": {
+    "active_objective": "materialize current governance work without trusting copied schema presence",
+    "active_lane": "governance",
+    "current_status": "in_progress",
+    "next_required_action": "inspect_declared_working_surfaces",
+    "ordered_remaining_steps": [
+      "inspect_startup_truth_chain",
+      "inspect_declared_working_surfaces",
+      "confirm_current_objective_against_workspace_state",
+      "execute_next_required_change",
+      "record_stop_point_and_evidence"
+    ],
+    "active_blockers": [],
+    "stop_point": "resume from declared working surfaces and current residue",
+    "evidence_status": "partial",
+    "session_degradation_signals": [
+      "no_declared_working_set"
+    ],
+    "working_surface_presence": {
+      "present": [],
+      "missing": []
+    },
+    "measurement_basis": [
+      "workspace_root",
+      "current_objective",
+      "recent_residue"
+    ]
+  }
+}

@@ -151,19 +151,19 @@
           "type": "verbatim",
           "required": true,
           "value": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
-          "missing": "invalid -- do not proceed"
+          "missing": "invalid -- resolve before continuing"
         },
         "plan-completion-directive": {
           "type": "verbatim",
           "required": true,
           "value": "the prompt requires plan completion",
-          "missing": "invalid -- do not proceed"
+          "missing": "invalid -- resolve before continuing"
         },
         "plan-requirement-directive": {
           "type": "verbatim",
           "required": true,
           "value": "the prompt requires a plan",
-          "missing": "invalid -- do not proceed"
+          "missing": "invalid -- resolve before continuing"
         },
         "source-governance-system": {
           "type": "string",

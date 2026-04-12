@@ -49,7 +49,7 @@
       "type": "enum",
       "values": ["human-confirms", "verification-passes", "parent-valid"],
       "definitions": {
-        "human-confirms":      "report findings to human and receive explicit approval before continuing",
+        "human-confirms":      "report findings to human and continue with the direction the human confirms",
         "verification-passes": "open measurement must return a clean diff before continuing",
         "parent-valid":        "parent scope file must be present and valid before this file is generated"
       }
@@ -86,25 +86,25 @@
           "required": true,
           "default": "{{workspace}}/AGENTS-schema-governance.json",
           "role": "path to AGENTS-schema-governance.json that governs this file set",
-          "missing": "invalid -- do not proceed"
+          "missing": "invalid -- resolve before continuing"
         },
         "context-ordering-rule": {
           "type": "verbatim",
           "required": true,
           "value": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
-          "missing": "invalid -- do not proceed"
+          "missing": "invalid -- resolve before continuing"
         },
         "plan-completion-directive": {
           "type": "verbatim",
           "required": true,
           "value": "the prompt requires plan completion",
-          "missing": "invalid -- do not proceed"
+          "missing": "invalid -- resolve before continuing"
         },
         "plan-requirement-directive": {
           "type": "verbatim",
           "required": true,
           "value": "the prompt requires a plan",
-          "missing": "invalid -- do not proceed"
+          "missing": "invalid -- resolve before continuing"
         },
         "file-list": {
           "type": "file-path[]",
@@ -115,7 +115,7 @@
             "AGENTS-Vision.md",
             "AGENTS-Rules.md"
           ],
-          "missing": "invalid -- do not proceed"
+          "missing": "invalid -- resolve before continuing"
         }
       }
     },
@@ -137,7 +137,7 @@
           "type": "file-path",
           "required": true,
           "default": "{{workspace}}/AGENTS-schema-governance.json",
-          "missing": "invalid -- do not proceed"
+          "missing": "invalid -- resolve before continuing"
         },
         "scope-identity-statement": {
           "type": "string",
@@ -226,7 +226,7 @@
         "agent-session-open-close-measurement": {
           "type": "object",
           "required": true,
-          "role": "precondition for acting -- evaluated before rules are relevant -- run measurement at session open and close, diff the results, block on discrepancy",
+          "role": "precondition for acting -- evaluated before rules are relevant -- run measurement at session open and close, compare the results, and route discrepancies through the measurement gate",
           "setup-note": "open and close commands must be configured by the human at authoring time -- what to measure is declared in migration.measurement-profile (docs-repo: file presence and field population; app-repo: DB state and route shapes; module: prefix-namespaced table state) -- if no commands are configured, the complexity-density tier system, auto-triggers, and measurement-discrepancy-count signal are all inert -- do not guess measurement commands, ask the human",
           "fields": {
             "open": {
@@ -252,7 +252,7 @@
             "measurement-gate-on-discrepancy": {
               "type": "bool",
               "required": true,
-              "role": "if true, session may not proceed past open discrepancies without human sign-off"
+              "role": "if true, open discrepancies must be reported to the human and resolved in the next direction before the session continues"
             }
           }
         },
@@ -356,7 +356,7 @@
           "type": "file-path",
           "required": true,
           "default": "{{workspace}}/AGENTS-schema-governance.json",
-          "missing": "invalid -- do not proceed"
+          "missing": "invalid -- resolve before continuing"
         },
         "inherits-pitfalls-from-parent-scope": {
           "type": "file-path",
@@ -585,13 +585,13 @@
       "values": ["first-time-governance-authoring", "migration"],
       "definitions": {
         "first-time-governance-authoring": "no existing AGENTS files -- generate from schema and templates",
-        "migration":  "existing authority file present -- map content to new structure, do not discard"
+        "migration":  "existing authority file present -- map content to new structure and retain source authority during migration"
       }
     },
     "existing-authority": {
       "type": "file-path",
       "required-if-mode": "migration",
-      "role": "file path to current AGENTS authority -- content will be mapped to new structure, not discarded"
+      "role": "file path to current AGENTS authority -- content will be mapped to new structure and retained during migration"
     },
     "conflict-surface": {
       "type": "file-path[]",
@@ -627,21 +627,21 @@
       "first-time-governance-authoring": [
         "read this schema fully -- meta through templates -- before writing anything",
         "confirm scope identity with human: workspace, scope-level, parent",
-        "generate files in load-order (0 through 5) using templates as the starting point -- report-to-human and receive approval before writing the next file",
+        "generate files in load-order (0 through 5) using templates as the starting point -- report-to-human at each file boundary before writing the next file",
         "populate agent-session-open-close-measurement fields before declaring authoring complete"
       ],
       "migration": [
         "read this schema fully -- meta through templates -- before writing anything",
         "re-ingest the existing project starting at {{workspace}}/AGENTS.md",
-        "run review-before-migration-prompt against existing-authority and present findings to human -- do not proceed until human acknowledges",
+        "run review-before-migration-prompt against existing-authority and present findings to human before writing any new file",
         "read existing-authority completely before writing any new file",
-        "map existing authority content into new file structure -- do not discard",
+        "map existing authority content into new file structure and retain source authority during migration",
         "preserve mandatory reads from existing-authority until their content is fully migrated into the new structure",
         "classify conflict-surface files as active-control, active-bridge, or historical-supporting before updating them",
-        "for docs-repo migrations, do not stop at file-family creation -- finish the conflict-surface migration and historical labeling before calling the migration complete",
+        "for docs-repo migrations, finish the conflict-surface migration and historical labeling before calling the migration complete",
         "remove a mandatory read only when: its content is fully migrated AND the instruction cascades naturally through the new system AND it is not core to a standard repository",
-        "remove redundant instructions that the new system already enforces -- do not carry forward what the schema makes implicit",
-        "generate files in load-order (0 through 5) using templates as the starting point -- report-to-human and receive approval before writing the next file",
+        "remove redundant instructions that the new system already enforces -- retain only instructions that remain load-bearing after the schema absorbs the rest",
+        "generate files in load-order (0 through 5) using templates as the starting point -- report-to-human at each file boundary before writing the next file",
         "declare edit mode before modifying governance files or conflict-surface files",
         "update all conflict-surface files after all new AGENTS files are confirmed valid"
       ]

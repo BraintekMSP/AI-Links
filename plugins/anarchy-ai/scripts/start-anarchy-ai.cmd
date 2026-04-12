@@ -2,11 +2,20 @@
 setlocal
 
 set "SCRIPT_DIR=%~dp0"
-for %%I in ("%SCRIPT_DIR%..\..\..") do set "REPO_ROOT=%%~fI"
+for %%I in ("%SCRIPT_DIR%..") do set "PLUGIN_ROOT=%%~fI"
+for %%I in ("%PLUGIN_ROOT%\..\..") do set "REPO_ROOT=%%~fI"
+set "BUNDLED_ENTRY=%PLUGIN_ROOT%\runtime\win-x64\AnarchyAi.Mcp.Server.exe"
 set "SERVER_DIR=%REPO_ROOT%\harness\server\dotnet"
-set "NET8_ENTRY=%SERVER_DIR%\bin\Release\net8.0\win-x64\publish\SpindleMcp.Server.exe"
-set "NET48_ENTRY=%SERVER_DIR%\bin\Release\net48\SpindleMcp.Server.exe"
+set "NET8_ENTRY=%SERVER_DIR%\bin\Release\net8.0\win-x64\publish\AnarchyAi.Mcp.Server.exe"
+set "NET48_ENTRY=%SERVER_DIR%\bin\Release\net48\AnarchyAi.Mcp.Server.exe"
 set "DOTNET_CMD="
+
+if exist "%BUNDLED_ENTRY%" (
+  pushd "%PLUGIN_ROOT%"
+  "%BUNDLED_ENTRY%"
+  popd
+  exit /b %ERRORLEVEL%
+)
 
 if exist "%NET8_ENTRY%" (
   pushd "%REPO_ROOT%"
@@ -26,8 +35,8 @@ where dotnet >nul 2>nul
 if not errorlevel 1 set "DOTNET_CMD=dotnet"
 if not defined DOTNET_CMD if exist "%USERPROFILE%\.dotnet\dotnet.exe" set "DOTNET_CMD=%USERPROFILE%\.dotnet\dotnet.exe"
 if not defined DOTNET_CMD (
-  echo Anarchy AI could not find a published harness executable and dotnet is not installed. 1>&2
-  echo Preferred runtime: .NET 8 self-contained single-file. Fallback: .NET Framework 4.8 build. 1>&2
+  echo Anarchy AI could not find a bundled runtime or a repo-local harness build, and dotnet is not installed. 1>&2
+  echo Preferred path: plugins\\anarchy-ai\\runtime\\win-x64\\AnarchyAi.Mcp.Server.exe 1>&2
   exit /b 1
 )
 

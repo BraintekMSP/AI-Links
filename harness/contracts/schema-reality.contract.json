@@ -31,6 +31,25 @@
       ],
       "description": "Highest-confidence current state for the schema package in the workspace."
     },
+    "integrity_state": {
+      "type": "enum",
+      "values": [
+        "aligned",
+        "diverged",
+        "unknown"
+      ],
+      "description": "Hash-alignment state between canonical schema bundle files and workspace schema files."
+    },
+    "possession_state": {
+      "type": "enum",
+      "values": [
+        "unpossessed",
+        "possessed",
+        "not_applicable",
+        "unknown"
+      ],
+      "description": "Derived diagnostic label for operative but canonically diverged schema surfaces."
+    },
     "state_reasons": {
       "type": "map",
       "description": "Reason vocabulary grouped by state so the active result can use bounded explanations.",
@@ -65,6 +84,10 @@
       "type": "string_array",
       "description": "Reason list selected from the active state's allowed reason vocabulary."
     },
+    "integrity_findings": {
+      "type": "string_array",
+      "description": "Integrity-specific findings such as canonical-schema hash mismatches or missing bundle files."
+    },
     "recommended_next_action": {
       "type": "enum",
       "values": [
@@ -80,11 +103,14 @@
   },
   "result_example": {
     "schema_reality_state": "copied_only",
+    "integrity_state": "aligned",
+    "possession_state": "unpossessed",
     "active_reasons": [
       "stale_companion_artifacts",
       "copied_without_package_alignment",
       "schema_present_not_governing"
     ],
+    "integrity_findings": [],
     "recommended_next_action": "run_gov2gov_migration",
     "safe_repairs": [
       "refresh_package_surface",
