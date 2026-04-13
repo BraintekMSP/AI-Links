@@ -66,8 +66,10 @@ internal sealed class CanonicalSchemaBundle
             Path.Combine(AppContext.BaseDirectory, "schemas"),
             Path.Combine(AppContext.BaseDirectory, "..", "..", "schemas"),
             Path.Combine(Environment.CurrentDirectory, "..", "..", "..", "plugins", "anarchy-ai", "schemas"),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "plugins", "anarchy-ai", "schemas")
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "plugins", "anarchy-ai", "schemas"),
+            Path.Combine(HarnessInstallDiscovery.TryResolveInstalledPluginRoot() ?? string.Empty, "schemas")
         }
+        .Where(static path => !string.IsNullOrWhiteSpace(path))
         .Select(Path.GetFullPath)
         .Distinct(StringComparer.OrdinalIgnoreCase);
 
@@ -139,6 +141,146 @@ internal sealed class CanonicalSchemaBundle
 
         [JsonPropertyName("sha256")]
         public required string Sha256 { get; set; }
+    }
+}
+
+internal static class HarnessInstallDiscovery
+{
+    public static string? TryResolveInstalledPluginRoot()
+    {
+        var candidates = new[]
+        {
+            Environment.CurrentDirectory,
+            Path.Combine(AppContext.BaseDirectory, "..", ".."),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..")
+        }
+        .Select(Path.GetFullPath)
+        .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var candidate in candidates)
+        {
+            if (LooksLikePluginRoot(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    public static string ResolveWorkspacePluginRoot(string workspaceRoot)
+    {
+        var marketplaceCandidate = TryResolveMarketplacePluginRoot(workspaceRoot);
+        if (!string.IsNullOrWhiteSpace(marketplaceCandidate))
+        {
+            return marketplaceCandidate;
+        }
+
+        var userProfileMarketplaceCandidate = TryResolveMarketplacePluginRoot(GetUserProfileRoot());
+        if (!string.IsNullOrWhiteSpace(userProfileMarketplaceCandidate))
+        {
+            return userProfileMarketplaceCandidate;
+        }
+
+        var pluginsRoot = Path.Combine(workspaceRoot, "plugins");
+        if (Directory.Exists(pluginsRoot))
+        {
+            foreach (var candidate in Directory.GetDirectories(pluginsRoot)
+                         .Where(static path => Path.GetFileName(path).StartsWith("anarchy-ai", StringComparison.OrdinalIgnoreCase))
+                         .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
+            {
+                if (LooksLikePluginRoot(candidate))
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        return TryResolveInstalledPluginRoot()
+            ?? Path.Combine(workspaceRoot, "plugins", "anarchy-ai");
+    }
+
+    private static string? TryResolveMarketplacePluginRoot(string marketplaceRoot)
+    {
+        if (string.IsNullOrWhiteSpace(marketplaceRoot))
+        {
+            return null;
+        }
+
+        var marketplacePath = Path.Combine(marketplaceRoot, ".agents", "plugins", "marketplace.json");
+        if (!File.Exists(marketplacePath))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(marketplacePath));
+            if (!document.RootElement.TryGetProperty("plugins", out var pluginsElement) ||
+                pluginsElement.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+
+            foreach (var pluginElement in pluginsElement.EnumerateArray())
+            {
+                if (!TryGetPluginName(pluginElement, out var pluginName) ||
+                    !pluginName.StartsWith("anarchy-ai", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (!pluginElement.TryGetProperty("source", out var sourceElement) ||
+                    !sourceElement.TryGetProperty("path", out var pathElement))
+                {
+                    continue;
+                }
+
+                var sourcePath = pathElement.GetString();
+                if (string.IsNullOrWhiteSpace(sourcePath) ||
+                    !sourcePath.StartsWith("./plugins/anarchy-ai", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var resolved = Path.GetFullPath(Path.Combine(marketplaceRoot, sourcePath[2..].Replace('/', Path.DirectorySeparatorChar)));
+                if (LooksLikePluginRoot(resolved))
+                {
+                    return resolved;
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+
+        return null;
+    }
+
+    private static string GetUserProfileRoot()
+    {
+        return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+    }
+
+    public static bool TryGetPluginName(JsonElement pluginElement, out string pluginName)
+    {
+        pluginName = string.Empty;
+        if (!pluginElement.TryGetProperty("name", out var nameElement) ||
+            nameElement.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        pluginName = nameElement.GetString() ?? string.Empty;
+        return !string.IsNullOrWhiteSpace(pluginName);
+    }
+
+    private static bool LooksLikePluginRoot(string path)
+    {
+        return Directory.Exists(path) &&
+               File.Exists(Path.Combine(path, ".codex-plugin", "plugin.json")) &&
+               File.Exists(Path.Combine(path, ".mcp.json"));
     }
 }
 
@@ -1317,7 +1459,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         var normalizedHostContext = NormalizeHostContext(hostContext);
         var normalizedExpectedCapabilities = NormalizeExpectedCapabilities(expectedCapabilities);
 
-        var pluginRoot = Path.Combine(resolvedWorkspaceRoot, "plugins", "anarchy-ai");
+        var pluginRoot = HarnessInstallDiscovery.ResolveWorkspacePluginRoot(resolvedWorkspaceRoot);
         var pluginManifestPath = Path.Combine(pluginRoot, ".codex-plugin", "plugin.json");
         var mcpDeclarationPath = Path.Combine(pluginRoot, ".mcp.json");
         var runtimePath = Path.Combine(pluginRoot, "runtime", "win-x64", "AnarchyAi.Mcp.Server.exe");
@@ -1391,7 +1533,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
 
             if (!marketplaceInspection.Exists)
             {
-                missingComponents.Add("repo_marketplace_missing");
+                missingComponents.Add("marketplace_missing");
             }
             else if (!marketplaceInspection.HasAnarchyPluginEntry)
             {
@@ -1426,7 +1568,9 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
             mcpDeclarationExists,
             runtimeExists,
             normalizedHostContext,
-            marketplaceInspection);
+            marketplaceInspection,
+            pluginRoot,
+            resolvedWorkspaceRoot);
 
         var runtimeState = DetermineRuntimeState(runtimeExists, anyRepoBundleSurfacePresent);
         var adoptionState = DetermineAdoptionState(
@@ -1536,7 +1680,9 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         bool mcpDeclarationExists,
         bool runtimeExists,
         string hostContext,
-        MarketplaceInspection marketplaceInspection)
+        MarketplaceInspection marketplaceInspection,
+        string pluginRoot,
+        string workspaceRoot)
     {
         var repoBundleReady = pluginManifestExists && mcpDeclarationExists && runtimeExists;
         var repoRegistrationSatisfied = hostContext is not ("codex" or "generic")
@@ -1544,7 +1690,9 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
 
         if (repoBundleReady && repoRegistrationSatisfied)
         {
-            return "repo_bootstrapped";
+            return IsUserProfilePluginRoot(pluginRoot, workspaceRoot)
+                ? "user_profile_bootstrapped"
+                : "repo_bootstrapped";
         }
 
         if (anyRepoBundleSurfacePresent)
@@ -1553,6 +1701,13 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         }
 
         return "external_runtime_only";
+    }
+
+    private static bool IsUserProfilePluginRoot(string pluginRoot, string workspaceRoot)
+    {
+        var normalizedPluginRoot = Path.GetFullPath(pluginRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var normalizedWorkspacePlugins = Path.GetFullPath(Path.Combine(workspaceRoot, "plugins")).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return !normalizedPluginRoot.StartsWith(normalizedWorkspacePlugins, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string DetermineRuntimeState(bool runtimeExists, bool anyRepoBundleSurfacePresent)
@@ -1588,7 +1743,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
             integrityState == "aligned" &&
             possessionState == "unpossessed" &&
             missingComponents.Count == 0 &&
-            installationState == "repo_bootstrapped")
+            installationState is "repo_bootstrapped" or "user_profile_bootstrapped")
         {
             return "fully_adopted";
         }
@@ -1634,7 +1789,18 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
 
     private static MarketplaceInspection InspectMarketplace(string workspaceRoot)
     {
-        var marketplacePath = Path.Combine(workspaceRoot, ".agents", "plugins", "marketplace.json");
+        var repoInspection = InspectMarketplaceAtRoot(workspaceRoot);
+        if (repoInspection.Exists || repoInspection.Findings.Length > 0)
+        {
+            return repoInspection;
+        }
+
+        return InspectMarketplaceAtRoot(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+    }
+
+    private static MarketplaceInspection InspectMarketplaceAtRoot(string marketplaceRoot)
+    {
+        var marketplacePath = Path.Combine(marketplaceRoot, ".agents", "plugins", "marketplace.json");
         if (!File.Exists(marketplacePath))
         {
             return new MarketplaceInspection(marketplacePath, false, false, false, []);
@@ -1660,8 +1826,8 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
 
             foreach (var pluginElement in pluginsElement.EnumerateArray())
             {
-                if (!pluginElement.TryGetProperty("name", out var nameElement) ||
-                    !string.Equals(nameElement.GetString(), "anarchy-ai", StringComparison.Ordinal))
+                if (!HarnessInstallDiscovery.TryGetPluginName(pluginElement, out var pluginName) ||
+                    !pluginName.StartsWith("anarchy-ai", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -1683,7 +1849,8 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
                     sourceElement.TryGetProperty("path", out var pathElement))
                 {
                     var sourcePath = pathElement.GetString();
-                    if (!string.Equals(sourcePath, "./plugins/anarchy-ai", StringComparison.OrdinalIgnoreCase))
+                    if (string.IsNullOrWhiteSpace(sourcePath) ||
+                        !sourcePath.StartsWith("./plugins/anarchy-ai", StringComparison.OrdinalIgnoreCase))
                     {
                         findings.Add("anarchy_ai_marketplace_path_unexpected");
                     }

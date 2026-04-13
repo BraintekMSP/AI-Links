@@ -1,7 +1,7 @@
 {
-  "name": "ai-links-local",
+  "name": "anarchy-local-ai-links-bb85a60e",
   "interface": {
-    "displayName": "AI-Links Local"
+    "displayName": "Anarchy-AI Local (AI-Links)"
   },
   "plugins": [
     {

@@ -15,6 +15,8 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $pluginRoot = [System.IO.Path]::GetFullPath((Join-Path $scriptDir '..'))
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $pluginRoot '..\..'))
 $marketplacePath = Join-Path $repoRoot '.agents\plugins\marketplace.json'
+$expectedPluginName = Split-Path $pluginRoot -Leaf
+$expectedPluginRelativePath = "./plugins/$expectedPluginName"
 $runtimePath = Join-Path $pluginRoot 'runtime\win-x64\AnarchyAi.Mcp.Server.exe'
 $pluginManifestPath = Join-Path $pluginRoot '.codex-plugin\plugin.json'
 $mcpPath = Join-Path $pluginRoot '.mcp.json'
@@ -42,6 +44,197 @@ $safeRepairs = New-Object System.Collections.Generic.List[string]
 $updateState = 'not_requested'
 $updateRuntimeLocked = $false
 $updateNotes = New-Object System.Collections.Generic.List[string]
+
+function Get-NormalizedMarketplaceSlug {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Value
+  )
+
+  $normalized = $Value.Trim().ToLowerInvariant()
+  $normalized = [regex]::Replace($normalized, '[^a-z0-9]+', '-')
+  $normalized = $normalized.Trim('-')
+  if ([string]::IsNullOrWhiteSpace($normalized)) {
+    return 'repo'
+  }
+
+  return $normalized
+}
+
+function Get-RepoScopedMarketplaceIdentity {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$ResolvedRepoRoot
+  )
+
+  $repoName = Split-Path $ResolvedRepoRoot -Leaf
+  $slug = Get-NormalizedMarketplaceSlug -Value $repoName
+  $pathBytes = [System.Text.Encoding]::UTF8.GetBytes($ResolvedRepoRoot.ToLowerInvariant())
+  $sha256 = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    $hashBytes = $sha256.ComputeHash($pathBytes)
+  }
+  finally {
+    $sha256.Dispose()
+  }
+  $hashSuffix = -join ($hashBytes[0..3] | ForEach-Object { $_.ToString('x2') })
+
+  return [pscustomobject]@{
+    name = "anarchy-local-$slug-$hashSuffix"
+    display_name = if ([string]::IsNullOrWhiteSpace($repoName)) { 'Anarchy-AI Local (Repo)' } else { "Anarchy-AI Local ($repoName)" }
+  }
+}
+
+function Get-RepoScopedMcpServerName {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$ResolvedRepoRoot
+  )
+
+  return 'anarchy-ai'
+}
+
+$expectedMarketplaceIdentity = Get-RepoScopedMarketplaceIdentity -ResolvedRepoRoot $repoRoot
+$expectedMcpServerName = Get-RepoScopedMcpServerName -ResolvedRepoRoot $repoRoot
+
+function Test-IsAnarchyPluginEntry {
+  param(
+    [Parameter(Mandatory = $true)]
+    $Plugin
+  )
+
+  $pluginName = ''
+  if ($null -ne $Plugin.name) {
+    $pluginName = [string]$Plugin.name
+  }
+
+  if ($pluginName.StartsWith('anarchy-ai')) {
+    return $true
+  }
+
+  $pluginPath = ''
+  if ($null -ne $Plugin.source -and $null -ne $Plugin.source.path) {
+    $pluginPath = [string]$Plugin.source.path
+  }
+
+  return $pluginPath.StartsWith('./plugins/anarchy-ai')
+}
+
+function Set-RepoScopedMcpConfiguration {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$McpConfigPath,
+    [Parameter(Mandatory = $true)]
+    [string]$ExpectedServerName
+  )
+
+  $configChanged = $false
+  $rootObject = $null
+
+  if (Test-Path $McpConfigPath) {
+    try {
+      $rootObject = Get-Content $McpConfigPath -Raw | ConvertFrom-Json
+    }
+    catch {
+      $rootObject = $null
+      $actionsTaken.Add('replaced_invalid_mcp_declaration')
+      $configChanged = $true
+    }
+  }
+  else {
+    $configChanged = $true
+  }
+
+  if ($null -eq $rootObject) {
+    $rootObject = [ordered]@{}
+  }
+
+  $currentServers = $rootObject.mcpServers
+  $currentServer = $null
+  $hasExpectedServer = $false
+
+  if ($null -ne $currentServers) {
+    foreach ($property in $currentServers.PSObject.Properties) {
+      if ($property.Name -eq $ExpectedServerName) {
+        $hasExpectedServer = $true
+        $currentServer = $property.Value
+      }
+      else {
+        $configChanged = $true
+      }
+    }
+  }
+  else {
+    $configChanged = $true
+  }
+
+  if (-not $hasExpectedServer) {
+    $configChanged = $true
+  }
+
+  if ($null -eq $currentServer) {
+    $currentServer = [pscustomobject]@{}
+  }
+
+  if ($currentServer.command -ne '.\runtime\win-x64\AnarchyAi.Mcp.Server.exe') {
+    $configChanged = $true
+  }
+  if ($currentServer.cwd -ne '.') {
+    $configChanged = $true
+  }
+  if ($null -eq $currentServer.args -or @($currentServer.args).Count -ne 0) {
+    $configChanged = $true
+  }
+
+  if ($configChanged) {
+    $rootObject = [ordered]@{
+      mcpServers = [ordered]@{
+        $ExpectedServerName = [ordered]@{
+          command = '.\runtime\win-x64\AnarchyAi.Mcp.Server.exe'
+          args = @()
+          cwd = '.'
+        }
+      }
+    }
+
+    $rootObject | ConvertTo-Json -Depth 10 | Set-Content $McpConfigPath
+    $actionsTaken.Add('updated_repo_mcp_server_identity')
+  }
+}
+
+function Set-RepoScopedPluginManifest {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$PluginManifestPath,
+    [Parameter(Mandatory = $true)]
+    [string]$ExpectedPluginName
+  )
+
+  if (-not (Test-Path $PluginManifestPath)) {
+    return
+  }
+
+  $manifestObject = $null
+  try {
+    $manifestObject = Get-Content $PluginManifestPath -Raw | ConvertFrom-Json
+  }
+  catch {
+    $manifestObject = [ordered]@{}
+    $actionsTaken.Add('replaced_invalid_plugin_manifest')
+  }
+
+  if ($null -eq $manifestObject.name -or $manifestObject.name -ne $ExpectedPluginName) {
+    if ($manifestObject.PSObject.Properties.Name -contains 'name') {
+      $manifestObject.name = $ExpectedPluginName
+    }
+    else {
+      $manifestObject | Add-Member -NotePropertyName name -NotePropertyValue $ExpectedPluginName -Force
+    }
+
+    $manifestObject | ConvertTo-Json -Depth 10 | Set-Content $PluginManifestPath
+    $actionsTaken.Add('updated_repo_plugin_identity')
+  }
+}
 
 function Remove-CanonicalTarget {
   param(
@@ -265,6 +458,9 @@ if ($Update) {
         -ExpectedRoot $pluginRoot
     }
 
+    Set-RepoScopedPluginManifest -PluginManifestPath $pluginManifestPath -ExpectedPluginName $expectedPluginName
+    Set-RepoScopedMcpConfiguration -McpConfigPath $mcpPath -ExpectedServerName $expectedMcpServerName
+
     if ($usedLocalUpdateSource) {
       $actionsTaken.Add('refreshed_plugin_bundle_from_local_update_source')
     }
@@ -353,6 +549,8 @@ $marketplaceExists = Test-Path $marketplacePath
 $marketplaceHasEntry = $false
 $installedByDefault = $false
 $marketplaceObject = $null
+$mcpIdentityAligned = $false
+$pluginManifestIdentityAligned = $false
 
 if ($marketplaceExists) {
   try {
@@ -361,14 +559,32 @@ if ($marketplaceExists) {
       $missingComponents.Add('repo_marketplace_missing_plugins_array')
     }
     else {
+      $expectedPluginEntry = $null
+      $legacyPluginEntry = $null
       foreach ($plugin in $marketplaceObject.plugins) {
-        if ($plugin.name -eq 'anarchy-ai') {
-          $marketplaceHasEntry = $true
-          if ($plugin.policy.installation -eq 'INSTALLED_BY_DEFAULT') {
-            $installedByDefault = $true
-          }
+        if ($plugin.name -eq $expectedPluginName -and $plugin.source.path -eq $expectedPluginRelativePath) {
+          $expectedPluginEntry = $plugin
+        }
+        elseif ($null -eq $legacyPluginEntry -and (Test-IsAnarchyPluginEntry -Plugin $plugin)) {
+          $legacyPluginEntry = $plugin
         }
       }
+
+      $effectivePluginEntry = if ($null -ne $expectedPluginEntry) { $expectedPluginEntry } else { $legacyPluginEntry }
+      if ($null -ne $effectivePluginEntry) {
+        $marketplaceHasEntry = $true
+        if ($effectivePluginEntry.policy.installation -eq 'INSTALLED_BY_DEFAULT') {
+          $installedByDefault = $true
+        }
+      }
+
+      if ($null -eq $expectedPluginEntry -and $null -ne $legacyPluginEntry) {
+        $missingComponents.Add('repo_plugin_identity_outdated')
+      }
+    }
+
+    if ($marketplaceObject.name -ne $expectedMarketplaceIdentity.name) {
+      $missingComponents.Add('repo_marketplace_identity_outdated')
     }
   }
   catch {
@@ -379,6 +595,42 @@ else {
   $missingComponents.Add('repo_marketplace_missing')
 }
 
+$pluginManifestExists = Test-Path $pluginManifestPath
+if ($pluginManifestExists) {
+  try {
+    $pluginManifestObject = Get-Content $pluginManifestPath -Raw | ConvertFrom-Json
+    if ($pluginManifestObject.name -eq $expectedPluginName) {
+      $pluginManifestIdentityAligned = $true
+    }
+    else {
+      $missingComponents.Add('repo_plugin_identity_outdated')
+    }
+  }
+  catch {
+    $missingComponents.Add('repo_plugin_identity_outdated')
+  }
+}
+
+$mcpExists = Test-Path $mcpPath
+if ($mcpExists) {
+  try {
+    $mcpObject = Get-Content $mcpPath -Raw | ConvertFrom-Json
+    if ($null -ne $mcpObject.mcpServers) {
+      $mcpProperties = @($mcpObject.mcpServers.PSObject.Properties)
+      if ($mcpProperties.Count -eq 1 -and $mcpProperties[0].Name -eq $expectedMcpServerName) {
+        $mcpIdentityAligned = $true
+      }
+    }
+
+    if (-not $mcpIdentityAligned) {
+      $missingComponents.Add('repo_mcp_server_identity_outdated')
+    }
+  }
+  catch {
+    $missingComponents.Add('repo_mcp_server_identity_outdated')
+  }
+}
+
 if ($Mode -eq 'Install') {
   if (-not (Test-Path (Split-Path $marketplacePath -Parent))) {
     New-Item -ItemType Directory -Path (Split-Path $marketplacePath -Parent) -Force | Out-Null
@@ -387,23 +639,49 @@ if ($Mode -eq 'Install') {
 
   if (-not $marketplaceObject) {
     $marketplaceObject = [ordered]@{
-      name = 'ai-links-local'
-      interface = [ordered]@{ displayName = 'AI-Links Local' }
+      name = $expectedMarketplaceIdentity.name
+      interface = [ordered]@{ displayName = $expectedMarketplaceIdentity.display_name }
       plugins = @()
     }
+  }
+
+  if ($marketplaceObject.name -ne $expectedMarketplaceIdentity.name) {
+    $marketplaceObject.name = $expectedMarketplaceIdentity.name
+    $actionsTaken.Add('updated_repo_marketplace_identity')
+  }
+
+  if ($null -eq $marketplaceObject.interface) {
+    $marketplaceObject | Add-Member -NotePropertyName interface -NotePropertyValue ([pscustomobject]@{}) -Force
+    $actionsTaken.Add('updated_repo_marketplace_identity')
+  }
+
+  if ($marketplaceObject.interface.displayName -ne $expectedMarketplaceIdentity.display_name) {
+    $marketplaceObject.interface.displayName = $expectedMarketplaceIdentity.display_name
+    $actionsTaken.Add('updated_repo_marketplace_identity')
   }
 
   if ($null -eq $marketplaceObject.plugins) {
     $marketplaceObject | Add-Member -NotePropertyName plugins -NotePropertyValue @() -Force
   }
 
-  $existing = @($marketplaceObject.plugins | Where-Object { $_.name -eq 'anarchy-ai' })
+  $retainedPlugins = @()
+  $existing = @()
+  foreach ($plugin in @($marketplaceObject.plugins)) {
+    if (Test-IsAnarchyPluginEntry -Plugin $plugin) {
+      $existing += $plugin
+    }
+    else {
+      $retainedPlugins += $plugin
+    }
+  }
+
+  $marketplaceObject.plugins = @($retainedPlugins)
   if ($existing.Count -eq 0) {
     $marketplaceObject.plugins += [pscustomobject]@{
-      name = 'anarchy-ai'
+      name = $expectedPluginName
       source = [pscustomobject]@{
         source = 'local'
-        path = './plugins/anarchy-ai'
+        path = $expectedPluginRelativePath
       }
       policy = [pscustomobject]@{
         installation = 'INSTALLED_BY_DEFAULT'
@@ -414,36 +692,61 @@ if ($Mode -eq 'Install') {
     $actionsTaken.Add('created_anarchy_ai_marketplace_entry')
   }
   else {
-    foreach ($plugin in $existing) {
-      $plugin.source.source = 'local'
-      $plugin.source.path = './plugins/anarchy-ai'
-      $plugin.policy.installation = 'INSTALLED_BY_DEFAULT'
-      $plugin.policy.authentication = 'ON_INSTALL'
-      $plugin.category = 'Productivity'
+    if ($existing.Count -gt 1) {
+      $actionsTaken.Add('removed_stale_anarchy_ai_marketplace_entry')
     }
+
+    $marketplaceObject.plugins += [pscustomobject]@{
+      name = $expectedPluginName
+      source = [pscustomobject]@{
+        source = 'local'
+        path = $expectedPluginRelativePath
+      }
+      policy = [pscustomobject]@{
+        installation = 'INSTALLED_BY_DEFAULT'
+        authentication = 'ON_INSTALL'
+      }
+      category = 'Productivity'
+    }
+
     $actionsTaken.Add('updated_anarchy_ai_marketplace_entry')
   }
+
+  Set-RepoScopedPluginManifest -PluginManifestPath $pluginManifestPath -ExpectedPluginName $expectedPluginName
+  Set-RepoScopedMcpConfiguration -McpConfigPath $mcpPath -ExpectedServerName $expectedMcpServerName
 
   $marketplaceObject | ConvertTo-Json -Depth 10 | Set-Content $marketplacePath
   $marketplaceExists = $true
   $marketplaceHasEntry = $true
   $installedByDefault = $true
+  $pluginManifestIdentityAligned = $true
+  $mcpIdentityAligned = $true
   foreach ($resolvedMarketplaceGap in @(
     'repo_marketplace_missing',
     'repo_marketplace_missing_plugins_array',
-    'marketplace_json_invalid'
+    'marketplace_json_invalid',
+    'repo_marketplace_identity_outdated',
+    'repo_plugin_identity_outdated'
   )) {
     [void]$missingComponents.Remove($resolvedMarketplaceGap)
   }
+
+  [void]$missingComponents.Remove('repo_mcp_server_identity_outdated')
 }
 
 if (-not $runtimeExists) { $safeRepairs.Add('publish_or_restore_bundled_runtime') }
 if (-not $marketplaceHasEntry -or -not $installedByDefault) { $safeRepairs.Add('run_bootstrap_harness_install') }
+if ($missingComponents -contains 'repo_plugin_identity_outdated') { $safeRepairs.Add('refresh_repo_plugin_identity') }
+if ($missingComponents -contains 'repo_marketplace_identity_outdated') { $safeRepairs.Add('refresh_repo_marketplace_identity') }
+if ($missingComponents -contains 'repo_mcp_server_identity_outdated') { $safeRepairs.Add('refresh_repo_mcp_server_identity') }
 if ($missingComponents -contains 'claude_adapter_not_packaged') { $safeRepairs.Add('define_claude_mcp_registration') }
 if ($missingComponents -contains 'cursor_adapter_not_implemented') { $safeRepairs.Add('define_cursor_adapter_strategy') }
 
-$bootstrapState = if ($runtimeExists -and $marketplaceHasEntry -and $installedByDefault) {
+$bootstrapState = if ($runtimeExists -and $marketplaceHasEntry -and $installedByDefault -and $pluginManifestIdentityAligned -and -not ($missingComponents -contains 'repo_marketplace_identity_outdated') -and -not ($missingComponents -contains 'repo_mcp_server_identity_outdated')) {
   'ready'
+}
+elseif ($runtimeExists -and $marketplaceHasEntry -and $installedByDefault) {
+  'registration_refresh_needed'
 }
 elseif ($runtimeExists -and ($pluginManifestExists -or $mcpExists)) {
   'repo_bundle_present_unregistered'
@@ -457,6 +760,7 @@ else {
 
 $nextAction = switch ($bootstrapState) {
   'ready' { 'use_preflight_session' }
+  'registration_refresh_needed' { 'refresh_plugin_registration' }
   'repo_bundle_present_unregistered' { 'register_plugin_in_marketplace' }
   'runtime_only' { 'materialize_repo_plugin_bundle' }
   default { 'restore_runtime_or_complete_bundle' }

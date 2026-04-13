@@ -39,7 +39,7 @@
         "bootstrap_needed",
         "manual_review_required"
       ],
-      "description": "Bounded readiness result for the current repo/session."
+      "description": "Bounded readiness result for the current repo/session. The value 'manual_review_required' is the report-to-human state at the schema level — the agent's next action is to report findings to the human and receive direction."
     },
     "recommended_path": {
       "type": "enum",
@@ -50,7 +50,7 @@
         "bootstrap_harness",
         "stop_for_human"
       ],
-      "description": "Best next lane after the preflight pass."
+      "description": "Best next lane after the preflight pass. The value 'stop_for_human' maps to the report-to-human pattern at the schema level — pause automated continuation and report findings for human direction."
     },
     "active_gaps": {
       "type": "string_array",

@@ -54,7 +54,7 @@
         "materialized",
         "manual_review_required"
       ],
-      "description": "Current outcome of the gov2gov-backed reconciliation lane."
+      "description": "Current outcome of the gov2gov-backed reconciliation lane. The value 'manual_review_required' maps to the report-to-human pattern at the schema level — the agent's next action is to report migration findings to the human and receive direction."
     },
     "planned_actions": {
       "type": "string_array",
