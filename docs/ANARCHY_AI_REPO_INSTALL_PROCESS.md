@@ -418,6 +418,16 @@ To make that rule operational, add a direction in the target repo's startup surf
 - use `assess_harness_gap_state` when install/runtime/schema/adoption state is unclear
 - use `is_schema_real_or_shadow_copied` before trusting copied schema presence
 
+A paste-ready block that satisfies this requirement lives in:
+
+- `templates/ANARCHY_AI_STARTUP_INSTRUCTION_TEMPLATE.md`
+
+Drop it into the target repo's `AGENTS.md`, control-plane prompt packet, or primary startup surface. The one-line minimum viable adoption is:
+
+> Meaningful governed work in this repo starts with `preflight_session`.
+
+Agents familiar with the harness recognize this entry; agents new to the harness follow the link chain to the harness docs.
+
 ### 3. Keep the plugin installed by default
 
 Keep the marketplace policy set to `INSTALLED_BY_DEFAULT` when the goal is harness behavior.

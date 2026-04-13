@@ -106,6 +106,7 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 ## Templates
 
 - `../templates/AGENTS_TEMPLATE.md`
+- `../templates/ANARCHY_AI_STARTUP_INSTRUCTION_TEMPLATE.md`
 - `../templates/MODULE_AGENT_PROMPT_TEMPLATE.md`
 - `../templates/PROMPT_PROJECT_TEMPLATE.md`
 - `../templates/README_PROJECT_TEMPLATE.md`
