@@ -54,6 +54,187 @@ function Resolve-DotnetPath {
   throw 'Could not resolve a dotnet.exe with an installed SDK. Install the .NET SDK or pass -DotnetPath explicitly.'
 }
 
+function Get-FileSha256Hex {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path
+  )
+
+  $sha256 = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    $hashBytes = $sha256.ComputeHash($bytes)
+    return ([System.BitConverter]::ToString($hashBytes)).Replace('-', '').ToLowerInvariant()
+  }
+  finally {
+    $sha256.Dispose()
+  }
+}
+
+function Sync-SchemaBundleManifest {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$RepoRoot
+  )
+
+  $schemaRoot = Join-Path $RepoRoot 'plugins\anarchy-ai\schemas'
+  $manifestPath = Join-Path $schemaRoot 'schema-bundle.manifest.json'
+  $schemaFiles = @(
+    'AGENTS-schema-1project.json',
+    'AGENTS-schema-gov2gov-migration.json',
+    'AGENTS-schema-governance.json',
+    'AGENTS-schema-narrative.json',
+    'AGENTS-schema-triage.md',
+    'Getting-Started-For-Humans.txt'
+  )
+
+  if (-not (Test-Path $schemaRoot)) {
+    throw "Schema directory not found: $schemaRoot"
+  }
+
+  $fileHashes = @{}
+  foreach ($fileName in $schemaFiles) {
+    $path = Join-Path $schemaRoot $fileName
+    if (-not (Test-Path $path)) {
+      throw "Schema file missing for manifest sync: $path"
+    }
+
+    $fileHashes[$fileName] = Get-FileSha256Hex -Path $path
+  }
+
+  $existingManifest = $null
+  if (Test-Path $manifestPath) {
+    try {
+      $existingManifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+    }
+    catch {
+      $existingManifest = $null
+    }
+  }
+
+  $bundleName = if ($existingManifest -and -not [string]::IsNullOrWhiteSpace([string]$existingManifest.bundle_name)) {
+    [string]$existingManifest.bundle_name
+  } else {
+    'anarchy-ai-canonical-schema-bundle'
+  }
+
+  $bundleVersion = if ($existingManifest -and -not [string]::IsNullOrWhiteSpace([string]$existingManifest.bundle_version)) {
+    [string]$existingManifest.bundle_version
+  } else {
+    '0.1.0'
+  }
+
+  $hashesChanged = $true
+  if ($existingManifest -and $existingManifest.files) {
+    $existingByName = @{}
+    foreach ($existingFile in $existingManifest.files) {
+      if ($existingFile -and -not [string]::IsNullOrWhiteSpace([string]$existingFile.file_name)) {
+        $existingByName[[string]$existingFile.file_name] = ([string]$existingFile.sha256).ToLowerInvariant()
+      }
+    }
+
+    if ($existingByName.Count -eq $schemaFiles.Count) {
+      $hashesChanged = $false
+      foreach ($fileName in $schemaFiles) {
+        if (-not $existingByName.ContainsKey($fileName) -or $existingByName[$fileName] -ne $fileHashes[$fileName]) {
+          $hashesChanged = $true
+          break
+        }
+      }
+    }
+  }
+
+  $generatedUtc = if (
+    $hashesChanged -or
+    -not $existingManifest -or
+    [string]::IsNullOrWhiteSpace([string]$existingManifest.generated_utc)
+  ) {
+    [DateTime]::UtcNow.ToString('o')
+  } else {
+    [string]$existingManifest.generated_utc
+  }
+
+  $manifestObject = [ordered]@{
+    bundle_name = $bundleName
+    bundle_version = $bundleVersion
+    generated_utc = $generatedUtc
+    files = @()
+  }
+
+  foreach ($fileName in $schemaFiles) {
+    $manifestObject.files += [ordered]@{
+      file_name = $fileName
+      sha256 = $fileHashes[$fileName]
+    }
+  }
+
+  $newJson = $manifestObject | ConvertTo-Json -Depth 10
+  $existingJson = if ($existingManifest) {
+    try {
+      $existingManifest | ConvertTo-Json -Depth 10
+    }
+    catch {
+      ''
+    }
+  } else {
+    ''
+  }
+
+  if (-not [string]::Equals($newJson, $existingJson, [System.StringComparison]::Ordinal)) {
+    Set-Content -Path $manifestPath -Value $newJson -Encoding UTF8
+    return $true
+  }
+
+  return $false
+}
+
+function Update-GeneratedPluginReadme {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$RepoRoot
+  )
+
+  $templatePath = Join-Path $RepoRoot 'docs\ANARCHY_AI_PLUGIN_README_SOURCE.md'
+  $readmePath = Join-Path $RepoRoot 'plugins\anarchy-ai\README.md'
+
+  if (-not (Test-Path $templatePath)) {
+    throw "Plugin README source doc not found: $templatePath"
+  }
+
+  $template = Get-Content $templatePath -Raw
+  $tokens = [ordered]@{
+    '{{REPO_LOCAL_PLUGIN_ROOT}}' = '.\plugins\anarchy-ai-<repo-slug>-<stable-path-hash>'
+    '{{USER_PROFILE_PLUGIN_ROOT}}' = '~\.codex\plugins\anarchy-ai'
+    '{{USER_PROFILE_MARKETPLACE_PATH}}' = '~\.agents\plugins\marketplace.json'
+    '{{USER_PROFILE_MARKETPLACE_SOURCE_PATH}}' = './.codex/plugins/anarchy-ai'
+    '{{SETUP_EXE_PATH}}' = '../AnarchyAi.Setup.exe'
+  }
+
+  $rendered = $template
+  foreach ($token in $tokens.Keys) {
+    $rendered = $rendered.Replace($token, $tokens[$token])
+  }
+
+  $forbiddenPatterns = @(
+    '\.\.\/\.\.\/\.\.\/',
+    '~[\\/]+plugins[\\/]+anarchy-ai'
+  )
+
+  foreach ($pattern in $forbiddenPatterns) {
+    if ($rendered -match $pattern) {
+      throw "Generated plugin README still contains a forbidden source or legacy-home path pattern: $pattern"
+    }
+  }
+
+  $existing = if (Test-Path $readmePath) { Get-Content $readmePath -Raw } else { '' }
+  if (-not [string]::Equals($existing, $rendered, [System.StringComparison]::Ordinal)) {
+    Set-Content -Path $readmePath -Value $rendered -Encoding UTF8
+    return $true
+  }
+
+  return $false
+}
+
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $setupRoot = [System.IO.Path]::GetFullPath((Join-Path $scriptRoot '..'))
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $setupRoot '..\..'))
@@ -86,6 +267,8 @@ function Write-BuildResult {
 
 $resolvedDotnetPath = ''
 $publishedExePath = ''
+$schemaManifestSynced = $false
+$pluginReadmeGenerated = $false
 
 try {
   $resolvedDotnetPath = Resolve-DotnetPath -RequestedPath $DotnetPath
@@ -97,6 +280,9 @@ try {
   if (-not (Test-Path $pluginsRoot)) {
     New-Item -ItemType Directory -Path $pluginsRoot -Force | Out-Null
   }
+
+  $pluginReadmeGenerated = Update-GeneratedPluginReadme -RepoRoot $repoRoot
+  $schemaManifestSynced = Sync-SchemaBundleManifest -RepoRoot $repoRoot
 
   if (Test-Path $publishRoot) {
     Remove-Item $publishRoot -Recurse -Force
@@ -137,6 +323,8 @@ try {
         configuration = $Configuration
         publish_root = $publishRoot
         published_executable = $publishedExePath
+        plugin_readme_generated = $pluginReadmeGenerated
+        schema_manifest_synced = $schemaManifestSynced
         copy_to_plugins_requested = $true
         copied_to_plugins = $false
         target_executable = $targetExePath
@@ -170,6 +358,8 @@ try {
     configuration = $Configuration
     publish_root = $publishRoot
     published_executable = $publishedExePath
+    plugin_readme_generated = $pluginReadmeGenerated
+    schema_manifest_synced = $schemaManifestSynced
     copy_to_plugins_requested = (-not $SkipCopyToPlugins)
     copied_to_plugins = (-not $SkipCopyToPlugins)
     target_executable = $targetExePath
@@ -187,6 +377,8 @@ catch {
     configuration = $Configuration
     publish_root = $publishRoot
     published_executable = $publishedExePath
+    plugin_readme_generated = $pluginReadmeGenerated
+    schema_manifest_synced = $schemaManifestSynced
     copy_to_plugins_requested = (-not $SkipCopyToPlugins)
     copied_to_plugins = $false
     target_executable = $targetExePath

@@ -1,7 +1,7 @@
 {
   "name": "anarchy-ai",
-  "version": "0.1.0",
-  "description": "Windows-first local delivery plugin for Anarchy-AI, the runtime framework harness for preflight, gap assessment, active-work compilation, schema reality, and gov2gov reconciliation.",
+  "version": "0.1.5",
+  "description": "Windows-first local delivery plugin for Anarchy-AI with repo-authored published truth, Codex-native home install, and bounded harness tools for preflight, gap assessment, active-work compilation, schema reality, and gov2gov reconciliation.",
   "author": {
     "name": "BraintekMSP",
     "url": "https://github.com/BraintekMSP/AI-Links"
@@ -34,12 +34,9 @@
     "privacyPolicyURL": "https://github.com/BraintekMSP/AI-Links/blob/main/plugins/anarchy-ai/PRIVACY.md",
     "termsOfServiceURL": "https://github.com/BraintekMSP/AI-Links/blob/main/plugins/anarchy-ai/TERMS.md",
     "defaultPrompt": [
-      "Use Anarchy-AI as the runtime framework harness for the AGENTS Heuristic Underlay.",
-      "Run preflight_session before meaningful governed work so the harness decides whether the repo and session are ready.",
-      "Use assess_harness_gap_state when install, runtime, schema, or adoption state is unclear.",
-      "Compile the active work state into a bounded packet before continuing from messy session context.",
-      "Check whether the local schema package is real, aligned, or possessed before trusting it.",
-      "Plan or apply non-destructive gov2gov reconciliation when the schema package is partial, copied_only, or possessed."
+      "Use Anarchy-AI as the runtime harness for the AGENTS Heuristic Underlay.",
+      "Run preflight_session before meaningful governed work.",
+      "Use assess_harness_gap_state when install, runtime, schema, or adoption state is unclear."
     ],
     "brandColor": "#203630",
     "composerIcon": "./assets/anarchy-ai.png",

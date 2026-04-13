@@ -78,9 +78,11 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 - `./ANARCHY_AI_HARNESS_ARCHITECTURE.md` - implementation-level harness architecture, actor split, and adapter allocation
 - `./ANARCHY_AI_SETUP_EXE_SPEC.md` - preferred Windows-first installer contract for separating `Setup.exe` delivery/bootstrap from the MCP runtime
 - `./ANARCHY_AI_REPO_INSTALL_PROCESS.md` - exact repo-bootstrap install process for delivering Anarchy-AI into another repo
+- `./ANARCHY_AI_ENVIRONMENT_TRUTH_MATRIX.md` - proven vs inferred environment behavior for Codex config, MCP mounting, marketplace lanes, and tool-surface verification
+- `./ANARCHY_AI_PLUGIN_README_SOURCE.md` - repo-authored source for the installed plugin README; the build helper publishes this into `plugins/anarchy-ai/README.md` with destination-relative install paths
 - `../harness/README.md` - local runtime harness boundary and capability notes
 - `../harness/setup/dotnet/AnarchyAi.Setup.csproj` - Windows-first setup/installer project that embeds the current plugin bundle and exposes GUI/CLI bootstrap behavior
-- `../harness/setup/scripts/build-self-contained-exe.ps1` - one-command helper that builds the self-contained setup executable with temp build lanes and refreshes the local generated `plugins/AnarchyAi.Setup.exe`
+- `../harness/setup/scripts/build-self-contained-exe.ps1` - one-command helper that syncs schema-bundle hashes, builds the self-contained setup executable with temp build lanes, and refreshes the local generated `plugins/AnarchyAi.Setup.exe`
 - `../harness/contracts/preflight-session.contract.json` - session preflight contract for meaningful governed work
 - `../harness/contracts/schema-reality.contract.json` - first harness contract for `is_schema_real_or_shadow_copied`
 - `../harness/contracts/harness-gap-state.contract.json` - environment gap-assessment contract for install/runtime/schema/adoption state
@@ -91,7 +93,7 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 
 ## Anarchy-AI plugin delivery
 
-- `../plugins/AnarchyAi.Setup.exe` - preferred repo-local single-file installer/bootstrap executable for Anarchy-AI after it is generated locally by the build helper; this binary is not tracked in git
+- `../plugins/AnarchyAi.Setup.exe` - preferred single-file installer/bootstrap executable for Anarchy-AI after it is generated locally by the build helper; supports repo-local and user-profile lanes and is not tracked in git
 - `../plugins/anarchy-ai/.codex-plugin/plugin.json` - repo-local plugin manifest for Anarchy-AI delivery
 - `../plugins/anarchy-ai/.mcp.json` - plugin MCP declaration that launches the bundled runtime directly
 - `../plugins/anarchy-ai/runtime/win-x64/AnarchyAi.Mcp.Server.exe` - bundled Windows-first self-contained MCP runtime used by the delivery plugin

@@ -96,6 +96,46 @@ Working product sentence:
 
 ## Current Gaps
 
+### 0. Codex Home-Install Model Drift Polluted Setup Truth
+
+#### Gap
+
+The repo had drifted into a hybrid user-profile story that treated these as the primary Codex home-install truth:
+
+- `~/plugins/anarchy-ai`
+- required `[mcp_servers.anarchy-ai]` registration in `~/.codex/config.toml`
+
+That model no longer matched the current Codex personal-plugin lane or the controlled install evidence on this machine.
+
+The stale model then bled into multiple places at once:
+
+- setup path resolution
+- readiness semantics
+- disclosure/help text
+- environment truth docs
+- hand-maintained installed README copy
+
+#### Why it matters
+
+- it made a failed or partial PoC home install look closer to healthy than it really was
+- it taught agents to chase the wrong surfaces when assessing presence
+- it let documentation drift faster than the installer/runtime behavior
+
+#### What this points toward
+
+- keep Codex home install plugin-marketplace-first:
+  - `~/.agents/plugins/marketplace.json`
+  - `~/.codex/plugins/anarchy-ai`
+- treat custom `mcp_servers.anarchy-ai` as fallback/debug evidence only
+- keep canonical docs and install assertions repo-authored, then publish/generate destination-relative install surfaces from those sources
+- detect failed legacy PoC home layouts honestly and repair them through inventory plus manual cleanup guidance rather than compatibility drift
+
+#### Problem being solved
+
+- restoring one source of truth for Codex home install behavior and preventing future repo-to-installer documentation drift
+
+---
+
 ### 1. Governance Schema Still Carries Residual Exit Grammar
 
 #### Gap

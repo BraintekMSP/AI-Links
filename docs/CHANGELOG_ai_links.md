@@ -1,8 +1,149 @@
 ﻿# Changelog - AI-Links
 
+## 2026-04-13
+
+### Codex-native home install truth realignment
+
+- Rebased the Codex user-profile install lane onto the Codex-native plugin path:
+  - `~/.codex/plugins/anarchy-ai`
+- Stopped treating a custom `[mcp_servers.anarchy-ai]` block in `~/.codex/config.toml` as the primary home-install truth.
+- Setup assess/install results now emit:
+  - `registration_mode`
+- Codex home readiness is now plugin-marketplace-first and requires:
+  - bundle present under `~/.codex/plugins/anarchy-ai`
+  - personal marketplace entry in `~/.agents/plugins/marketplace.json`
+  - `plugins.<entry>.source.path = ./.codex/plugins/anarchy-ai`
+  - bundled runtime/plugin identity alignment
+- Added legacy-state detection for failed PoC home installs so setup reports bounded manual cleanup guidance instead of silently normalizing drift:
+  - legacy `~/plugins/anarchy-ai`
+  - stale custom `mcp_servers.anarchy-ai`
+- Added repo-authored publish flow for installed README truth:
+  - new canonical source doc at `docs/ANARCHY_AI_PLUGIN_README_SOURCE.md`
+  - build helper now generates `plugins/anarchy-ai/README.md` from that source with destination-relative paths
+- Added setup tests that reuse production path/registration rules instead of a second handwritten truth table:
+  - `harness/setup/tests/SetupEngineTests.cs`
+- Fixed setup publish drift under redirected temp `obj` lanes by excluding repo-local `obj\\**` items from the setup project.
+- Recorded controlled local evidence:
+  - `AnarchyAi.Setup.exe /assess /userprofile /silent /json` reports `registration_mode = plugin_marketplace`
+  - `AnarchyAi.Setup.exe /install /userprofile /silent /json` materializes the home bundle under `~/.codex/plugins/anarchy-ai`
+  - the successful install created `~/.agents/plugins/marketplace.json`
+  - the successful install did not require or write `[mcp_servers.anarchy-ai]` into `~/.codex/config.toml`
+
+### Setup installer payload integrity rescan
+
+- Re-ran `harness/setup/scripts/build-self-contained-exe.ps1` and refreshed `plugins/AnarchyAi.Setup.exe`.
+- Verified embedded setup payload fidelity by hashing source files against published setup assembly resources:
+  - checked pairs: `32`
+  - matched pairs: `32`
+  - mismatches: `0`
+- Corrected stale canonical hash entries in:
+  - `plugins/anarchy-ai/schemas/schema-bundle.manifest.json`
+  - updated hash values for:
+    - `AGENTS-schema-1project.json`
+    - `AGENTS-schema-gov2gov-migration.json`
+    - `AGENTS-schema-governance.json`
+- Updated `harness/setup/scripts/build-self-contained-exe.ps1` so setup builds now sync schema-bundle manifest hashes before publish.
+- Hardened setup install behavior under active file locks:
+  - install no longer hard-crashes with raw access-denied JSON when existing user-profile bundle surfaces are locked
+  - install now reports bounded lock state via:
+    - `bootstrap_state = registration_refresh_needed`
+    - `missing_components = ["locked_bundle_surface_write_skipped"]`
+    - `next_action = release_runtime_lock_and_retry_install`
+- Updated installer disclosure/help wording so workspace/schema impact is conditional on whether a workspace target is present.
+- Updated installer companion docs so user-profile lane behavior is described accurately:
+  - `docs/ANARCHY_AI_REPO_INSTALL_PROCESS.md`
+  - `docs/ANARCHY_AI_SETUP_EXE_SPEC.md`
+- Clarified that default `/userprofile` with no explicit `/repo` keeps:
+  - `workspace_root = ""`
+  - `repo_root = ""`
+  - portable schema seeding not targeted (`portable_schema_family_not_targeted`)
+
+### Anarchy-AI environment truth matrix and consistency pass
+
+- Added `docs/ANARCHY_AI_ENVIRONMENT_TRUTH_MATRIX.md` to separate:
+  - proven environment behavior
+  - inferred/not-yet-proven environment behavior
+- Captured proven Codex mount facts with explicit evidence lanes:
+  - custom MCP UI persistence to `~/.codex/config.toml` under `[mcp_servers.*]`
+  - app-server `config/read` and `config/batchWrite` lifecycle around that config lane
+  - current Anarchy runtime symbol presence for all five harness tools
+  - `resources/templates/list` not being a valid presence check for this tools-only runtime
+- Updated companion docs to reference the truth matrix and stop mixing assumptions with verified behavior:
+  - `docs/README_ai_links.md`
+  - `docs/ANARCHY_AI_SETUP_EXE_SPEC.md`
+  - `docs/ANARCHY_AI_REPO_INSTALL_PROCESS.md`
+  - `docs/ANARCHY_AI_HARNESS_ARCHITECTURE.md`
+- Clarified current user-profile Codex accessibility requirements around the Codex-native plugin marketplace lane instead of treating custom MCP registration as required.
+- Added an explicit evidence-qualification rubric for environment claims:
+  - `proven` now requires identifiable change + fresh-session effect + repeatability + artifacts
+- Added explicit portability claim grading across:
+  - application portability
+  - agent-session portability
+  - different-device portability
+
 ## 2026-04-12
 
+### Anarchy-AI repo-local and user-profile install lanes
+
+- Added explicit install-lane selection to `AnarchyAi.Setup.exe`:
+  - `repo-local`
+  - `user-profile`
+- The setup GUI now exposes:
+  - install-lane radios for `repo-local` versus `user-profile`
+  - placeholder platform radios with only the Windows payload enabled
+- The installer and runtime discovery now treat the two lanes differently on purpose:
+  - repo-local installs materialize under the selected repo and register in `./.agents/plugins/marketplace.json`
+  - user-profile installs materialize under `~/.codex/plugins/anarchy-ai` and register in `~/.agents/plugins/marketplace.json`
+- The stable callable MCP server key remains `anarchy-ai` in both lanes.
+- The user-profile lane is now part of the primary setup executable behavior instead of being treated as an implied future direction.
+- Updated the setup spec, install runbook, repo runbook, and plugin README so they describe both supported lanes honestly.
+- Kept the PowerShell bootstrap lane documented as a repo-local compatibility surface rather than pretending it is already widened for user-profile installs.
+
+### Anarchy-AI stable MCP server key
+
+- Changed setup and bootstrap to keep the installed plugin identity repo-scoped while restoring a stable callable MCP server key of `anarchy-ai`.
+- This preserves predictable tool syntax like `mcp__anarchy_ai__...` without collapsing plugin install identity back to the old global `anarchy-ai` plugin name.
+- The supported split is now:
+  - repo-scoped plugin folder and plugin identifier
+  - stable `.mcp.json -> mcpServers -> anarchy-ai`
+- This replaces the earlier repo-scoped MCP server key direction.
+
+### Anarchy-AI repo-scoped plugin identity
+
+- Changed setup and fallback bootstrap so the installed plugin identity is now repo-scoped instead of reusing the global `anarchy-ai` plugin key across repo-local installs.
+- Setup now materializes repo-local installs into:
+  - `plugins/anarchy-ai-<repo-slug>-<stable-path-hash>/`
+- Setup and bootstrap now align all three installed identity seams to that same repo-scoped key:
+  - `plugins.<entry>.name`
+  - `plugins.<entry>.source.path`
+  - `.codex-plugin/plugin.json -> name`
+  - `.mcp.json -> mcpServers -> anarchy-ai-<repo-slug>-<stable-path-hash>`
+- This closes the remaining static identity collision that could survive after a Codex-side uninstall even when marketplace root identity and MCP server identity had already been refreshed.
+- Setup and bootstrap now flag stale plugin identity as a registration problem instead of pretending the repo is fully ready.
+- Updated the install and setup specifications to describe repo-scoped plugin materialization instead of the old fixed `plugins/anarchy-ai/` path.
+- Bumped the source plugin manifest version to `0.1.3`.
+
+### Anarchy-AI repo-scoped marketplace identity
+
+- Changed repo-local marketplace registration so the marketplace root `name` is now repo-scoped instead of reusing the old global `ai-links-local` identity across every repo.
+- Setup and bootstrap now generate:
+  - `name = anarchy-local-<repo-slug>-<stable-path-hash>`
+  - `interface.displayName = Anarchy-AI Local (<RepoName>)`
+- Setup and bootstrap now also generate a repo-scoped MCP server key:
+  - `.mcp.json -> mcpServers -> anarchy-ai-<repo-slug>-<stable-path-hash>`
+- This is intended to reduce Codex host-side install and uninstall collisions between different repo-local Anarchy-AI installs.
+- Updated the checked-in `AI-Links` marketplace file to the new repo-scoped identity.
+- Tightened the fallback bootstrap script so it now:
+  - detects outdated marketplace identity
+  - returns `registration_refresh_needed` instead of pretending the repo is fully ready
+  - suggests `refresh_repo_marketplace_identity` as a bounded repair
+- Fixed the fallback PowerShell hashing path to stay compatible with Windows PowerShell 5.1 by using `SHA256.Create().ComputeHash(...)` instead of a newer framework-only helper.
+- Reduced the plugin manifest `defaultPrompt` surface to the 3 prompts Codex actually supports and bumped the plugin version through `0.1.2` while tightening the repo-scoped registration surfaces.
+
 ### Anarchy-AI setup EXE direction
+
+- Tightened `AnarchyAi.Setup.exe` repo-root auto-detection so it no longer treats generic parent folders as repos merely because they contain `plugins/` or `.agents/`.
+- Auto-detection now requires a real repo marker, currently `.git`; otherwise setup requires `/repo`.
 
 - Stopped treating `plugins/AnarchyAi.Setup.exe` as a committed source artifact.
 - Added `.gitignore` coverage for `plugins/AnarchyAi.Setup.exe` so the self-contained installer stays a generated local build output.

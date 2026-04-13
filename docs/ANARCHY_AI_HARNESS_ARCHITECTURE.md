@@ -10,13 +10,13 @@ Current architecture:
 - AGENTS Heuristic Underlay = operative layer
 - Anarchy-AI = runtime framework harness
 
-The harness should remain contract-first and host-adapted.
+The harness remains contract-first and host-adapted.
 
 That means:
 
-- shared logic belongs in shared contracts and runtime implementation
-- host translation belongs in adapters
-- SDK/App Server/skills must not become the source of harness truth
+- shared logic lives in shared contracts and runtime implementation
+- host translation lives in adapters
+- canonical harness truth stays in the shared contracts — SDK, App Server, and skills consume those contracts, the contracts own harness truth
 
 ## Shared Core
 
@@ -32,14 +32,14 @@ The shared core owns:
 - non-destructive gov2gov reconciliation
 - gap assessment
 
-The shared core does not own:
+The shared core excludes these (they live in adapters or other layers):
 
-- Codex-only lifecycle semantics
-- Claude-only install mechanics
-- App Server protocol bindings
-- SDK orchestration policy
-- host-native UI prompts
-- schema authorship
+- Codex-only lifecycle semantics — live in the App Server adapter
+- Claude-only install mechanics — live in the Claude host adapter
+- App Server protocol bindings — live in the App Server
+- SDK orchestration policy — lives in the SDK
+- host-native UI prompts — live in the host integration
+- schema authorship — lives in the schema family
 
 ## Current Core Contracts
 
@@ -82,6 +82,17 @@ The environment must be able to answer:
 
 That is why `assess_harness_gap_state` exists as a first-class contract.
 
+Current environment evidence discipline:
+
+- proven versus inferred platform behavior is tracked in:
+  - `ANARCHY_AI_ENVIRONMENT_TRUTH_MATRIX.md`
+- keep inferred host behavior separate from proven architecture facts
+- maintain explicit separation between:
+  - host-neutral marketplace plane (`.agents`)
+  - Codex plugin-marketplace install plane (`~/.agents/plugins/marketplace.json` -> `~/.codex/plugins/anarchy-ai`)
+  - optional Codex custom-MCP fallback/debug plane (`~/.codex/config.toml`)
+  - runtime/tool plane (bundled `AnarchyAi.Mcp.Server.exe`)
+
 ## Adapter Allocation
 
 ### MCP
@@ -115,7 +126,7 @@ Use it for:
 - orchestrating preflight and reflection workflows
 - helper apps and bootstrap flows that need programmatic agent control
 
-The SDK is highly applicable to the harness, but it is not the canonical logic layer.
+The SDK orchestrates against the harness contracts — canonical logic stays in the contracts themselves.
 
 ## Delivery Direction
 
@@ -126,16 +137,22 @@ Current v1 delivery direction:
 - optional direct user use
 - Codex + Claude as first-class compatibility targets
 
+Repo-authored publish rule:
+
+- canonical schema family, contracts, docs, disclaimers, and install assertions stay authored in the repo
+- published installer payloads carry those repo-authored surfaces forward
+- installed docs and disclosure text should describe destination-relative paths and role labels, not source-checkout-relative layout
+
 Preferred next delivery direction:
 
 - `AnarchyAi.Setup.exe` becomes the installer/bootstrap surface
 - `AnarchyAi.Mcp.Server.exe` remains the long-running runtime
-- no-argument launch opens a simple Windows GUI installer
+- argument-free launch opens a simple Windows GUI installer
 - switch-driven launch remains machine-readable and agent-friendly
 - repo-local install remains the default target
 - explicit alternate repo targeting remains available through `/repo`
 
-Still-open gaps:
+Future work reserved for later delivery:
 
 - machine-level install
 - managed rollout for RMM/Immybot

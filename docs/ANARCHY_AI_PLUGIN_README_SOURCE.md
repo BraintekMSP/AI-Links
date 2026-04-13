@@ -1,4 +1,4 @@
-﻿# Anarchy-AI Plugin
+# Anarchy-AI Plugin
 
 > This README is generated from `docs/ANARCHY_AI_PLUGIN_README_SOURCE.md` by `harness/setup/scripts/build-self-contained-exe.ps1`.
 > Keep install-story prose authored here so the published plugin bundle stays destination-relative and honest.
@@ -25,10 +25,10 @@ The standalone installer is a published carrier:
 
 The published plugin bundle therefore keeps destination-relative paths such as:
 
-- repo-local installed plugin root: `.\plugins\anarchy-ai-<repo-slug>-<stable-path-hash>`
-- user-profile installed plugin root: `~\.codex\plugins\anarchy-ai`
-- personal marketplace path: `~\.agents\plugins\marketplace.json`
-- personal marketplace `source.path`: `./.codex/plugins/anarchy-ai`
+- repo-local installed plugin root: `{{REPO_LOCAL_PLUGIN_ROOT}}`
+- user-profile installed plugin root: `{{USER_PROFILE_PLUGIN_ROOT}}`
+- personal marketplace path: `{{USER_PROFILE_MARKETPLACE_PATH}}`
+- personal marketplace `source.path`: `{{USER_PROFILE_MARKETPLACE_SOURCE_PATH}}`
 
 This README should never teach source-repo-relative install paths or up-level source checkout hops.
 
@@ -61,7 +61,7 @@ The broader harness contract may later travel farther than the current packaged 
 
 The plugin provides:
 
-- a preferred single-file installer at `../AnarchyAi.Setup.exe` after that installer is generated locally by the build helper
+- a preferred single-file installer at `{{SETUP_EXE_PATH}}` after that installer is generated locally by the build helper
 - a local MCP declaration through `.mcp.json`
 - direct launch of the bundled `.NET 8` self-contained single-file runtime inside the plugin
 - a bundled canonical schema family plus hash manifest under `./schemas/`
@@ -83,9 +83,9 @@ The setup executable help and disclosure surfaces are intentionally generated fr
 
 For Codex, the primary user-profile lane is the plugin marketplace lane:
 
-- plugin bundle under `~\.codex\plugins\anarchy-ai`
-- personal marketplace at `~\.agents\plugins\marketplace.json`
-- personal marketplace `source.path` of `./.codex/plugins/anarchy-ai`
+- plugin bundle under `{{USER_PROFILE_PLUGIN_ROOT}}`
+- personal marketplace at `{{USER_PROFILE_MARKETPLACE_PATH}}`
+- personal marketplace `source.path` of `{{USER_PROFILE_MARKETPLACE_SOURCE_PATH}}`
 
 The older custom `mcp_servers.anarchy-ai` block is no longer the primary Codex home-install truth.
 Treat it as an optional fallback/debug surface only.
@@ -152,8 +152,8 @@ The dedicated runtime-lock commands are:
 
 `<installed-plugin-root>` is either:
 
-- `.\plugins\anarchy-ai-<repo-slug>-<stable-path-hash>`
-- `~\.codex\plugins\anarchy-ai`
+- `{{REPO_LOCAL_PLUGIN_ROOT}}`
+- `{{USER_PROFILE_PLUGIN_ROOT}}`
 
 `SafeReleaseRuntimeLock` does not request UAC elevation.
 
@@ -168,10 +168,9 @@ The safe/force split is intentional for both humans and agents:
 ## Current Boundaries
 
 - The plugin bundle still does not invent repo-authored governed files such as `AGENTS-hello.md`, `AGENTS-Terms.md`, `AGENTS-Vision.md`, or `AGENTS-Rules.md`.
-- The preferred current first install lane is `../AnarchyAi.Setup.exe`.
+- The preferred current first install lane is `{{SETUP_EXE_PATH}}`.
 - In the `AI-Links` source repo, that setup executable is a generated artifact, not a tracked file.
 - The current overall install posture supports:
   - repo-local install
   - user-profile install
 - It is still not machine-wide or device-local.
-

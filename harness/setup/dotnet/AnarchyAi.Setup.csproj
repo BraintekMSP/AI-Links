@@ -17,6 +17,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="obj\**\*.cs" />
+    <EmbeddedResource Remove="obj\**\*" />
+    <None Remove="obj\**\*" />
     <EmbeddedResource Include="..\..\..\plugins\anarchy-ai\**\*"
                       LogicalName="SetupPayload/plugins/anarchy-ai/%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\..\..\AGENTS-schema-governance.json"

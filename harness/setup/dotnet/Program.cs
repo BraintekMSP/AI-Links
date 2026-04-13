@@ -1,9 +1,11 @@
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
 namespace AnarchyAi.Setup;
@@ -15,9 +17,16 @@ internal enum OperationMode
     Update
 }
 
+internal enum InstallScope
+{
+    RepoLocal,
+    UserProfile
+}
+
 internal sealed class SetupOptions
 {
     public OperationMode Mode { get; init; } = OperationMode.Assess;
+    public InstallScope InstallScope { get; init; } = InstallScope.RepoLocal;
     public string HostContext { get; init; } = "codex";
     public bool Silent { get; init; }
     public bool JsonOutput { get; init; }
@@ -30,7 +39,10 @@ internal sealed class SetupOptions
 internal sealed class SetupResult
 {
     public required string bootstrap_state { get; init; }
+    public required string registration_mode { get; init; }
     public required string host_context { get; init; }
+    public required string install_scope { get; init; }
+    public required string workspace_root { get; init; }
     public required bool update_requested { get; init; }
     public required string update_state { get; init; }
     public required string update_source_zip_url { get; init; }
@@ -120,9 +132,22 @@ internal static class ConsoleWindow
 
 internal sealed class SetupForm : Form
 {
+    private readonly Label _introLabel;
+    private readonly Label _pathLabel;
     private readonly TextBox _repoPathTextBox;
     private readonly TextBox _resultTextBox;
     private readonly Label _statusLabel;
+    private Label _subtitleLabel = null!;
+    private readonly RadioButton _repoLocalRadioButton;
+    private readonly RadioButton _userProfileRadioButton;
+    private readonly Button _assessButton;
+    private readonly Button _installButton;
+    private readonly Button _browseButton;
+    private readonly TableLayoutPanel _targetRepoPanel;
+    private readonly TextBox _targetRepoTextBox;
+    private readonly Button _targetRepoBrowseButton;
+    private string _selectedRepoPath;
+    private bool _updatingPathPresentation;
 
     public SetupForm()
     {
@@ -139,9 +164,10 @@ internal sealed class SetupForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 5,
+            RowCount = 6,
             Padding = new Padding(14)
         };
+        rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -149,37 +175,138 @@ internal sealed class SetupForm : Form
         rootPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         rootPanel.Controls.Add(BuildHeaderPanel(), 0, 0);
-        rootPanel.Controls.Add(BuildIntroLabel(
-            "Install or assess Anarchy-AI in a repo. " +
-            "Repo-local use is preferred when this setup executable is placed inside that repo's plugins folder."), 0, 1);
+        _introLabel = BuildIntroLabel(string.Empty);
+        rootPanel.Controls.Add(_introLabel, 0, 1);
+
+        var lanePanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            ColumnCount = 2,
+            AutoSize = true,
+            Margin = new Padding(0, 12, 0, 0)
+        };
+        lanePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55));
+        lanePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45));
+
+        var installLaneGroup = new GroupBox
+        {
+            Text = "Install Lane",
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            Padding = new Padding(12, 12, 12, 8),
+            Margin = new Padding(0, 0, 12, 0)
+        };
+        var installLaneFlow = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false
+        };
+        _repoLocalRadioButton = new RadioButton
+        {
+            AutoSize = true,
+            Text = "Repo-local install",
+            Checked = true,
+            Margin = new Padding(0, 2, 0, 4)
+        };
+        _repoLocalRadioButton.CheckedChanged += (_, _) => UpdateActionButtons();
+        installLaneFlow.Controls.Add(_repoLocalRadioButton);
+
+        _userProfileRadioButton = new RadioButton
+        {
+            AutoSize = true,
+            Text = "User-profile install",
+            Margin = new Padding(0, 2, 0, 0)
+        };
+        _userProfileRadioButton.CheckedChanged += (_, _) => UpdateActionButtons();
+        installLaneFlow.Controls.Add(_userProfileRadioButton);
+        installLaneGroup.Controls.Add(installLaneFlow);
+        lanePanel.Controls.Add(installLaneGroup, 0, 0);
+
+        var platformGroup = new GroupBox
+        {
+            Text = "Platform Payload",
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            Padding = new Padding(12, 12, 12, 8),
+            Margin = new Padding(0)
+        };
+        var platformFlow = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false
+        };
+        platformFlow.Controls.Add(new RadioButton
+        {
+            AutoSize = true,
+            Text = "Windows (current payload)",
+            Checked = true,
+            Enabled = true,
+            Margin = new Padding(0, 2, 0, 4)
+        });
+        platformFlow.Controls.Add(new RadioButton
+        {
+            AutoSize = true,
+            Text = "Linux (planned)",
+            Checked = false,
+            Enabled = false,
+            Margin = new Padding(0, 2, 0, 4)
+        });
+        platformFlow.Controls.Add(new RadioButton
+        {
+            AutoSize = true,
+            Text = "macOS (planned)",
+            Checked = false,
+            Enabled = false,
+            Margin = new Padding(0, 2, 0, 0)
+        });
+        platformGroup.Controls.Add(platformFlow);
+        lanePanel.Controls.Add(platformGroup, 1, 0);
+        rootPanel.Controls.Add(lanePanel, 0, 2);
+
+        var pathSectionPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            ColumnCount = 1,
+            AutoSize = true,
+            Margin = new Padding(0, 12, 0, 0)
+        };
+        pathSectionPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        pathSectionPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         var pathPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
             ColumnCount = 3,
             AutoSize = true,
-            Margin = new Padding(0, 8, 0, 0)
+            Margin = new Padding(0)
         };
         pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        pathPanel.Controls.Add(new Label
+        _pathLabel = new Label
         {
             AutoSize = true,
             Text = "Repo Path:",
             Margin = new Padding(0, 10, 10, 0)
-        }, 0, 0);
+        };
+        pathPanel.Controls.Add(_pathLabel, 0, 0);
 
+        _selectedRepoPath = SetupEngine.TryResolveDefaultRepoRoot() ?? string.Empty;
         _repoPathTextBox = new TextBox
         {
             Dock = DockStyle.Fill,
-            Text = SetupEngine.TryResolveDefaultRepoRoot() ?? string.Empty,
+            Text = _selectedRepoPath,
             Margin = new Padding(0, 6, 8, 0)
         };
+        _repoPathTextBox.TextChanged += RepoPathTextBox_TextChanged;
         pathPanel.Controls.Add(_repoPathTextBox, 1, 0);
 
-        var browseButton = new Button
+        _browseButton = new Button
         {
             Text = "Choose Repo...",
             AutoSize = false,
@@ -187,9 +314,50 @@ internal sealed class SetupForm : Form
             Height = 34,
             Margin = new Padding(0, 4, 0, 0)
         };
-        browseButton.Click += BrowseButton_Click;
-        pathPanel.Controls.Add(browseButton, 2, 0);
-        rootPanel.Controls.Add(pathPanel, 0, 2);
+        _browseButton.Click += BrowseButton_Click;
+        pathPanel.Controls.Add(_browseButton, 2, 0);
+        pathSectionPanel.Controls.Add(pathPanel, 0, 0);
+
+        _targetRepoPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            ColumnCount = 3,
+            AutoSize = true,
+            Margin = new Padding(0, 8, 0, 0)
+        };
+        _targetRepoPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _targetRepoPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        _targetRepoPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        _targetRepoPanel.Controls.Add(new Label
+        {
+            AutoSize = true,
+            Text = "Target Repo:",
+            Margin = new Padding(0, 10, 10, 0)
+        }, 0, 0);
+
+        _targetRepoTextBox = new TextBox
+        {
+            Dock = DockStyle.Fill,
+            Text = _selectedRepoPath,
+            Margin = new Padding(0, 6, 8, 0)
+        };
+        _targetRepoTextBox.TextChanged += TargetRepoTextBox_TextChanged;
+        _targetRepoPanel.Controls.Add(_targetRepoTextBox, 1, 0);
+
+        _targetRepoBrowseButton = new Button
+        {
+            Text = "Choose Repo...",
+            AutoSize = false,
+            Width = 165,
+            Height = 34,
+            Margin = new Padding(0, 4, 0, 0)
+        };
+        _targetRepoBrowseButton.Click += TargetRepoBrowseButton_Click;
+        _targetRepoPanel.Controls.Add(_targetRepoBrowseButton, 2, 0);
+        pathSectionPanel.Controls.Add(_targetRepoPanel, 0, 1);
+
+        rootPanel.Controls.Add(pathSectionPanel, 0, 3);
 
         var buttonPanel = new FlowLayoutPanel
         {
@@ -198,13 +366,13 @@ internal sealed class SetupForm : Form
             Margin = new Padding(0, 12, 0, 0)
         };
 
-        var assessButton = new Button { Text = "Assess", AutoSize = false, Width = 110, Height = 36 };
-        assessButton.Click += (_, _) => Execute(OperationMode.Assess);
-        buttonPanel.Controls.Add(assessButton);
+        _assessButton = new Button { Text = "Assess", AutoSize = false, Width = 220, Height = 36 };
+        _assessButton.Click += (_, _) => Execute(OperationMode.Assess);
+        buttonPanel.Controls.Add(_assessButton);
 
-        var installButton = new Button { Text = "Install", AutoSize = false, Width = 110, Height = 36 };
-        installButton.Click += (_, _) => Execute(OperationMode.Install);
-        buttonPanel.Controls.Add(installButton);
+        _installButton = new Button { Text = "Install", AutoSize = false, Width = 220, Height = 36 };
+        _installButton.Click += (_, _) => Execute(OperationMode.Install);
+        buttonPanel.Controls.Add(_installButton);
 
         var closeButton = new Button { Text = "Close", AutoSize = false, Width = 110, Height = 36 };
         closeButton.Click += (_, _) => Close();
@@ -217,7 +385,7 @@ internal sealed class SetupForm : Form
             Text = "Ready."
         };
         buttonPanel.Controls.Add(_statusLabel);
-        rootPanel.Controls.Add(buttonPanel, 0, 3);
+        rootPanel.Controls.Add(buttonPanel, 0, 4);
 
         _resultTextBox = new TextBox
         {
@@ -230,9 +398,10 @@ internal sealed class SetupForm : Form
             Font = new System.Drawing.Font("Consolas", 10.0f),
             Margin = new Padding(0, 12, 0, 0)
         };
-        rootPanel.Controls.Add(_resultTextBox, 0, 4);
+        rootPanel.Controls.Add(_resultTextBox, 0, 5);
 
         Controls.Add(rootPanel);
+        UpdateActionButtons();
     }
 
     private Control BuildHeaderPanel()
@@ -273,15 +442,15 @@ internal sealed class SetupForm : Form
         };
         titlePanel.Controls.Add(titleLabel, 0, 0);
 
-        var subtitleLabel = new Label
+        _subtitleLabel = new Label
         {
             AutoSize = true,
-            Text = "Repo-local harness install and assessment",
+            Text = "Harness install and assessment",
             Font = new System.Drawing.Font("Segoe UI", 11.0f),
             ForeColor = System.Drawing.Color.FromArgb(80, 80, 80),
             Margin = new Padding(2, 4, 0, 0)
         };
-        titlePanel.Controls.Add(subtitleLabel, 0, 1);
+        titlePanel.Controls.Add(_subtitleLabel, 0, 1);
 
         headerPanel.Controls.Add(titlePanel, 1, 0);
 
@@ -320,31 +489,69 @@ internal sealed class SetupForm : Form
 
     private void BrowseButton_Click(object? sender, EventArgs e)
     {
+        if (GetSelectedInstallScope() == InstallScope.UserProfile)
+        {
+            return;
+        }
+
+        BrowseForRepoSelection(_repoPathTextBox.Text, path => _repoPathTextBox.Text = path);
+    }
+
+    private void TargetRepoBrowseButton_Click(object? sender, EventArgs e)
+    {
+        BrowseForRepoSelection(_targetRepoTextBox.Text, path => _targetRepoTextBox.Text = path);
+    }
+
+    private void BrowseForRepoSelection(string initialPath, Action<string> onSelected)
+    {
         using var dialog = new FolderBrowserDialog
         {
             Description = "Select the target repo root"
         };
 
-        if (Directory.Exists(_repoPathTextBox.Text))
+        if (Directory.Exists(initialPath))
         {
-            dialog.InitialDirectory = _repoPathTextBox.Text;
+            dialog.InitialDirectory = initialPath;
         }
 
         if (dialog.ShowDialog(this) == DialogResult.OK)
         {
-            _repoPathTextBox.Text = dialog.SelectedPath;
+            onSelected(dialog.SelectedPath);
         }
+    }
+
+    private void RepoPathTextBox_TextChanged(object? sender, EventArgs e)
+    {
+        if (_updatingPathPresentation || GetSelectedInstallScope() == InstallScope.UserProfile)
+        {
+            return;
+        }
+
+        _selectedRepoPath = _repoPathTextBox.Text;
+    }
+
+    private void TargetRepoTextBox_TextChanged(object? sender, EventArgs e)
+    {
+        if (_updatingPathPresentation)
+        {
+            return;
+        }
+
+        _selectedRepoPath = _targetRepoTextBox.Text;
     }
 
     private void Execute(OperationMode mode)
     {
         try
         {
+            var installScope = GetSelectedInstallScope();
+            var effectiveRepoPath = GetEffectiveRepoPath();
             if (mode == OperationMode.Install)
             {
                 var disclosure = new InstallDisclosureForm(
-                    _repoPathTextBox.Text.Trim(),
-                    SetupEngine.BuildInstallDisclosure(_repoPathTextBox.Text.Trim()));
+                    effectiveRepoPath,
+                    SetupEngine.BuildInstallDisclosure(effectiveRepoPath, installScope),
+                    installScope);
 
                 if (disclosure.ShowDialog(this) != DialogResult.OK)
                 {
@@ -357,8 +564,9 @@ internal sealed class SetupForm : Form
             var result = new SetupEngine().Execute(new SetupOptions
             {
                 Mode = mode,
+                InstallScope = installScope,
                 HostContext = "codex",
-                RepoPath = _repoPathTextBox.Text.Trim()
+                RepoPath = effectiveRepoPath
             });
 
             _resultTextBox.Text = JsonSerializer.Serialize(result, ProgramJson.Options);
@@ -372,11 +580,86 @@ internal sealed class SetupForm : Form
             _statusLabel.Text = $"{mode} failed";
         }
     }
+
+    private InstallScope GetSelectedInstallScope()
+    {
+        return _userProfileRadioButton.Checked ? InstallScope.UserProfile : InstallScope.RepoLocal;
+    }
+
+    private void UpdateActionButtons()
+    {
+        var selectedScope = GetSelectedInstallScope();
+        _assessButton.Text = selectedScope == InstallScope.UserProfile
+            ? "Assess User-Profile"
+            : "Assess Repo-Local";
+        _installButton.Text = selectedScope == InstallScope.UserProfile
+            ? "Install User-Profile"
+            : "Install Repo-Local";
+        UpdateHeaderCopy(selectedScope);
+        UpdatePathPresentation(selectedScope);
+    }
+
+    private void UpdateHeaderCopy(InstallScope installScope)
+    {
+        if (installScope == InstallScope.UserProfile)
+        {
+            _subtitleLabel.Text = "User-profile harness install and assessment";
+            _introLabel.Text = "Install or assess Anarchy-AI through the current user profile. User-profile install keeps the harness under the current user profile instead of attaching it to one repo.";
+            return;
+        }
+
+        _subtitleLabel.Text = "Repo-local harness install and assessment";
+        _introLabel.Text = "Install or assess Anarchy-AI for a selected repo. Repo-local install keeps the harness inside that repo so the delivery surface travels with the workspace.";
+    }
+
+    private void UpdatePathPresentation(InstallScope installScope)
+    {
+        _updatingPathPresentation = true;
+        try
+        {
+            if (installScope == InstallScope.UserProfile)
+            {
+                _pathLabel.Text = "Install Root:";
+                _repoPathTextBox.Text = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    "plugins",
+                    "anarchy-ai");
+                _repoPathTextBox.ReadOnly = true;
+                _repoPathTextBox.BackColor = System.Drawing.SystemColors.Control;
+                _browseButton.Visible = false;
+                _browseButton.Enabled = false;
+                _targetRepoPanel.Visible = false;
+                return;
+            }
+
+            _pathLabel.Text = "Repo Path:";
+            _repoPathTextBox.Text = _selectedRepoPath;
+            _repoPathTextBox.ReadOnly = false;
+            _repoPathTextBox.BackColor = System.Drawing.SystemColors.Window;
+            _browseButton.Visible = true;
+            _browseButton.Enabled = true;
+            _targetRepoPanel.Visible = false;
+        }
+        finally
+        {
+            _updatingPathPresentation = false;
+        }
+    }
+
+    private string GetEffectiveRepoPath()
+    {
+        if (GetSelectedInstallScope() == InstallScope.UserProfile)
+        {
+            return string.Empty;
+        }
+
+        return _selectedRepoPath.Trim();
+    }
 }
 
 internal sealed class InstallDisclosureForm : Form
 {
-    public InstallDisclosureForm(string repoPath, string disclosureText)
+    public InstallDisclosureForm(string repoPath, string disclosureText, InstallScope installScope)
     {
         Text = "Install Disclosure";
         Width = 920;
@@ -421,8 +704,8 @@ internal sealed class InstallDisclosureForm : Form
             BorderStyle = BorderStyle.None,
             BackColor = System.Drawing.SystemColors.Control,
             Dock = DockStyle.Top,
-            Height = 54,
-            Text = $"Target repo:{Environment.NewLine}{repoPath}",
+            Height = 74,
+            Text = $"Target repo:{Environment.NewLine}{repoPath}{Environment.NewLine}Install lane:{Environment.NewLine}{(installScope == InstallScope.UserProfile ? "User-profile" : "Repo-local")}",
             Margin = new Padding(0, 6, 0, 10),
             TabStop = false
         }, 0, 1);
@@ -579,6 +862,7 @@ internal static class CliParser
     public static SetupOptions Parse(string[] args)
     {
         var mode = OperationMode.Assess;
+        var installScope = InstallScope.RepoLocal;
         var hostContext = "codex";
         var silent = false;
         var jsonOutput = false;
@@ -599,6 +883,12 @@ internal static class CliParser
                     break;
                 case "install":
                     mode = OperationMode.Install;
+                    break;
+                case "repolocal":
+                    installScope = InstallScope.RepoLocal;
+                    break;
+                case "userprofile":
+                    installScope = InstallScope.UserProfile;
                     break;
                 case "update":
                     mode = OperationMode.Update;
@@ -632,6 +922,7 @@ internal static class CliParser
         return new SetupOptions
         {
             Mode = mode,
+            InstallScope = installScope,
             HostContext = hostContext,
             Silent = silent,
             JsonOutput = jsonOutput,
@@ -729,30 +1020,67 @@ internal sealed class SetupEngine
         return LooksLikeRepoRoot(currentDirectory) ? currentDirectory : null;
     }
 
-    public static string BuildInstallDisclosure(string repoPath)
+    public static string BuildInstallDisclosure(string repoPath, InstallScope installScope)
     {
-        var targetRepo = string.IsNullOrWhiteSpace(repoPath) ? "(repo path unresolved)" : repoPath;
-        var disclosureLines = new[]
+        var hasWorkspaceTarget = !string.IsNullOrWhiteSpace(repoPath);
+        var targetRepo = string.IsNullOrWhiteSpace(repoPath)
+            ? "(not specified)"
+            : repoPath;
+        var installRoot = BuildInstallRootLabel(installScope);
+        var pluginFolder = hasWorkspaceTarget
+            ? BuildPluginFolderLabel(installScope, repoPath)
+            : BuildPluginFolderLabel(installScope, null);
+        var pluginName = hasWorkspaceTarget
+            ? BuildPluginName(installScope, repoPath)
+            : BuildPluginName(installScope, null);
+        var marketplacePath = BuildMarketplacePathLabel(installScope, repoPath);
+        var disclosureLines = new List<string>
         {
-            "Responsible disclosure for repo-local Anarchy-AI install.",
-            $"Target: {targetRepo}",
-            "Repo impact:",
-            $"- Adds plugins\\anarchy-ai\\ with {PluginSurfaces.Length} bundled surfaces.",
-            "- Creates or updates .agents\\plugins\\marketplace.json.",
-            "- Registers anarchy-ai as INSTALLED_BY_DEFAULT in the target repo.",
-            "- Current GUI install does not rewrite AGENTS.md.",
-            "- Seeds missing portable root schema files from the embedded payload.",
-            "- Existing root schema files are left in place unless an explicit schema refresh is requested.",
+            $"Responsible disclosure for {BuildInstallScopeLabel(installScope).ToLowerInvariant()} Anarchy-AI install.",
+            "All carried schema, contract, and install surfaces remain authored in this repo and are published into the standalone installer payload.",
+            $"Install root: {installRoot}",
+            installScope == InstallScope.UserProfile
+                ? $"Workspace target: {targetRepo}"
+                : $"Target repo: {targetRepo}",
+            "Install impact:",
+            $"- Adds {pluginFolder}\\ with {PluginSurfaces.Length} bundled surfaces.",
+            $"- Creates or updates {marketplacePath}.",
+            installScope == InstallScope.UserProfile
+                ? $"- Registers {pluginName} as INSTALLED_BY_DEFAULT in the current user profile marketplace."
+                : $"- Registers {pluginName} as INSTALLED_BY_DEFAULT in the target repo.",
+            installScope == InstallScope.UserProfile
+                ? "- Uses the Codex-native plugin marketplace lane; it does not require a custom mcp_servers.anarchy-ai block to count as ready."
+                : "- Leaves ~/.codex/config.toml untouched in the repo-local lane.",
+            "- Current GUI install does not rewrite AGENTS.md."
+        };
+
+        if (hasWorkspaceTarget)
+        {
+            disclosureLines.Add("- Seeds missing portable root schema files from the embedded payload.");
+            disclosureLines.Add("- Existing root schema files are left in place unless an explicit schema refresh is requested.");
+        }
+        else
+        {
+            disclosureLines.Add("- No repo workspace target is selected in this run.");
+            disclosureLines.Add("- Portable root schema seeding is skipped until /repo \"<path>\" is provided.");
+        }
+
+        disclosureLines.AddRange(
+        [
             "Product behavior:",
             $"- Exposes {CurrentToolNames.Length} harness tools for preflight, gap assessment, active-work compilation, schema reality, and gov2gov reconciliation.",
             "Human impact:",
-            "- Repo-local only; no machine-wide install or settings change.",
+            installScope == InstallScope.UserProfile
+                ? "- Installs once for the current user profile; no machine-wide install or admin change."
+                : "- Repo-local only; no machine-wide install or settings change.",
             "- Install itself does not start the MCP runtime as a background process.",
             "AI impact:",
-            "- Makes Anarchy-AI available by default to agents in this repo.",
+            installScope == InstallScope.UserProfile
+                ? "- Makes Anarchy-AI available through the current user profile for supported hosts."
+                : "- Makes Anarchy-AI available by default to agents in this repo.",
             "- Strengthens startup/control surfaces; it does not rewrite project code by itself.",
             "Back out now if this repo should remain unchanged."
-        };
+        ]);
 
         return string.Join(Environment.NewLine, disclosureLines);
     }
@@ -762,19 +1090,22 @@ internal sealed class SetupEngine
         var resolvedRepo = string.IsNullOrWhiteSpace(repoPath)
             ? TryResolveDefaultRepoRoot()
             : Path.GetFullPath(repoPath);
-
-        var targetRepo = string.IsNullOrWhiteSpace(resolvedRepo) ? "(repo path unresolved)" : resolvedRepo;
-        var availabilityLead = string.IsNullOrWhiteSpace(resolvedRepo)
-            ? "Anarchy-AI can be installed into a target repo."
-            : "This repo has Anarchy-AI available.";
+        var workspaceTargeted = !string.IsNullOrWhiteSpace(resolvedRepo);
+        var targetRepo = workspaceTargeted ? resolvedRepo! : "(repo path unresolved)";
+        var availabilityLead = workspaceTargeted
+            ? "This repo has Anarchy-AI available."
+            : "Anarchy-AI can be installed into a target repo.";
+        var schemaSeedingLine = workspaceTargeted
+            ? "- Seeds missing portable root schema files during install."
+            : "- Seeds missing portable root schema files only when a workspace root is targeted (/repolocal or /userprofile with /repo).";
         var lines = new[]
         {
             "Anarchy-AI Setup",
             string.Empty,
             "Usage:",
-            "  AnarchyAi.Setup.exe /assess [/repo <path>] [/json] [/silent]",
-            "  AnarchyAi.Setup.exe /install [/repo <path>] [/refreshschemas] [/json] [/silent]",
-            "  AnarchyAi.Setup.exe /update [/repo <path>] [/sourcepath <path>] [/sourceurl <url>] [/refreshschemas] [/json] [/silent]",
+            "  AnarchyAi.Setup.exe /assess [/repolocal|/userprofile] [/repo <path>] [/json] [/silent]",
+            "  AnarchyAi.Setup.exe /install [/repolocal|/userprofile] [/repo <path>] [/refreshschemas] [/json] [/silent]",
+            "  AnarchyAi.Setup.exe /update [/repolocal|/userprofile] [/repo <path>] [/sourcepath <path>] [/sourceurl <url>] [/refreshschemas] [/json] [/silent]",
             "  AnarchyAi.Setup.exe /? | -? | /h | -h | /help | -help | --help | --?",
             string.Empty,
             "Availability:",
@@ -784,15 +1115,19 @@ internal sealed class SetupEngine
             $"  Target repo: {targetRepo}",
             string.Empty,
             "Here's what changes:",
-            $"- Adds plugins\\anarchy-ai\\ with {PluginSurfaces.Length} bundled surfaces.",
-            "- Creates or updates .agents\\plugins\\marketplace.json.",
-            "- Registers anarchy-ai as INSTALLED_BY_DEFAULT in the target repo.",
+            $"- /repolocal adds {BuildPluginFolderLabel(InstallScope.RepoLocal, resolvedRepo)}\\ and updates {BuildMarketplacePathLabel(InstallScope.RepoLocal, resolvedRepo)}.",
+            $"- /userprofile adds {BuildPluginFolderLabel(InstallScope.UserProfile, resolvedRepo)}\\ and updates {BuildMarketplacePathLabel(InstallScope.UserProfile, resolvedRepo)}.",
+            $"- /repolocal registers {BuildPluginName(InstallScope.RepoLocal, resolvedRepo)} for the selected repo.",
+            $"- /userprofile registers {BuildPluginName(InstallScope.UserProfile, resolvedRepo)} for the current user profile.",
+            "- /userprofile uses the Codex-native plugin marketplace lane rather than requiring a custom mcp_servers.anarchy-ai block.",
             $"- Makes {CurrentToolNames.Length} bounded harness tools available to supported hosts.",
             "- Does not rewrite AGENTS.md.",
-            "- Seeds missing portable root schema files during install.",
+            schemaSeedingLine,
             "- Leaves existing root schema files in place unless /refreshschemas is passed.",
             string.Empty,
             "Flags:",
+            "  /repolocal             Install or assess through the selected repo root.",
+            "  /userprofile           Install or assess through the current user profile.",
             "  /repo <path>            Override repo auto-detection.",
             "  /sourcepath <path>      Refresh from a local AI-Links source path.",
             "  /sourceurl <url>        Refresh from a zip source URL.",
@@ -809,9 +1144,10 @@ internal sealed class SetupEngine
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        var repoRoot = ResolveRepoRoot(options.RepoPath);
-        var pluginRoot = Path.Combine(repoRoot, "plugins", "anarchy-ai");
-        var marketplacePath = Path.Combine(repoRoot, ".agents", "plugins", "marketplace.json");
+        var normalizedHostContext = NormalizeHostContext(options.HostContext);
+        var workspaceRoot = ResolveWorkspaceRoot(options.InstallScope, options.RepoPath);
+        var pluginRoot = ResolvePluginRoot(options.InstallScope, workspaceRoot);
+        var marketplacePath = ResolveMarketplacePath(options.InstallScope, workspaceRoot);
         var runtimePath = Path.Combine(pluginRoot, "runtime", "win-x64", "AnarchyAi.Mcp.Server.exe");
         var pluginManifestPath = Path.Combine(pluginRoot, ".codex-plugin", "plugin.json");
         var mcpPath = Path.Combine(pluginRoot, ".mcp.json");
@@ -828,26 +1164,54 @@ internal sealed class SetupEngine
 
         if (options.Mode == OperationMode.Install)
         {
-            ExtractEmbeddedPluginBundle(pluginRoot, actionsTaken);
-            EnsureMarketplaceRegistration(marketplacePath, actionsTaken);
+            try
+            {
+                ExtractEmbeddedPluginBundle(pluginRoot, actionsTaken);
+                EnsurePluginManifestIdentity(pluginManifestPath, options.InstallScope, workspaceRoot, actionsTaken);
+                EnsurePluginMcpConfiguration(mcpPath, actionsTaken);
+                EnsureMarketplaceRegistration(marketplacePath, options.InstallScope, workspaceRoot, actionsTaken);
 
-            if (options.RefreshPortableSchemaFamily)
-            {
-                ExtractEmbeddedPortableSchemaFamily(repoRoot, actionsTaken);
+                if (string.IsNullOrWhiteSpace(workspaceRoot))
+                {
+                    actionsTaken.Add("portable_schema_family_not_targeted");
+                }
+                else if (options.RefreshPortableSchemaFamily)
+                {
+                    ExtractEmbeddedPortableSchemaFamily(workspaceRoot, actionsTaken);
+                }
+                else
+                {
+                    SeedMissingEmbeddedPortableSchemaFamily(workspaceRoot, actionsTaken);
+                }
             }
-            else
+            catch (IOException ex) when (IsRuntimeLockException(ex))
             {
-                SeedMissingEmbeddedPortableSchemaFamily(repoRoot, actionsTaken);
+                updateNotes.Add(ex.Message);
+                missingComponents.Add("install_apply_failed");
+                safeRepairs.Add("release_runtime_lock_and_retry_install");
+                safeRepairs.Add("run_safe_release_runtime_lock");
+                safeRepairs.Add("run_force_release_runtime_lock");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                updateNotes.Add(ex.Message);
+                missingComponents.Add("install_apply_failed");
+                safeRepairs.Add("release_runtime_lock_and_retry_install");
+                safeRepairs.Add("run_safe_release_runtime_lock");
+                safeRepairs.Add("run_force_release_runtime_lock");
             }
         }
         else if (options.Mode == OperationMode.Update)
         {
             try
             {
-                RefreshFromUpdateSource(pluginRoot, repoRoot, options, actionsTaken, updateNotes);
+                RefreshFromUpdateSource(pluginRoot, workspaceRoot, options, actionsTaken, updateNotes);
+                EnsurePluginManifestIdentity(pluginManifestPath, options.InstallScope, workspaceRoot, actionsTaken);
+                EnsurePluginMcpConfiguration(mcpPath, actionsTaken);
+                EnsureMarketplaceRegistration(marketplacePath, options.InstallScope, workspaceRoot, actionsTaken);
                 updateState = "completed";
             }
-            catch (IOException ex) when (ex.Message.Contains("being used by another process", StringComparison.OrdinalIgnoreCase))
+            catch (IOException ex) when (IsRuntimeLockException(ex))
             {
                 updateState = "failed";
                 updateNotes.Add(ex.Message);
@@ -874,6 +1238,14 @@ internal sealed class SetupEngine
             }
         }
 
+        if (actionsTaken.Contains("skipped_locked_bundle_surface_with_unknown_drift"))
+        {
+            missingComponents.Add("locked_bundle_surface_write_skipped");
+            safeRepairs.Add("release_runtime_lock_and_retry_install");
+            safeRepairs.Add("run_safe_release_runtime_lock");
+            safeRepairs.Add("run_force_release_runtime_lock");
+        }
+
         var pluginManifestExists = File.Exists(pluginManifestPath);
         var mcpExists = File.Exists(mcpPath);
         var runtimeExists = File.Exists(runtimePath);
@@ -898,38 +1270,88 @@ internal sealed class SetupEngine
             }
         }
 
-        var marketplaceInspection = InspectMarketplace(marketplacePath);
+        var pluginManifestInspection = InspectPluginManifest(pluginManifestPath, options.InstallScope, workspaceRoot);
+        missingComponents.UnionWith(pluginManifestInspection.Findings);
+        var marketplaceInspection = InspectMarketplace(marketplacePath, options.InstallScope, workspaceRoot);
         missingComponents.UnionWith(marketplaceInspection.Findings);
+        var mcpInspection = InspectMcpConfiguration(mcpPath);
+        missingComponents.UnionWith(mcpInspection.Findings);
+        var marketplaceMissingFinding = BuildMarketplaceMissingFinding(options.InstallScope);
+        var marketplaceMissingPluginsArrayFinding = BuildMarketplaceMissingPluginsArrayFinding(options.InstallScope);
         if (!marketplaceInspection.Exists)
         {
-            missingComponents.Add("repo_marketplace_missing");
+            missingComponents.Add(marketplaceMissingFinding);
         }
         if (marketplaceInspection.Exists && !marketplaceInspection.HasPluginsArray)
         {
-            missingComponents.Add("repo_marketplace_missing_plugins_array");
+            missingComponents.Add(marketplaceMissingPluginsArrayFinding);
         }
         if (marketplaceInspection.Exists && !marketplaceInspection.IsValidJson)
         {
             missingComponents.Add("marketplace_json_invalid");
         }
 
+        var marketplaceRegistrationReady = runtimeExists
+            && marketplaceInspection.HasAnarchyPluginEntry
+            && marketplaceInspection.InstalledByDefault
+            && pluginManifestInspection.IdentityAligned
+            && marketplaceInspection.MarketplaceIdentityAligned
+            && mcpInspection.IdentityAligned;
+        var legacyUserProfileInspection = InspectLegacyUserProfileSurfaces(options.InstallScope, normalizedHostContext, marketplaceRegistrationReady);
+        missingComponents.UnionWith(legacyUserProfileInspection.Findings);
+
         if (!runtimeExists) { safeRepairs.Add("publish_or_restore_bundled_runtime"); }
         if (!marketplaceInspection.HasAnarchyPluginEntry || !marketplaceInspection.InstalledByDefault)
         {
-            safeRepairs.Add("run_bootstrap_harness_install");
+            safeRepairs.Add(options.InstallScope == InstallScope.UserProfile
+                ? "run_user_profile_harness_install"
+                : "run_bootstrap_harness_install");
+        }
+        if (!pluginManifestInspection.IdentityAligned)
+        {
+            safeRepairs.Add(options.InstallScope == InstallScope.UserProfile
+                ? "refresh_user_profile_plugin_identity"
+                : "refresh_repo_plugin_identity");
+        }
+        if (!marketplaceInspection.MarketplaceIdentityAligned)
+        {
+            safeRepairs.Add(options.InstallScope == InstallScope.UserProfile
+                ? "refresh_user_profile_marketplace_identity"
+                : "refresh_repo_marketplace_identity");
+        }
+        if (!mcpInspection.IdentityAligned)
+        {
+            safeRepairs.Add("refresh_mcp_server_identity");
+        }
+        if (legacyUserProfileInspection.LegacyPluginRootPresent)
+        {
+            safeRepairs.Add("inventory_and_manually_quarantine_legacy_user_profile_plugin_root");
+        }
+        if (legacyUserProfileInspection.LegacyCodexCustomMcpEntryPresent)
+        {
+            safeRepairs.Add("inventory_and_remove_stale_codex_custom_mcp_entry");
         }
 
-        var bootstrapState = runtimeExists && marketplaceInspection.HasAnarchyPluginEntry && marketplaceInspection.InstalledByDefault
+        var hasLockedBundleSurfaceSkip = missingComponents.Contains("locked_bundle_surface_write_skipped");
+        var bootstrapState = !hasLockedBundleSurfaceSkip && marketplaceRegistrationReady
             ? "ready"
-            : runtimeExists && (pluginManifestExists || mcpExists)
-                ? "repo_bundle_present_unregistered"
+        : runtimeExists && marketplaceInspection.HasAnarchyPluginEntry && marketplaceInspection.InstalledByDefault
+            ? "registration_refresh_needed"
+                : runtimeExists && (pluginManifestExists || mcpExists)
+                    ? "repo_bundle_present_unregistered"
                 : runtimeExists
                     ? "runtime_only"
                     : "bootstrap_needed";
+        var registrationMode = DetermineRegistrationMode(options.InstallScope, normalizedHostContext, legacyUserProfileInspection);
 
-        var nextAction = bootstrapState switch
+        var nextAction = hasLockedBundleSurfaceSkip
+            ? "release_runtime_lock_and_retry_install"
+            : legacyUserProfileInspection.HasLegacySurface
+                ? "inventory_legacy_home_install_and_run_user_profile_install"
+            : bootstrapState switch
         {
             "ready" => "use_preflight_session",
+            "registration_refresh_needed" => "refresh_plugin_registration",
             "repo_bundle_present_unregistered" => "register_plugin_in_marketplace",
             "runtime_only" => "materialize_repo_plugin_bundle",
             _ => "restore_runtime_or_complete_bundle"
@@ -938,13 +1360,16 @@ internal sealed class SetupEngine
         return new SetupResult
         {
             bootstrap_state = bootstrapState,
-            host_context = NormalizeHostContext(options.HostContext),
+            registration_mode = registrationMode,
+            host_context = normalizedHostContext,
+            install_scope = options.InstallScope == InstallScope.UserProfile ? "user_profile" : "repo_local",
+            workspace_root = workspaceRoot,
             update_requested = updateRequested,
             update_state = updateState,
             update_source_zip_url = options.UpdateSourceZipUrl,
             update_source_path = options.UpdateSourcePath,
             update_notes = updateNotes.ToArray(),
-            repo_root = repoRoot,
+            repo_root = workspaceRoot,
             plugin_root = pluginRoot,
             runtime_present = runtimeExists,
             marketplace_registered = marketplaceInspection.HasAnarchyPluginEntry,
@@ -954,6 +1379,39 @@ internal sealed class SetupEngine
             safe_repairs = safeRepairs.ToArray(),
             next_action = nextAction
         };
+    }
+
+    private static void EnsureCodexCustomMcpRegistration(InstallScope installScope, string normalizedHostContext, string pluginRoot, HashSet<string> actionsTaken)
+    {
+        if (installScope != InstallScope.UserProfile || !string.Equals(normalizedHostContext, "codex", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var codexConfigPath = Path.Combine(GetUserProfileDirectory(), ".codex", "config.toml");
+        var codexConfigDirectory = Path.GetDirectoryName(codexConfigPath)!;
+        if (!Directory.Exists(codexConfigDirectory))
+        {
+            Directory.CreateDirectory(codexConfigDirectory);
+            actionsTaken.Add("created_codex_config_directory");
+        }
+
+        var content = File.Exists(codexConfigPath) ? File.ReadAllText(codexConfigPath) : string.Empty;
+        if (!File.Exists(codexConfigPath))
+        {
+            actionsTaken.Add("created_codex_config_file");
+        }
+
+        var expectedServerBlock = BuildExpectedCodexMcpServerBlock(pluginRoot, DetectNewline(content));
+        if (UpsertTomlServerBlock(ref content, expectedServerBlock))
+        {
+            File.WriteAllText(codexConfigPath, content);
+            actionsTaken.Add("updated_codex_custom_mcp_server_entry");
+        }
+        else
+        {
+            actionsTaken.Add("codex_custom_mcp_server_already_registered");
+        }
     }
 
     private static string NormalizeHostContext(string hostContext)
@@ -967,7 +1425,7 @@ internal sealed class SetupEngine
         };
     }
 
-    private static string ResolveRepoRoot(string explicitRepoPath)
+    private static string ResolveWorkspaceRoot(InstallScope installScope, string explicitRepoPath)
     {
         if (!string.IsNullOrWhiteSpace(explicitRepoPath))
         {
@@ -978,6 +1436,11 @@ internal sealed class SetupEngine
             }
 
             return resolvedPath;
+        }
+
+        if (installScope == InstallScope.UserProfile)
+        {
+            return string.Empty;
         }
 
         var detected = TryResolveDefaultRepoRoot();
@@ -1011,15 +1474,62 @@ internal sealed class SetupEngine
 
     private static bool LooksLikeRepoRoot(string path)
     {
+        // Auto-detection should only trust an actual repo marker.
+        // Generic parent folders can also contain "plugins" or ".agents",
+        // which makes those signals too weak for safe default resolution.
         return Directory.Exists(Path.Combine(path, ".git")) ||
-               File.Exists(Path.Combine(path, "AGENTS.md")) ||
-               File.Exists(Path.Combine(path, "README.md")) ||
-               Directory.Exists(Path.Combine(path, "plugins")) ||
-               Directory.Exists(Path.Combine(path, ".agents"));
+               File.Exists(Path.Combine(path, ".git"));
+    }
+
+    private static bool IsRuntimeLockException(IOException ex)
+    {
+        return ex.Message.Contains("being used by another process", StringComparison.OrdinalIgnoreCase) ||
+               ex.Message.Contains("access is denied", StringComparison.OrdinalIgnoreCase) ||
+               ex.Message.Contains("access to the path", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryIsResourceContentAligned(string resourceName, string targetPath, out bool aligned)
+    {
+        aligned = false;
+        if (!File.Exists(targetPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var resourceStream = PayloadResources.OpenResource(resourceName);
+            using var targetStream = new FileStream(
+                targetPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+
+            if (resourceStream.CanSeek && targetStream.CanSeek && resourceStream.Length != targetStream.Length)
+            {
+                return false;
+            }
+
+            var resourceHash = SHA256.HashData(resourceStream);
+            var targetHash = SHA256.HashData(targetStream);
+            aligned = resourceHash.AsSpan().SequenceEqual(targetHash);
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     private static void ExtractEmbeddedPluginBundle(string pluginRoot, HashSet<string> actionsTaken)
     {
+        var retainedLockedSurfaceWithoutDrift = false;
+        var skippedLockedSurfaceWithUnknownDrift = false;
+
         Directory.CreateDirectory(pluginRoot);
         foreach (var resource in PayloadResources.GetPluginBundleResources())
         {
@@ -1028,13 +1538,92 @@ internal sealed class SetupEngine
                 .Replace('\\', Path.DirectorySeparatorChar);
 
             var targetPath = Path.Combine(pluginRoot, relativePath);
+            if (TryIsResourceContentAligned(resource, targetPath, out var alignedBeforeWrite) && alignedBeforeWrite)
+            {
+                continue;
+            }
+
             Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
-            using var stream = PayloadResources.OpenResource(resource);
-            using var output = File.Create(targetPath);
-            stream.CopyTo(output);
+            try
+            {
+                using var stream = PayloadResources.OpenResource(resource);
+                using var output = File.Create(targetPath);
+                stream.CopyTo(output);
+            }
+            catch (IOException ex)
+            {
+                if (IsRuntimeLockException(ex) && File.Exists(targetPath))
+                {
+                    if (TryIsResourceContentAligned(resource, targetPath, out var alignedAfterFailure) && alignedAfterFailure)
+                    {
+                        retainedLockedSurfaceWithoutDrift = true;
+                    }
+                    else
+                    {
+                        skippedLockedSurfaceWithUnknownDrift = true;
+                    }
+
+                    continue;
+                }
+
+                throw;
+            }
+            catch (UnauthorizedAccessException) when (File.Exists(targetPath))
+            {
+                if (TryIsResourceContentAligned(resource, targetPath, out var alignedAfterFailure) && alignedAfterFailure)
+                {
+                    retainedLockedSurfaceWithoutDrift = true;
+                }
+                else
+                {
+                    skippedLockedSurfaceWithUnknownDrift = true;
+                }
+
+                continue;
+            }
+        }
+
+        if (retainedLockedSurfaceWithoutDrift)
+        {
+            actionsTaken.Add("retained_locked_bundle_surface_without_content_drift");
+        }
+
+        if (skippedLockedSurfaceWithUnknownDrift)
+        {
+            actionsTaken.Add("skipped_locked_bundle_surface_with_unknown_drift");
         }
 
         actionsTaken.Add("materialized_plugin_bundle_from_embedded_payload");
+    }
+
+    private static void EnsurePluginManifestIdentity(string pluginManifestPath, InstallScope installScope, string repoRoot, HashSet<string> actionsTaken)
+    {
+        if (!File.Exists(pluginManifestPath))
+        {
+            return;
+        }
+
+        var expectedPluginName = BuildPluginName(installScope, repoRoot);
+        JsonObject pluginManifest;
+        try
+        {
+            pluginManifest = JsonNode.Parse(File.ReadAllText(pluginManifestPath))?.AsObject()
+                ?? new JsonObject();
+        }
+        catch (JsonException)
+        {
+            pluginManifest = new JsonObject();
+            actionsTaken.Add("replaced_invalid_plugin_manifest");
+        }
+
+        if (!string.Equals(pluginManifest["name"]?.GetValue<string>(), expectedPluginName, StringComparison.Ordinal))
+        {
+            pluginManifest["name"] = expectedPluginName;
+            File.WriteAllText(pluginManifestPath, pluginManifest.ToJsonString(ProgramJson.Options));
+            actionsTaken.Add(installScope == InstallScope.UserProfile
+                ? "updated_user_profile_plugin_identity"
+                : "updated_repo_plugin_identity");
+        }
     }
 
     private static void ExtractEmbeddedPortableSchemaFamily(string repoRoot, HashSet<string> actionsTaken)
@@ -1083,7 +1672,7 @@ internal sealed class SetupEngine
             : "portable_schema_family_already_present");
     }
 
-    private static void EnsureMarketplaceRegistration(string marketplacePath, HashSet<string> actionsTaken)
+    private static void EnsureMarketplaceRegistration(string marketplacePath, InstallScope installScope, string repoRoot, HashSet<string> actionsTaken)
     {
         var marketplaceDirectory = Path.GetDirectoryName(marketplacePath)!;
         if (!Directory.Exists(marketplaceDirectory))
@@ -1092,84 +1681,206 @@ internal sealed class SetupEngine
             actionsTaken.Add("created_marketplace_directory");
         }
 
+        var expectedPluginName = BuildPluginName(installScope, repoRoot);
+        var expectedPluginPath = BuildPluginRelativePath(installScope, repoRoot);
+        var expectedMarketplaceName = BuildMarketplaceName(installScope, repoRoot);
+        var expectedMarketplaceDisplayName = BuildMarketplaceDisplayName(installScope, repoRoot);
+        var marketplaceChanged = false;
         JsonObject marketplaceObject;
         if (File.Exists(marketplacePath))
         {
             try
             {
                 marketplaceObject = JsonNode.Parse(File.ReadAllText(marketplacePath))?.AsObject()
-                    ?? CreateDefaultMarketplace();
+                    ?? CreateDefaultMarketplace(installScope, repoRoot);
             }
             catch (JsonException)
             {
-                marketplaceObject = CreateDefaultMarketplace();
+                marketplaceObject = CreateDefaultMarketplace(installScope, repoRoot);
                 actionsTaken.Add("replaced_invalid_marketplace_json");
+                marketplaceChanged = true;
             }
         }
         else
         {
-            marketplaceObject = CreateDefaultMarketplace();
+            marketplaceObject = CreateDefaultMarketplace(installScope, repoRoot);
+            marketplaceChanged = true;
         }
 
-        marketplaceObject["name"] ??= "ai-links-local";
-        marketplaceObject["interface"] ??= new JsonObject { ["displayName"] = "AI-Links Local" };
+        var updatedMarketplaceIdentity = false;
+        var currentMarketplaceName = marketplaceObject["name"]?.GetValue<string>() ?? string.Empty;
+        if (!string.Equals(currentMarketplaceName, expectedMarketplaceName, StringComparison.Ordinal))
+        {
+            marketplaceObject["name"] = expectedMarketplaceName;
+            updatedMarketplaceIdentity = true;
+        }
+
+        var interfaceObject = marketplaceObject["interface"] as JsonObject;
+        if (interfaceObject is null)
+        {
+            interfaceObject = new JsonObject();
+            marketplaceObject["interface"] = interfaceObject;
+            updatedMarketplaceIdentity = true;
+        }
+
+        var currentDisplayName = interfaceObject["displayName"]?.GetValue<string>() ?? string.Empty;
+        if (!string.Equals(currentDisplayName, expectedMarketplaceDisplayName, StringComparison.Ordinal))
+        {
+            interfaceObject["displayName"] = expectedMarketplaceDisplayName;
+            updatedMarketplaceIdentity = true;
+        }
 
         var plugins = marketplaceObject["plugins"] as JsonArray;
         if (plugins is null)
         {
             plugins = [];
             marketplaceObject["plugins"] = plugins;
+            marketplaceChanged = true;
         }
 
-        var existingEntry = plugins
+        var matchingEntries = plugins
             .Select(node => node as JsonObject)
-            .FirstOrDefault(node => string.Equals(node?["name"]?.GetValue<string>(), "anarchy-ai", StringComparison.Ordinal));
+            .Where(IsAnarchyPluginEntry)
+            .ToList();
+
+        var existingEntry = matchingEntries
+            .FirstOrDefault(node => string.Equals(node?["name"]?.GetValue<string>(), expectedPluginName, StringComparison.Ordinal));
+        if (existingEntry is null && matchingEntries.Count > 0)
+        {
+            existingEntry = matchingEntries[0];
+        }
 
         if (existingEntry is null)
         {
-            plugins.Add(CreateAnarchyPluginEntry());
+            plugins.Add(CreateAnarchyPluginEntry(installScope, repoRoot));
             actionsTaken.Add("created_anarchy_ai_marketplace_entry");
+            marketplaceChanged = true;
         }
         else
         {
-            existingEntry["source"] = new JsonObject
+            var replacementEntry = CreateAnarchyPluginEntry(installScope, repoRoot);
+            if (!JsonNode.DeepEquals(existingEntry, replacementEntry))
             {
-                ["source"] = "local",
-                ["path"] = "./plugins/anarchy-ai"
-            };
-            existingEntry["policy"] = new JsonObject
-            {
-                ["installation"] = "INSTALLED_BY_DEFAULT",
-                ["authentication"] = "ON_INSTALL"
-            };
-            existingEntry["category"] = "Productivity";
-            actionsTaken.Add("updated_anarchy_ai_marketplace_entry");
+                existingEntry.Clear();
+                foreach (var property in replacementEntry)
+                {
+                    existingEntry[property.Key] = property.Value?.DeepClone();
+                }
+
+                actionsTaken.Add("updated_anarchy_ai_marketplace_entry");
+                marketplaceChanged = true;
+            }
         }
 
-        File.WriteAllText(marketplacePath, marketplaceObject.ToJsonString(ProgramJson.Options));
+        foreach (var duplicateEntry in matchingEntries)
+        {
+            if (!ReferenceEquals(duplicateEntry, existingEntry))
+            {
+                plugins.Remove(duplicateEntry);
+                actionsTaken.Add("removed_stale_anarchy_ai_marketplace_entry");
+                marketplaceChanged = true;
+            }
+        }
+
+        if (updatedMarketplaceIdentity)
+        {
+            actionsTaken.Add(installScope == InstallScope.UserProfile
+                ? "updated_user_profile_marketplace_identity"
+                : "updated_repo_marketplace_identity");
+            marketplaceChanged = true;
+        }
+
+        if (marketplaceChanged)
+        {
+            File.WriteAllText(marketplacePath, marketplaceObject.ToJsonString(ProgramJson.Options));
+        }
     }
-    private static JsonObject CreateDefaultMarketplace()
+
+    private static void EnsurePluginMcpConfiguration(string mcpPath, HashSet<string> actionsTaken)
+    {
+        var expectedServerName = BuildMcpServerName();
+        var updatedMcpIdentity = false;
+        JsonObject root;
+        if (File.Exists(mcpPath))
+        {
+            try
+            {
+                root = JsonNode.Parse(File.ReadAllText(mcpPath))?.AsObject()
+                    ?? new JsonObject();
+            }
+            catch (JsonException)
+            {
+                root = new JsonObject();
+                actionsTaken.Add("replaced_invalid_mcp_declaration");
+                updatedMcpIdentity = true;
+            }
+        }
+        else
+        {
+            root = new JsonObject();
+            updatedMcpIdentity = true;
+        }
+
+        var mcpServers = root["mcpServers"] as JsonObject;
+        if (mcpServers is null)
+        {
+            mcpServers = new JsonObject();
+            root["mcpServers"] = mcpServers;
+            updatedMcpIdentity = true;
+        }
+
+        var existingServer = mcpServers[expectedServerName] as JsonObject;
+        if (existingServer is null || mcpServers.Count != 1)
+        {
+            existingServer = new JsonObject();
+            updatedMcpIdentity = true;
+        }
+
+        if (!string.Equals(existingServer["command"]?.GetValue<string>(), ".\\runtime\\win-x64\\AnarchyAi.Mcp.Server.exe", StringComparison.Ordinal) ||
+            existingServer["args"] is not JsonArray ||
+            !string.Equals(existingServer["cwd"]?.GetValue<string>(), ".", StringComparison.Ordinal))
+        {
+            updatedMcpIdentity = true;
+        }
+
+        existingServer["command"] = ".\\runtime\\win-x64\\AnarchyAi.Mcp.Server.exe";
+        existingServer["args"] = new JsonArray();
+        existingServer["cwd"] = ".";
+
+        if (updatedMcpIdentity)
+        {
+            root["mcpServers"] = new JsonObject
+            {
+                [expectedServerName] = existingServer
+            };
+
+            File.WriteAllText(mcpPath, root.ToJsonString(ProgramJson.Options));
+            actionsTaken.Add("updated_mcp_server_identity");
+        }
+    }
+
+    private static JsonObject CreateDefaultMarketplace(InstallScope installScope, string repoRoot)
     {
         return new JsonObject
         {
-            ["name"] = "ai-links-local",
+            ["name"] = BuildMarketplaceName(installScope, repoRoot),
             ["interface"] = new JsonObject
             {
-                ["displayName"] = "AI-Links Local"
+                ["displayName"] = BuildMarketplaceDisplayName(installScope, repoRoot)
             },
             ["plugins"] = new JsonArray()
         };
     }
 
-    private static JsonObject CreateAnarchyPluginEntry()
+    private static JsonObject CreateAnarchyPluginEntry(InstallScope installScope, string repoRoot)
     {
         return new JsonObject
         {
-            ["name"] = "anarchy-ai",
+            ["name"] = BuildPluginName(installScope, repoRoot),
             ["source"] = new JsonObject
             {
                 ["source"] = "local",
-                ["path"] = "./plugins/anarchy-ai"
+                ["path"] = BuildPluginRelativePath(installScope, repoRoot)
             },
             ["policy"] = new JsonObject
             {
@@ -1180,11 +1891,11 @@ internal sealed class SetupEngine
         };
     }
 
-    private static MarketplaceInspection InspectMarketplace(string marketplacePath)
+    private static MarketplaceInspection InspectMarketplace(string marketplacePath, InstallScope installScope, string repoRoot)
     {
         if (!File.Exists(marketplacePath))
         {
-            return new MarketplaceInspection(false, false, false, false, false, []);
+            return new MarketplaceInspection(false, false, false, false, false, false, []);
         }
 
         try
@@ -1193,25 +1904,467 @@ internal sealed class SetupEngine
             var pluginsArray = root?["plugins"] as JsonArray;
             if (pluginsArray is null)
             {
-                return new MarketplaceInspection(true, false, false, false, true, []);
+                return new MarketplaceInspection(true, false, false, false, false, true, []);
             }
 
-            var existingEntry = pluginsArray
-                .Select(node => node as JsonObject)
-                .FirstOrDefault(node => string.Equals(node?["name"]?.GetValue<string>(), "anarchy-ai", StringComparison.Ordinal));
+            var marketplaceIdentityAligned = string.Equals(
+                root?["name"]?.GetValue<string>(),
+                BuildMarketplaceName(installScope, repoRoot),
+                StringComparison.Ordinal);
 
-            var hasEntry = existingEntry is not null;
+            var expectedPluginName = BuildPluginName(installScope, repoRoot);
+            var expectedPluginPath = BuildPluginRelativePath(installScope, repoRoot);
+            var expectedEntry = pluginsArray
+                .Select(node => node as JsonObject)
+                .FirstOrDefault(node =>
+                    string.Equals(node?["name"]?.GetValue<string>(), expectedPluginName, StringComparison.Ordinal) &&
+                    string.Equals(node?["source"]?["path"]?.GetValue<string>(), expectedPluginPath, StringComparison.Ordinal));
+            var legacyEntry = pluginsArray
+                .Select(node => node as JsonObject)
+                .FirstOrDefault(IsAnarchyPluginEntry);
+
+            var effectiveEntry = expectedEntry ?? legacyEntry;
+            var hasEntry = effectiveEntry is not null;
             var installedByDefault = string.Equals(
-                existingEntry?["policy"]?["installation"]?.GetValue<string>(),
+                effectiveEntry?["policy"]?["installation"]?.GetValue<string>(),
                 "INSTALLED_BY_DEFAULT",
                 StringComparison.Ordinal);
 
-            return new MarketplaceInspection(true, true, hasEntry, installedByDefault, true, []);
+            var findings = new List<string>();
+            if (!marketplaceIdentityAligned)
+            {
+                findings.Add("repo_marketplace_identity_outdated");
+            }
+
+            if (expectedEntry is null && legacyEntry is not null)
+            {
+                findings.Add("repo_plugin_identity_outdated");
+            }
+
+            return new MarketplaceInspection(true, true, hasEntry, installedByDefault, marketplaceIdentityAligned, true, findings.ToArray());
         }
         catch (JsonException)
         {
-            return new MarketplaceInspection(true, false, false, false, false, []);
+            return new MarketplaceInspection(true, false, false, false, false, false, []);
         }
+    }
+
+    private static PluginManifestInspection InspectPluginManifest(string pluginManifestPath, InstallScope installScope, string repoRoot)
+    {
+        if (!File.Exists(pluginManifestPath))
+        {
+            return new PluginManifestInspection(false, false, false, []);
+        }
+
+        try
+        {
+            var manifest = JsonNode.Parse(File.ReadAllText(pluginManifestPath))?.AsObject();
+            var identityAligned = string.Equals(
+                manifest?["name"]?.GetValue<string>(),
+                BuildPluginName(installScope, repoRoot),
+                StringComparison.Ordinal);
+
+            return new PluginManifestInspection(
+                true,
+                true,
+                identityAligned,
+                identityAligned ? [] : ["repo_plugin_identity_outdated"]);
+        }
+        catch (JsonException)
+        {
+            return new PluginManifestInspection(true, false, false, ["repo_plugin_identity_outdated"]);
+        }
+    }
+
+    private static McpConfigurationInspection InspectMcpConfiguration(string mcpPath)
+    {
+        if (!File.Exists(mcpPath))
+        {
+            return new McpConfigurationInspection(false, false, false, []);
+        }
+
+        try
+        {
+            var root = JsonNode.Parse(File.ReadAllText(mcpPath))?.AsObject();
+            var mcpServers = root?["mcpServers"] as JsonObject;
+            if (mcpServers is null)
+            {
+                return new McpConfigurationInspection(true, false, true, ["repo_mcp_server_identity_outdated"]);
+            }
+
+            var identityAligned = mcpServers.ContainsKey(BuildMcpServerName()) && mcpServers.Count == 1;
+            var findings = identityAligned
+                ? Array.Empty<string>()
+                : ["repo_mcp_server_identity_outdated"];
+
+            return new McpConfigurationInspection(true, identityAligned, true, findings);
+        }
+        catch (JsonException)
+        {
+            return new McpConfigurationInspection(true, false, false, ["repo_mcp_server_identity_outdated"]);
+        }
+    }
+
+    private static CodexCustomMcpInspection InspectCodexCustomMcpConfiguration(InstallScope installScope, string normalizedHostContext, string pluginRoot)
+    {
+        if (installScope != InstallScope.UserProfile || !string.Equals(normalizedHostContext, "codex", StringComparison.Ordinal))
+        {
+            return new CodexCustomMcpInspection(false, true, true, []);
+        }
+
+        var codexConfigPath = Path.Combine(GetUserProfileDirectory(), ".codex", "config.toml");
+        if (!File.Exists(codexConfigPath))
+        {
+            return new CodexCustomMcpInspection(true, false, false, ["codex_config_missing"]);
+        }
+
+        var content = File.ReadAllText(codexConfigPath);
+        var blockMatch = Regex.Match(content, @"(?ms)^\[mcp_servers\.anarchy-ai\]\r?\n(?:.*?\r?\n)*(?=^\[|\z)");
+        if (!blockMatch.Success)
+        {
+            return new CodexCustomMcpInspection(true, false, false, ["codex_mcp_server_entry_missing"]);
+        }
+
+        var expectedCommand = Path.GetFullPath(Path.Combine(pluginRoot, "runtime", "win-x64", "AnarchyAi.Mcp.Server.exe"));
+        var expectedCwd = Path.GetFullPath(pluginRoot);
+        var command = TryReadTomlString(blockMatch.Value, "command");
+        var cwd = TryReadTomlString(blockMatch.Value, "cwd");
+        var enabled = TryReadTomlBool(blockMatch.Value, "enabled");
+        var identityAligned =
+            string.Equals(command, expectedCommand, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(cwd, expectedCwd, StringComparison.OrdinalIgnoreCase) &&
+            enabled == true;
+
+        return identityAligned
+            ? new CodexCustomMcpInspection(true, true, true, [])
+            : new CodexCustomMcpInspection(true, true, false, ["codex_mcp_server_entry_outdated"]);
+    }
+
+    private static bool IsAnarchyPluginEntry(JsonObject? pluginNode)
+    {
+        if (pluginNode is null)
+        {
+            return false;
+        }
+
+        var pluginName = pluginNode["name"]?.GetValue<string>() ?? string.Empty;
+        if (pluginName.StartsWith("anarchy-ai", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        var pluginPath = pluginNode["source"]?["path"]?.GetValue<string>() ?? string.Empty;
+        return pluginPath.StartsWith("./plugins/anarchy-ai", StringComparison.Ordinal);
+    }
+
+    internal static string BuildPluginName(InstallScope installScope, string? repoRoot)
+    {
+        if (installScope == InstallScope.UserProfile)
+        {
+            return "anarchy-ai";
+        }
+
+        if (string.IsNullOrWhiteSpace(repoRoot))
+        {
+            return "anarchy-ai-<repo-slug>-<stable-path-hash>";
+        }
+
+        var repoName = new DirectoryInfo(repoRoot).Name;
+        var slug = NormalizeMarketplaceSlug(repoName);
+        var repoPathHash = SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(repoRoot).ToLowerInvariant()));
+        var suffix = Convert.ToHexString(repoPathHash.AsSpan(0, 4)).ToLowerInvariant();
+        return $"anarchy-ai-{slug}-{suffix}";
+    }
+
+    internal static string BuildPluginRelativePath(InstallScope installScope, string? repoRoot)
+    {
+        return installScope == InstallScope.UserProfile
+            ? $"./.codex/plugins/{BuildPluginName(installScope, repoRoot)}"
+            : $"./plugins/{BuildPluginName(installScope, repoRoot)}";
+    }
+
+    private static string BuildMcpServerName()
+    {
+        return "anarchy-ai";
+    }
+
+    private static string BuildMarketplaceName(InstallScope installScope, string? repoRoot)
+    {
+        if (installScope == InstallScope.UserProfile)
+        {
+            return "anarchy-user-profile";
+        }
+
+        if (string.IsNullOrWhiteSpace(repoRoot))
+        {
+            return "anarchy-local-<repo-slug>-<stable-path-hash>";
+        }
+
+        var repoName = new DirectoryInfo(repoRoot).Name;
+        var slug = NormalizeMarketplaceSlug(repoName);
+        var repoPathHash = SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(repoRoot).ToLowerInvariant()));
+        var suffix = Convert.ToHexString(repoPathHash.AsSpan(0, 4)).ToLowerInvariant();
+        return $"anarchy-local-{slug}-{suffix}";
+    }
+
+    private static string BuildMarketplaceDisplayName(InstallScope installScope, string? repoRoot)
+    {
+        if (installScope == InstallScope.UserProfile)
+        {
+            return "Anarchy-AI User Profile";
+        }
+
+        if (string.IsNullOrWhiteSpace(repoRoot))
+        {
+            return "Anarchy-AI Local (Repo)";
+        }
+
+        var repoName = new DirectoryInfo(repoRoot).Name.Trim();
+        if (string.IsNullOrWhiteSpace(repoName))
+        {
+            repoName = "Repo";
+        }
+
+        return $"Anarchy-AI Local ({repoName})";
+    }
+
+    internal static string ResolvePluginRoot(InstallScope installScope, string repoRoot)
+    {
+        return installScope == InstallScope.UserProfile
+            ? Path.Combine(GetUserProfileDirectory(), ".codex", "plugins", BuildPluginName(installScope, repoRoot))
+            : Path.Combine(repoRoot, "plugins", BuildPluginName(installScope, repoRoot));
+    }
+
+    private static string ResolveMarketplacePath(InstallScope installScope, string repoRoot)
+    {
+        return installScope == InstallScope.UserProfile
+            ? Path.Combine(GetUserProfileDirectory(), ".agents", "plugins", "marketplace.json")
+            : Path.Combine(repoRoot, ".agents", "plugins", "marketplace.json");
+    }
+
+    private static string GetUserProfileDirectory()
+    {
+        return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+    }
+
+    internal static string BuildInstallRootLabel(InstallScope installScope)
+    {
+        return installScope == InstallScope.UserProfile
+            ? Path.Combine(GetUserProfileDirectory(), ".codex")
+            : "<selected repo>";
+    }
+
+    internal static string BuildPluginFolderLabel(InstallScope installScope, string? repoRoot)
+    {
+        return installScope == InstallScope.UserProfile
+            ? Path.Combine("~", ".codex", "plugins", BuildPluginName(installScope, repoRoot))
+            : Path.Combine("plugins", BuildPluginName(installScope, repoRoot));
+    }
+
+    internal static string BuildMarketplacePathLabel(InstallScope installScope, string? repoRoot)
+    {
+        return installScope == InstallScope.UserProfile
+            ? Path.Combine("~", ".agents", "plugins", "marketplace.json")
+            : Path.Combine(".agents", "plugins", "marketplace.json");
+    }
+
+    internal static string DetermineRegistrationMode(InstallScope installScope, string normalizedHostContext, LegacyUserProfileInspection legacyUserProfileInspection)
+    {
+        if (installScope == InstallScope.UserProfile
+            && string.Equals(normalizedHostContext, "codex", StringComparison.Ordinal)
+            && legacyUserProfileInspection.LegacyCodexCustomMcpEntryPresent
+            && !legacyUserProfileInspection.NewPluginMarketplaceLaneReady)
+        {
+            return "custom_mcp_fallback";
+        }
+
+        return "plugin_marketplace";
+    }
+
+    private static string BuildMarketplaceMissingFinding(InstallScope installScope)
+    {
+        return installScope == InstallScope.UserProfile
+            ? "user_profile_marketplace_missing"
+            : "repo_marketplace_missing";
+    }
+
+    private static string BuildMarketplaceMissingPluginsArrayFinding(InstallScope installScope)
+    {
+        return installScope == InstallScope.UserProfile
+            ? "user_profile_marketplace_missing_plugins_array"
+            : "repo_marketplace_missing_plugins_array";
+    }
+
+    private static LegacyUserProfileInspection InspectLegacyUserProfileSurfaces(InstallScope installScope, string normalizedHostContext, bool newPluginMarketplaceLaneReady)
+    {
+        if (installScope != InstallScope.UserProfile || !string.Equals(normalizedHostContext, "codex", StringComparison.Ordinal))
+        {
+            return new LegacyUserProfileInspection(false, false, newPluginMarketplaceLaneReady, []);
+        }
+
+        if (newPluginMarketplaceLaneReady)
+        {
+            return new LegacyUserProfileInspection(false, false, true, []);
+        }
+
+        var legacyPluginRoot = Path.Combine(GetUserProfileDirectory(), "plugins", BuildPluginName(InstallScope.UserProfile, null));
+        var legacyPluginRootPresent = Directory.Exists(legacyPluginRoot);
+        var legacyCodexCustomMcpEntryPresent = false;
+
+        var codexConfigPath = Path.Combine(GetUserProfileDirectory(), ".codex", "config.toml");
+        if (File.Exists(codexConfigPath))
+        {
+            var content = File.ReadAllText(codexConfigPath);
+            var blockMatch = Regex.Match(content, @"(?ms)^\[mcp_servers\.anarchy-ai\]\r?\n(?:.*?\r?\n)*(?=^\[|\z)");
+            if (blockMatch.Success)
+            {
+                var command = TryReadTomlString(blockMatch.Value, "command");
+                var cwd = TryReadTomlString(blockMatch.Value, "cwd");
+                var legacyRuntimePath = Path.GetFullPath(Path.Combine(legacyPluginRoot, "runtime", "win-x64", "AnarchyAi.Mcp.Server.exe"));
+                legacyCodexCustomMcpEntryPresent =
+                    string.Equals(command, legacyRuntimePath, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(cwd, Path.GetFullPath(legacyPluginRoot), StringComparison.OrdinalIgnoreCase)
+                    || blockMatch.Success;
+            }
+        }
+
+        var findings = new List<string>();
+        if (legacyPluginRootPresent)
+        {
+            findings.Add("legacy_user_profile_plugin_root_present");
+        }
+
+        if (legacyCodexCustomMcpEntryPresent)
+        {
+            findings.Add("legacy_codex_custom_mcp_entry_present");
+        }
+
+        return new LegacyUserProfileInspection(
+            legacyPluginRootPresent,
+            legacyCodexCustomMcpEntryPresent,
+            false,
+            findings.ToArray());
+    }
+
+    private static string BuildInstallScopeLabel(InstallScope installScope)
+    {
+        return installScope == InstallScope.UserProfile ? "User-Profile" : "Repo-Local";
+    }
+
+    private static string BuildExpectedCodexMcpServerBlock(string pluginRoot, string newline)
+    {
+        var runtimePath = Path.GetFullPath(Path.Combine(pluginRoot, "runtime", "win-x64", "AnarchyAi.Mcp.Server.exe"));
+        var normalizedPluginRoot = Path.GetFullPath(pluginRoot);
+        return string.Join(newline, new[]
+        {
+            "[mcp_servers.anarchy-ai]",
+            $"command = '{ToTomlLiteral(runtimePath)}'",
+            $"cwd = '{ToTomlLiteral(normalizedPluginRoot)}'",
+            "enabled = true"
+        });
+    }
+
+    private static bool UpsertTomlServerBlock(ref string content, string expectedBlock)
+    {
+        var blockPattern = @"(?ms)^\[mcp_servers\.anarchy-ai\]\r?\n(?:.*?\r?\n)*(?=^\[|\z)";
+        var existingMatch = Regex.Match(content, blockPattern);
+        if (existingMatch.Success)
+        {
+            var existingNormalized = existingMatch.Value.TrimEnd('\r', '\n');
+            var expectedNormalized = expectedBlock.TrimEnd('\r', '\n');
+            if (string.Equals(existingNormalized, expectedNormalized, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var sectionRegex = new Regex(blockPattern, RegexOptions.Multiline);
+            content = sectionRegex.Replace(content, expectedBlock + DetectNewline(content), 1);
+            return true;
+        }
+
+        var newline = DetectNewline(content);
+        if (!string.IsNullOrWhiteSpace(content) && !content.EndsWith(newline, StringComparison.Ordinal))
+        {
+            content += newline;
+        }
+
+        if (!string.IsNullOrWhiteSpace(content))
+        {
+            content += newline;
+        }
+
+        content += expectedBlock + newline;
+        return true;
+    }
+
+    private static string ToTomlLiteral(string value)
+    {
+        return value.Replace("'", "''", StringComparison.Ordinal);
+    }
+
+    private static string DetectNewline(string content)
+    {
+        return content.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+    }
+
+    private static string? TryReadTomlString(string block, string key)
+    {
+        var match = Regex.Match(block, $@"(?m)^\s*{Regex.Escape(key)}\s*=\s*(?<value>.+?)\s*$");
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var raw = match.Groups["value"].Value.Trim();
+        if (raw.Length >= 2 && raw[0] == '\'' && raw[^1] == '\'')
+        {
+            return raw[1..^1].Replace("''", "'", StringComparison.Ordinal);
+        }
+
+        if (raw.Length >= 2 && raw[0] == '"' && raw[^1] == '"')
+        {
+            return raw[1..^1];
+        }
+
+        return raw;
+    }
+
+    private static bool? TryReadTomlBool(string block, string key)
+    {
+        var match = Regex.Match(block, $@"(?m)^\s*{Regex.Escape(key)}\s*=\s*(?<value>true|false)\s*$");
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        return string.Equals(match.Groups["value"].Value, "true", StringComparison.Ordinal);
+    }
+
+    private static string NormalizeMarketplaceSlug(string value)
+    {
+        var builder = new StringBuilder();
+        var previousWasSeparator = false;
+
+        foreach (var character in value.Trim().ToLowerInvariant())
+        {
+            if (char.IsLetterOrDigit(character))
+            {
+                builder.Append(character);
+                previousWasSeparator = false;
+                continue;
+            }
+
+            if (previousWasSeparator)
+            {
+                continue;
+            }
+
+            builder.Append('-');
+            previousWasSeparator = true;
+        }
+
+        var normalized = builder.ToString().Trim('-');
+        return string.IsNullOrWhiteSpace(normalized) ? "repo" : normalized;
     }
 
     private static void RefreshFromUpdateSource(
@@ -1240,6 +2393,13 @@ internal sealed class SetupEngine
 
         if (options.RefreshPortableSchemaFamily)
         {
+            if (string.IsNullOrWhiteSpace(repoRoot))
+            {
+                updateNotes.Add("portable_schema_family_refresh_skipped_without_workspace_root");
+                actionsTaken.Add("portable_schema_family_not_targeted");
+                return;
+            }
+
             foreach (var schemaFile in PortableSchemaFiles)
             {
                 CopySurface(Path.Combine(sourceRoot, schemaFile), Path.Combine(repoRoot, schemaFile));
@@ -1334,8 +2494,36 @@ internal sealed record MarketplaceInspection(
     bool HasPluginsArray,
     bool HasAnarchyPluginEntry,
     bool InstalledByDefault,
+    bool MarketplaceIdentityAligned,
     bool IsValidJson,
     string[] Findings);
+
+internal sealed record PluginManifestInspection(
+    bool Exists,
+    bool IsValidJson,
+    bool IdentityAligned,
+    string[] Findings);
+
+internal sealed record McpConfigurationInspection(
+    bool Exists,
+    bool IdentityAligned,
+    bool IsValidJson,
+    string[] Findings);
+
+internal sealed record CodexCustomMcpInspection(
+    bool Required,
+    bool EntryPresent,
+    bool IdentityAligned,
+    string[] Findings);
+
+internal sealed record LegacyUserProfileInspection(
+    bool LegacyPluginRootPresent,
+    bool LegacyCodexCustomMcpEntryPresent,
+    bool NewPluginMarketplaceLaneReady,
+    string[] Findings)
+{
+    public bool HasLegacySurface => LegacyPluginRootPresent || LegacyCodexCustomMcpEntryPresent;
+}
 
 internal static class PayloadResources
 {
