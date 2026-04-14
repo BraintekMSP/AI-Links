@@ -25,6 +25,11 @@ Use this skill when:
 5. If `schema_reality_state` is `partial` or `copied_only`, call `run_gov2gov_migration`.
 6. If `schema_reality_state` is `real` and `possession_state` is `possessed`, prefer `plan_only` first so canonical divergence is reviewed before any apply step.
 
+## Experimental/Test Tool
+
+- `direction_assist_test` is an explicit test-lane helper and is not part of the default core tool order above.
+- Use it only when you want bounded direction qualification for long prompts with fixed two-choice output and local test telemetry.
+
 ## Rules
 
 - Treat copied schema presence as a hint, not as operative reality.

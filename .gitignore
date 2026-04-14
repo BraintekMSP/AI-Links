@@ -38,3 +38,6 @@ plugins/AnarchyAi.Setup.exe
 
 # Generated runtime debug symbols
 plugins/anarchy-ai/runtime/win-x64/*.pdb
+
+# Local direction-assist test telemetry
+.agents/anarchy-ai/direction-assist-test.jsonl

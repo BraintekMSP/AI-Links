@@ -51,6 +51,15 @@ The current first-class contracts are:
 - `assess_harness_gap_state`
 - `run_gov2gov_migration`
 
+Current experimental test-lane contract:
+
+- `direction_assist_test`
+
+Test-lane rule:
+
+- this module remains callable but outside the five-core default order
+- prime promotion should reuse the same `DirectionAssistRunner` module from this test lane rather than duplicating qualification logic
+
 ## Actor Surfaces
 
 ### User

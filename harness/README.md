@@ -89,6 +89,12 @@ If the schema is not `real`, the next harness lane is:
 
 Five bounded harness tools now exist as contracts plus runtime implementation.
 
+Test-lane addition:
+
+- `direction_assist_test` is now available as an explicit experimental module.
+- It is intentionally outside the five core tool model and is not part of default core sequencing.
+- Prime-lane promotion should call the same `DirectionAssistRunner` rather than duplicating direction qualification logic in preflight or active-work paths.
+
 The next likely additions are:
 
 - runtime fixture coverage for these contracts

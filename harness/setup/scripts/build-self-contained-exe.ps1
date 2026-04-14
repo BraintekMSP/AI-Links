@@ -235,6 +235,37 @@ function Update-GeneratedPluginReadme {
   return $false
 }
 
+function Assert-SetupCliHelpContract {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$ExePath
+  )
+
+  if (-not (Test-Path $ExePath)) {
+    throw "Setup executable not found for help-contract check: $ExePath"
+  }
+
+  $helpOutput = (& $ExePath '/?' 2>&1 | Out-String)
+  if ($LASTEXITCODE -ne 0) {
+    throw "Setup help-contract check failed: '$ExePath /?' exited with code $LASTEXITCODE."
+  }
+
+  $requiredSnippets = @(
+    'Anarchy-AI Setup',
+    '/silent',
+    '/assess',
+    '/install',
+    '/update',
+    '5 core + 1 test harness tool'
+  )
+
+  foreach ($snippet in $requiredSnippets) {
+    if (-not $helpOutput.Contains($snippet)) {
+      throw "Setup help-contract check failed: '$ExePath /?' output was missing expected text '$snippet'."
+    }
+  }
+}
+
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $setupRoot = [System.IO.Path]::GetFullPath((Join-Path $scriptRoot '..'))
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $setupRoot '..\..'))
@@ -269,6 +300,8 @@ $resolvedDotnetPath = ''
 $publishedExePath = ''
 $schemaManifestSynced = $false
 $pluginReadmeGenerated = $false
+$publishedHelpContractValidated = $false
+$targetHelpContractValidated = $false
 
 try {
   $resolvedDotnetPath = Resolve-DotnetPath -RequestedPath $DotnetPath
@@ -308,9 +341,14 @@ try {
     throw "Published setup executable not found: $publishedExePath"
   }
 
+  Assert-SetupCliHelpContract -ExePath $publishedExePath
+  $publishedHelpContractValidated = $true
+
   if (-not $SkipCopyToPlugins) {
     try {
       Copy-Item $publishedExePath $targetExePath -Force
+      Assert-SetupCliHelpContract -ExePath $targetExePath
+      $targetHelpContractValidated = $true
     }
     catch {
       $errorMessage = $_.Exception.Message
@@ -325,6 +363,8 @@ try {
         published_executable = $publishedExePath
         plugin_readme_generated = $pluginReadmeGenerated
         schema_manifest_synced = $schemaManifestSynced
+        published_help_contract_validated = $publishedHelpContractValidated
+        target_help_contract_validated = $targetHelpContractValidated
         copy_to_plugins_requested = $true
         copied_to_plugins = $false
         target_executable = $targetExePath
@@ -360,6 +400,8 @@ try {
     published_executable = $publishedExePath
     plugin_readme_generated = $pluginReadmeGenerated
     schema_manifest_synced = $schemaManifestSynced
+    published_help_contract_validated = $publishedHelpContractValidated
+    target_help_contract_validated = if ($SkipCopyToPlugins) { $false } else { $targetHelpContractValidated }
     copy_to_plugins_requested = (-not $SkipCopyToPlugins)
     copied_to_plugins = (-not $SkipCopyToPlugins)
     target_executable = $targetExePath
@@ -379,6 +421,8 @@ catch {
     published_executable = $publishedExePath
     plugin_readme_generated = $pluginReadmeGenerated
     schema_manifest_synced = $schemaManifestSynced
+    published_help_contract_validated = $publishedHelpContractValidated
+    target_help_contract_validated = $targetHelpContractValidated
     copy_to_plugins_requested = (-not $SkipCopyToPlugins)
     copied_to_plugins = $false
     target_executable = $targetExePath

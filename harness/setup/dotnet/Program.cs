@@ -964,7 +964,9 @@ internal static class CliParser
 }
 internal sealed class SetupEngine
 {
-    private static readonly string[] ContractFiles =
+    private const string CodexCustomMcpServerBlockPattern = @"(?ms)^\[mcp_servers\.anarchy-ai\]\r?\n(?:.*?\r?\n)*(?=^\[|\z)";
+
+    private static readonly string[] CoreContractFiles =
     [
         "active-work-state.contract.json",
         "schema-reality.contract.json",
@@ -972,6 +974,8 @@ internal sealed class SetupEngine
         "preflight-session.contract.json",
         "harness-gap-state.contract.json"
     ];
+
+    private const string ExperimentalDirectionAssistContract = "direction-assist-test.contract.json";
 
     private static readonly string[] PortableSchemaFiles =
     [
@@ -998,13 +1002,18 @@ internal sealed class SetupEngine
         "TERMS.md"
     ];
 
-    private static readonly string[] CurrentToolNames =
+    private static readonly string[] CoreToolNames =
     [
         "preflight_session",
         "compile_active_work_state",
         "is_schema_real_or_shadow_copied",
         "assess_harness_gap_state",
         "run_gov2gov_migration"
+    ];
+
+    private static readonly string[] ExperimentalToolNames =
+    [
+        "direction_assist_test"
     ];
 
     public static string? TryResolveDefaultRepoRoot()
@@ -1068,7 +1077,7 @@ internal sealed class SetupEngine
         disclosureLines.AddRange(
         [
             "Product behavior:",
-            $"- Exposes {CurrentToolNames.Length} harness tools for preflight, gap assessment, active-work compilation, schema reality, and gov2gov reconciliation.",
+            $"- Exposes {CoreToolNames.Length} core + {ExperimentalToolNames.Length} test harness tool for preflight, gap assessment, active-work compilation, schema reality, gov2gov reconciliation, and direction-assist testing.",
             "Human impact:",
             installScope == InstallScope.UserProfile
                 ? "- Installs once for the current user profile; no machine-wide install or admin change."
@@ -1120,7 +1129,7 @@ internal sealed class SetupEngine
             $"- /repolocal registers {BuildPluginName(InstallScope.RepoLocal, resolvedRepo)} for the selected repo.",
             $"- /userprofile registers {BuildPluginName(InstallScope.UserProfile, resolvedRepo)} for the current user profile.",
             "- /userprofile uses the Codex-native plugin marketplace lane rather than requiring a custom mcp_servers.anarchy-ai block.",
-            $"- Makes {CurrentToolNames.Length} bounded harness tools available to supported hosts.",
+            $"- Makes {CoreToolNames.Length} core + {ExperimentalToolNames.Length} test harness tool available to supported hosts.",
             "- Does not rewrite AGENTS.md.",
             schemaSeedingLine,
             "- Leaves existing root schema files in place unless /refreshschemas is passed.",
@@ -1238,6 +1247,28 @@ internal sealed class SetupEngine
             }
         }
 
+        if ((options.Mode == OperationMode.Install || options.Mode == OperationMode.Update)
+            && options.InstallScope == InstallScope.UserProfile
+            && string.Equals(normalizedHostContext, "codex", StringComparison.Ordinal))
+        {
+            try
+            {
+                RemoveLegacyCodexCustomMcpEntry(options.InstallScope, normalizedHostContext, actionsTaken);
+            }
+            catch (IOException ex)
+            {
+                updateNotes.Add(ex.Message);
+                missingComponents.Add("legacy_codex_custom_mcp_cleanup_failed");
+                safeRepairs.Add("inventory_and_remove_stale_codex_custom_mcp_entry");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                updateNotes.Add(ex.Message);
+                missingComponents.Add("legacy_codex_custom_mcp_cleanup_failed");
+                safeRepairs.Add("inventory_and_remove_stale_codex_custom_mcp_entry");
+            }
+        }
+
         if (actionsTaken.Contains("skipped_locked_bundle_surface_with_unknown_drift"))
         {
             missingComponents.Add("locked_bundle_surface_write_skipped");
@@ -1261,13 +1292,19 @@ internal sealed class SetupEngine
         }
         if (!schemaManifestExists) { missingComponents.Add("schema_bundle_manifest_missing"); }
 
-        foreach (var contractFile in ContractFiles)
+        foreach (var contractFile in CoreContractFiles)
         {
             var contractPath = Path.Combine(pluginRoot, "contracts", contractFile);
             if (!File.Exists(contractPath))
             {
                 missingComponents.Add($"missing_contract:{contractFile}");
             }
+        }
+
+        var experimentalDirectionAssistContractPath = Path.Combine(pluginRoot, "contracts", ExperimentalDirectionAssistContract);
+        if (!File.Exists(experimentalDirectionAssistContractPath))
+        {
+            actionsTaken.Add("experimental_direction_assist_contract_missing_non_blocking");
         }
 
         var pluginManifestInspection = InspectPluginManifest(pluginManifestPath, options.InstallScope, workspaceRoot);
@@ -1333,7 +1370,10 @@ internal sealed class SetupEngine
         }
 
         var hasLockedBundleSurfaceSkip = missingComponents.Contains("locked_bundle_surface_write_skipped");
-        var bootstrapState = !hasLockedBundleSurfaceSkip && marketplaceRegistrationReady
+        var hasBlockingLegacySurface = legacyUserProfileInspection.LegacyCodexCustomMcpEntryPresent;
+        var bootstrapState = !hasLockedBundleSurfaceSkip
+            && marketplaceRegistrationReady
+            && !hasBlockingLegacySurface
             ? "ready"
         : runtimeExists && marketplaceInspection.HasAnarchyPluginEntry && marketplaceInspection.InstalledByDefault
             ? "registration_refresh_needed"
@@ -1346,7 +1386,7 @@ internal sealed class SetupEngine
 
         var nextAction = hasLockedBundleSurfaceSkip
             ? "release_runtime_lock_and_retry_install"
-            : legacyUserProfileInspection.HasLegacySurface
+            : hasBlockingLegacySurface
                 ? "inventory_legacy_home_install_and_run_user_profile_install"
             : bootstrapState switch
         {
@@ -2202,11 +2242,6 @@ internal sealed class SetupEngine
             return new LegacyUserProfileInspection(false, false, newPluginMarketplaceLaneReady, []);
         }
 
-        if (newPluginMarketplaceLaneReady)
-        {
-            return new LegacyUserProfileInspection(false, false, true, []);
-        }
-
         var legacyPluginRoot = Path.Combine(GetUserProfileDirectory(), "plugins", BuildPluginName(InstallScope.UserProfile, null));
         var legacyPluginRootPresent = Directory.Exists(legacyPluginRoot);
         var legacyCodexCustomMcpEntryPresent = false;
@@ -2215,7 +2250,7 @@ internal sealed class SetupEngine
         if (File.Exists(codexConfigPath))
         {
             var content = File.ReadAllText(codexConfigPath);
-            var blockMatch = Regex.Match(content, @"(?ms)^\[mcp_servers\.anarchy-ai\]\r?\n(?:.*?\r?\n)*(?=^\[|\z)");
+            var blockMatch = Regex.Match(content, CodexCustomMcpServerBlockPattern);
             if (blockMatch.Success)
             {
                 var command = TryReadTomlString(blockMatch.Value, "command");
@@ -2223,8 +2258,7 @@ internal sealed class SetupEngine
                 var legacyRuntimePath = Path.GetFullPath(Path.Combine(legacyPluginRoot, "runtime", "win-x64", "AnarchyAi.Mcp.Server.exe"));
                 legacyCodexCustomMcpEntryPresent =
                     string.Equals(command, legacyRuntimePath, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(cwd, Path.GetFullPath(legacyPluginRoot), StringComparison.OrdinalIgnoreCase)
-                    || blockMatch.Success;
+                    || string.Equals(cwd, Path.GetFullPath(legacyPluginRoot), StringComparison.OrdinalIgnoreCase);
             }
         }
 
@@ -2266,8 +2300,7 @@ internal sealed class SetupEngine
 
     private static bool UpsertTomlServerBlock(ref string content, string expectedBlock)
     {
-        var blockPattern = @"(?ms)^\[mcp_servers\.anarchy-ai\]\r?\n(?:.*?\r?\n)*(?=^\[|\z)";
-        var existingMatch = Regex.Match(content, blockPattern);
+        var existingMatch = Regex.Match(content, CodexCustomMcpServerBlockPattern);
         if (existingMatch.Success)
         {
             var existingNormalized = existingMatch.Value.TrimEnd('\r', '\n');
@@ -2277,7 +2310,7 @@ internal sealed class SetupEngine
                 return false;
             }
 
-            var sectionRegex = new Regex(blockPattern, RegexOptions.Multiline);
+            var sectionRegex = new Regex(CodexCustomMcpServerBlockPattern, RegexOptions.Multiline);
             content = sectionRegex.Replace(content, expectedBlock + DetectNewline(content), 1);
             return true;
         }
@@ -2300,6 +2333,50 @@ internal sealed class SetupEngine
     private static string ToTomlLiteral(string value)
     {
         return value.Replace("'", "''", StringComparison.Ordinal);
+    }
+
+    private static void RemoveLegacyCodexCustomMcpEntry(InstallScope installScope, string normalizedHostContext, HashSet<string> actionsTaken)
+    {
+        if (installScope != InstallScope.UserProfile || !string.Equals(normalizedHostContext, "codex", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var codexConfigPath = Path.Combine(GetUserProfileDirectory(), ".codex", "config.toml");
+        if (!File.Exists(codexConfigPath))
+        {
+            return;
+        }
+
+        var content = File.ReadAllText(codexConfigPath);
+        var blockMatch = Regex.Match(content, CodexCustomMcpServerBlockPattern);
+        if (!blockMatch.Success)
+        {
+            return;
+        }
+
+        var legacyPluginRoot = Path.Combine(GetUserProfileDirectory(), "plugins", BuildPluginName(InstallScope.UserProfile, null));
+        var legacyRuntimePath = Path.GetFullPath(Path.Combine(legacyPluginRoot, "runtime", "win-x64", "AnarchyAi.Mcp.Server.exe"));
+        var command = TryReadTomlString(blockMatch.Value, "command");
+        var cwd = TryReadTomlString(blockMatch.Value, "cwd");
+        var staleLegacyBlock =
+            string.Equals(command, legacyRuntimePath, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(cwd, Path.GetFullPath(legacyPluginRoot), StringComparison.OrdinalIgnoreCase);
+        if (!staleLegacyBlock)
+        {
+            return;
+        }
+
+        var updatedContent = Regex.Replace(content, CodexCustomMcpServerBlockPattern, string.Empty, RegexOptions.Multiline);
+        updatedContent = Regex.Replace(updatedContent, @"(\r?\n){3,}", Environment.NewLine + Environment.NewLine);
+        updatedContent = updatedContent.TrimEnd('\r', '\n');
+        if (!string.IsNullOrWhiteSpace(updatedContent))
+        {
+            updatedContent += Environment.NewLine;
+        }
+
+        File.WriteAllText(codexConfigPath, updatedContent);
+        actionsTaken.Add("removed_stale_codex_custom_mcp_entry");
     }
 
     private static string DetectNewline(string content)

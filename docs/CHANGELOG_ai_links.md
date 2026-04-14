@@ -2,6 +2,61 @@
 
 ## 2026-04-13
 
+### Setup lane hardening and shipped-EXE contract checks
+
+- Hardened user-profile lane behavior in `harness/setup/dotnet/Program.cs`:
+  - user-profile `install` and `update` now remove stale legacy custom MCP blocks in `~/.codex/config.toml` when they target `~/plugins/anarchy-ai`
+  - stale custom-MCP mixed-lane state now blocks `ready` until remediated
+  - leftover legacy plugin-root presence is still reported for inventory but no longer blocks readiness by itself once routing is clean
+- Added setup publish-time binary contract checks in `harness/setup/scripts/build-self-contained-exe.ps1`:
+  - validates `AnarchyAi.Setup.exe /?` output for required CLI/help contract snippets
+  - validates both the published EXE and the copied repo handoff EXE (`plugins/AnarchyAi.Setup.exe`)
+  - emits explicit result fields:
+    - `published_help_contract_validated`
+    - `target_help_contract_validated`
+- Re-ran regression against `Docker-Builder-Project` using silent CLI:
+  - update/install/assess returned `bootstrap_state: ready` and `missing_components: []` for repo-local lane with latest setup binary
+
+### Deployment lessons captured as actionable bug reports
+
+- Added `docs/ANARCHY_AI_BUG_REPORTS.md` with 12 open tickets covering:
+  - lane-selection authority and stale config remediation
+  - setup EXE freshness and release-contract validation
+  - runtime-lock recovery ergonomics
+  - divergence semantics clarity and intentional-drift policy
+  - cross-session proof and documentation evidence discipline
+  - post-install verification as a completion requirement
+- Linked the bug register in:
+  - `docs/README_ai_links.md`
+- Added active tracking pointer in:
+  - `docs/TODO_ai_links.md`
+
+### Direction assist test module (prime-ready architecture seam)
+
+- Added a new experimental MCP tool:
+  - `direction_assist_test`
+- Added mirrored contract surfaces:
+  - `harness/contracts/direction-assist-test.contract.json`
+  - `plugins/anarchy-ai/contracts/direction-assist-test.contract.json`
+- Implemented a modular runtime runner in the server:
+  - evaluates `word_count > 30 OR sentence_count > 2`
+  - emits fixed choice options:
+    - `I need to ask clarification on a few things`
+    - `Do your best with what I gave you`
+  - returns explicit linguistic findings plus cleaned direction text
+  - appends local test telemetry to:
+    - `<workspace_root>/.agents/anarchy-ai/direction-assist-test.jsonl`
+- Kept the five-core tool model intact:
+  - core default sequencing is unchanged
+  - `direction_assist_test` is documented as test-lane only
+- Updated setup disclosure/help wording to represent:
+  - `5 core + 1 test` tool posture
+- Kept test-lane missing-surface behavior non-blocking by default in setup assessment.
+- Added server test coverage for threshold behavior, fixed options, cleaned output, and register append behavior.
+- Added setup regression checks for the updated `5 core + 1 test` wording.
+- Recorded promotion rule in companion docs:
+  - prime insertion should reuse `DirectionAssistRunner` instead of reimplementing logic inside preflight or active-work flows.
+
 ### Codex-native home install truth realignment
 
 - Rebased the Codex user-profile install lane onto the Codex-native plugin path:

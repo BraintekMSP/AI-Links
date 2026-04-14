@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace AnarchyAi.Mcp.Server;
 
@@ -238,7 +239,7 @@ internal static class HarnessInstallDiscovery
 
                 var sourcePath = pathElement.GetString();
                 if (string.IsNullOrWhiteSpace(sourcePath) ||
-                    !sourcePath.StartsWith("./plugins/anarchy-ai", StringComparison.OrdinalIgnoreCase))
+                    !IsSupportedPluginSourcePath(sourcePath))
                 {
                     continue;
                 }
@@ -256,6 +257,12 @@ internal static class HarnessInstallDiscovery
         }
 
         return null;
+    }
+
+    internal static bool IsSupportedPluginSourcePath(string sourcePath)
+    {
+        return sourcePath.StartsWith("./plugins/anarchy-ai", StringComparison.OrdinalIgnoreCase)
+               || sourcePath.StartsWith("./.codex/plugins/anarchy-ai", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string GetUserProfileRoot()
@@ -1432,6 +1439,288 @@ internal sealed class ActiveWorkStateCompiler
     private sealed record LaneInference(string ActiveLane, string[] CandidateLanes);
 }
 
+internal sealed class DirectionAssistRunner
+{
+    private const string ClarificationOption = "I need to ask clarification on a few things";
+    private const string BestEffortOption = "Do your best with what I gave you";
+
+    private static readonly string[] ChoiceOptions =
+    [
+        ClarificationOption,
+        BestEffortOption
+    ];
+
+    private static readonly Regex WordRegex = new(@"[A-Za-z0-9']+", RegexOptions.Compiled);
+    private static readonly Regex SentenceRegex = new(@"[^.!?]+", RegexOptions.Compiled);
+    private static readonly Regex FragmentRegex = new(@"[^,;:]+", RegexOptions.Compiled);
+    private static readonly Regex MultiWhitespaceRegex = new(@"\s+", RegexOptions.Compiled);
+
+    private static readonly string[] NegationTokens =
+    [
+        "do not",
+        "don't",
+        "dont",
+        "not",
+        "no",
+        "never",
+        "avoid",
+        "stop",
+        "wrong"
+    ];
+
+    private static readonly string[] AmbiguousTokens =
+    [
+        "this",
+        "that",
+        "it",
+        "things",
+        "stuff",
+        "something",
+        "somehow",
+        "whatever",
+        "etc"
+    ];
+
+    private static readonly string[] FillerTokens =
+    [
+        "just",
+        "maybe",
+        "kind of",
+        "sort of",
+        "somehow",
+        "whatever"
+    ];
+
+    public object Evaluate(string workspaceRoot, string directionText, string? selectedOption)
+    {
+        if (string.IsNullOrWhiteSpace(workspaceRoot) || !Path.IsPathRooted(workspaceRoot))
+        {
+            throw new ArgumentException("workspace_root must be an absolute path.", nameof(workspaceRoot));
+        }
+
+        if (string.IsNullOrWhiteSpace(directionText))
+        {
+            throw new ArgumentException("direction_text is required.", nameof(directionText));
+        }
+
+        var resolvedWorkspaceRoot = Path.GetFullPath(workspaceRoot);
+        if (!Directory.Exists(resolvedWorkspaceRoot))
+        {
+            throw new DirectoryNotFoundException($"Workspace root not found: {resolvedWorkspaceRoot}");
+        }
+
+        var normalizedDirection = NormalizeWhitespace(directionText);
+        var wordCount = CountWords(normalizedDirection);
+        var sentenceCount = CountSentences(normalizedDirection);
+        var assistTriggered = wordCount > 30 || sentenceCount > 2;
+
+        var findings = BuildFindings(normalizedDirection, wordCount, sentenceCount, assistTriggered);
+        var cleanedDirection = BuildCleanedDirection(normalizedDirection);
+
+        if (assistTriggered && findings.Count == 0)
+        {
+            findings.Add(new DirectionFinding(
+                "long_direction_needs_qualification",
+                "Direction crossed threshold and should be qualified with explicit language."));
+        }
+
+        var normalizedSelectedOption = NormalizeSelectedOption(selectedOption);
+        if (!string.IsNullOrWhiteSpace(selectedOption) && normalizedSelectedOption is null)
+        {
+            findings.Add(new DirectionFinding(
+                "selected_option_unrecognized",
+                "Provided selected_option did not match either supported choice."));
+        }
+
+        var registerPath = Path.Combine(resolvedWorkspaceRoot, ".agents", "anarchy-ai", "direction-assist-test.jsonl");
+        Directory.CreateDirectory(Path.GetDirectoryName(registerPath)!);
+
+        var registerEntry = new
+        {
+            timestamp_utc = DateTime.UtcNow.ToString("O"),
+            workspace_root = resolvedWorkspaceRoot,
+            trigger_metrics = new
+            {
+                word_count = wordCount,
+                sentence_count = sentenceCount,
+                triggered = assistTriggered
+            },
+            linguistic_findings = findings.Select(static finding => new
+            {
+                code = finding.Code,
+                detail = finding.Detail
+            }).ToArray(),
+            cleaned_direction = cleanedDirection,
+            selected_option = normalizedSelectedOption ?? string.Empty
+        };
+
+        File.AppendAllText(
+            registerPath,
+            JsonSerializer.Serialize(registerEntry) + Environment.NewLine);
+
+        return new
+        {
+            assist_triggered = assistTriggered,
+            trigger_metrics = new
+            {
+                word_count = wordCount,
+                sentence_count = sentenceCount,
+                threshold = "word_count > 30 OR sentence_count > 2"
+            },
+            choice_options = ChoiceOptions,
+            selected_option = normalizedSelectedOption ?? string.Empty,
+            linguistic_findings = findings.Select(static finding => new
+            {
+                code = finding.Code,
+                detail = finding.Detail
+            }).ToArray(),
+            cleaned_direction = cleanedDirection,
+            register_path = registerPath
+        };
+    }
+
+    private static int CountWords(string text)
+    {
+        return WordRegex.Matches(text).Count;
+    }
+
+    private static int CountSentences(string text)
+    {
+        var matches = SentenceRegex.Matches(text)
+            .Select(static match => match.Value.Trim())
+            .Where(static value => !string.IsNullOrWhiteSpace(value))
+            .ToArray();
+
+        return matches.Length;
+    }
+
+    private static List<DirectionFinding> BuildFindings(string text, int wordCount, int sentenceCount, bool assistTriggered)
+    {
+        var findings = new List<DirectionFinding>();
+        var lowered = $" {text.ToLowerInvariant()} ";
+
+        var negationCount = NegationTokens.Count(token =>
+            lowered.Contains($" {token} ", StringComparison.Ordinal));
+        if (negationCount >= 2)
+        {
+            findings.Add(new DirectionFinding(
+                "negation_heavy_direction",
+                $"Detected {negationCount} negation-heavy tokens that reduce directional determinacy."));
+        }
+
+        var tokens = WordRegex.Matches(lowered)
+            .Select(static match => match.Value)
+            .ToArray();
+        var ambiguousCount = tokens.Count(token => AmbiguousTokens.Contains(token, StringComparer.Ordinal));
+        if (ambiguousCount >= 2)
+        {
+            findings.Add(new DirectionFinding(
+                "ambiguous_references_detected",
+                $"Detected {ambiguousCount} ambiguous reference tokens that can blur intent."));
+        }
+
+        var underdefinedFragments = FragmentRegex.Matches(text)
+            .Select(static match => NormalizeWhitespace(match.Value))
+            .Where(static fragment => CountWords(fragment) > 0 && CountWords(fragment) < 4)
+            .Count();
+        if (underdefinedFragments >= 2)
+        {
+            findings.Add(new DirectionFinding(
+                "underdefined_fragments_detected",
+                $"Detected {underdefinedFragments} short fragments that may be underdefined."));
+        }
+
+        if (assistTriggered && wordCount > 30 && sentenceCount > 2)
+        {
+            findings.Add(new DirectionFinding(
+                "compound_length_pressure",
+                "Direction is both long and multi-sentence, increasing interpretation variance."));
+        }
+
+        return findings;
+    }
+
+    private static string BuildCleanedDirection(string text)
+    {
+        var sentences = SentenceRegex.Matches(text)
+            .Select(static match => NormalizeWhitespace(match.Value))
+            .Where(static value => !string.IsNullOrWhiteSpace(value))
+            .ToList();
+
+        var keptSentences = new List<string>();
+        foreach (var sentence in sentences)
+        {
+            var cleaned = sentence;
+            foreach (var token in NegationTokens)
+            {
+                cleaned = ReplaceToken(cleaned, token, string.Empty);
+            }
+
+            foreach (var token in FillerTokens)
+            {
+                cleaned = ReplaceToken(cleaned, token, string.Empty);
+            }
+
+            cleaned = NormalizeWhitespace(cleaned)
+                .Trim(',', ';', ':', '-', '.', ' ');
+
+            if (CountWords(cleaned) >= 3)
+            {
+                keptSentences.Add(cleaned);
+            }
+        }
+
+        if (keptSentences.Count == 0)
+        {
+            var fallback = text;
+            foreach (var token in NegationTokens)
+            {
+                fallback = ReplaceToken(fallback, token, string.Empty);
+            }
+
+            fallback = NormalizeWhitespace(fallback).Trim(',', ';', ':', '-', '.', ' ');
+            return string.IsNullOrWhiteSpace(fallback) ? NormalizeWhitespace(text) : fallback;
+        }
+
+        return string.Join(". ", keptSentences)
+            .Trim()
+            .TrimEnd('.') + ".";
+    }
+
+    private static string ReplaceToken(string text, string token, string replacement)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        var pattern = $@"\b{Regex.Escape(token)}\b";
+        return Regex.Replace(text, pattern, replacement, RegexOptions.IgnoreCase);
+    }
+
+    private static string NormalizeWhitespace(string value)
+    {
+        return MultiWhitespaceRegex.Replace(value, " ").Trim();
+    }
+
+    private static string? NormalizeSelectedOption(string? selectedOption)
+    {
+        if (string.IsNullOrWhiteSpace(selectedOption))
+        {
+            return null;
+        }
+
+        var normalized = NormalizeWhitespace(selectedOption);
+        return string.Equals(normalized, ClarificationOption, StringComparison.Ordinal)
+            ? ClarificationOption
+            : string.Equals(normalized, BestEffortOption, StringComparison.Ordinal)
+                ? BestEffortOption
+                : null;
+    }
+
+    private sealed record DirectionFinding(string Code, string Detail);
+}
+
 internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityInspector)
 {
     private static readonly string[] ExpectedContractFiles =
@@ -1442,6 +1731,9 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         "preflight-session.contract.json",
         "harness-gap-state.contract.json"
     ];
+
+    private const string DirectionAssistCapability = "direction_assist_test";
+    private const string DirectionAssistContractFile = "direction-assist-test.contract.json";
 
     public object Assess(string workspaceRoot, string? hostContext, string[]? expectedCapabilities)
     {
@@ -1470,6 +1762,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
             fileName => fileName,
             fileName => File.Exists(Path.Combine(pluginRoot, "contracts", fileName)),
             StringComparer.OrdinalIgnoreCase);
+        var directionAssistContractPresent = File.Exists(Path.Combine(pluginRoot, "contracts", DirectionAssistContractFile));
 
         var pluginManifestExists = File.Exists(pluginManifestPath);
         var mcpDeclarationExists = File.Exists(mcpDeclarationPath);
@@ -1560,6 +1853,12 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         if (normalizedExpectedCapabilities.Contains("assess_last_exchange_and_improve", StringComparer.Ordinal))
         {
             missingComponents.Add("reflection_workflow_not_available");
+        }
+
+        if (normalizedExpectedCapabilities.Contains(DirectionAssistCapability, StringComparer.Ordinal) &&
+            !directionAssistContractPresent)
+        {
+            missingComponents.Add($"missing_contract:{DirectionAssistContractFile}");
         }
 
         var installationState = DetermineInstallationState(
@@ -1666,6 +1965,10 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
                 skill_exists = skillExists,
                 schema_manifest_exists = schemaManifestExists,
                 contract_presence = contractPresence,
+                optional_contract_presence = new
+                {
+                    direction_assist_test = directionAssistContractPresent
+                },
                 marketplace_path = marketplaceInspection.Path,
                 marketplace_exists = marketplaceInspection.Exists,
                 marketplace_entry_present = marketplaceInspection.HasAnarchyPluginEntry,
@@ -1850,7 +2153,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
                 {
                     var sourcePath = pathElement.GetString();
                     if (string.IsNullOrWhiteSpace(sourcePath) ||
-                        !sourcePath.StartsWith("./plugins/anarchy-ai", StringComparison.OrdinalIgnoreCase))
+                        !HarnessInstallDiscovery.IsSupportedPluginSourcePath(sourcePath))
                     {
                         findings.Add("anarchy_ai_marketplace_path_unexpected");
                     }
@@ -2066,7 +2369,8 @@ internal sealed class AnarchyAiHarnessTools(
     Gov2GovMigrationRunner gov2GovMigrationRunner,
     ActiveWorkStateCompiler activeWorkStateCompiler,
     HarnessGapAssessor harnessGapAssessor,
-    PreflightSessionRunner preflightSessionRunner)
+    PreflightSessionRunner preflightSessionRunner,
+    DirectionAssistRunner directionAssistRunner)
 {
     [McpServerTool(
         Name = "preflight_session",
@@ -2164,6 +2468,22 @@ internal sealed class AnarchyAiHarnessTools(
             startup_surfaces,
             migration_mode);
     }
+
+    [McpServerTool(
+        Name = "direction_assist_test",
+        Title = "Direction Assist Test",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = false,
+        UseStructuredContent = true)]
+    [Description("Experimental test tool that qualifies long direction text, returns explicit findings plus cleaned direction, and appends a local test register entry.")]
+    public object DirectionAssistTest(
+        [Description("Absolute workspace root used for test register output.")] string workspace_root,
+        [Description("Direction text to evaluate against the qualification threshold.")] string direction_text,
+        [Description("Optional selected choice string after the two options are presented.")] string? selected_option = null)
+    {
+        return directionAssistRunner.Evaluate(workspace_root, direction_text, selected_option);
+    }
 }
 
 internal static class Program
@@ -2176,6 +2496,7 @@ internal static class Program
         builder.Services.AddSingleton<SchemaRealityInspector>();
         builder.Services.AddSingleton<Gov2GovMigrationRunner>();
         builder.Services.AddSingleton<ActiveWorkStateCompiler>();
+        builder.Services.AddSingleton<DirectionAssistRunner>();
         builder.Services.AddSingleton<HarnessGapAssessor>();
         builder.Services.AddSingleton<PreflightSessionRunner>();
         builder.Services

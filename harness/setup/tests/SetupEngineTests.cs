@@ -42,6 +42,22 @@ public sealed class SetupEngineTests
     }
 
     [Fact]
+    public void BuildInstallDisclosure_ReportsCoreAndTestToolCounts()
+    {
+        var disclosure = SetupEngine.BuildInstallDisclosure(string.Empty, InstallScope.UserProfile);
+
+        Assert.Contains("5 core + 1 test harness tool", disclosure, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void BuildCommandLineHelp_ReportsCoreAndTestToolCounts()
+    {
+        var help = SetupEngine.BuildCommandLineHelp(null);
+
+        Assert.Contains("5 core + 1 test harness tool", help, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void DetermineRegistrationMode_ReportsCustomFallbackForLegacyCodexHomeState()
     {
         var inspection = new LegacyUserProfileInspection(

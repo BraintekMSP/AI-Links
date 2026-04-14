@@ -71,3 +71,10 @@ The intended first tools are:
 - `compile_active_work_state`
 - `assess_harness_gap_state`
 - `run_gov2gov_migration`
+
+Experimental test-lane tool:
+
+- `direction_assist_test`
+
+The five core tools remain the default runtime contract surface.
+`direction_assist_test` is explicitly test-lane and should only be promoted into prime orchestration by reusing the same runner module.

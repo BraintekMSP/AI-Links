@@ -65,7 +65,7 @@ The plugin provides:
 - a local MCP declaration through `.mcp.json`
 - direct launch of the bundled `.NET 8` self-contained single-file runtime inside the plugin
 - a bundled canonical schema family plus hash manifest under `./schemas/`
-- a skill that teaches when to use the five bounded runtime tools
+- a skill that teaches when to use the five bounded core runtime tools and how to discover the experimental `direction_assist_test` module
 - a repo-bootstrap script at `./scripts/bootstrap-anarchy-ai.ps1` as a compatibility/fallback lane for repo-local install, assess, and bundle refresh after the bundle already exists
 - a runtime lock script at `./scripts/stop-anarchy-ai.ps1` for assessing, safely releasing, or forcibly releasing the bundled Anarchy-AI runtime lock
 
@@ -124,6 +124,11 @@ Together, these tools give Anarchy-AI its current runtime promise:
 - evaluate whether the schema package is materially real here
 - assess install, runtime, schema, and adoption gaps explicitly
 - reconcile local drift or partial materialization without replacing schema authorship
+
+Experimental test-lane addition:
+
+- `direction_assist_test` qualifies long direction text using bounded linguistic findings, returns cleaned direction plus fixed two-choice output, and appends local test telemetry.
+- it is explicitly test-lane and does not change default core tool order.
 
 The plugin bundle currently carries:
 

@@ -79,6 +79,7 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 - `./ANARCHY_AI_SETUP_EXE_SPEC.md` - preferred Windows-first installer contract for separating `Setup.exe` delivery/bootstrap from the MCP runtime
 - `./ANARCHY_AI_REPO_INSTALL_PROCESS.md` - exact repo-bootstrap install process for delivering Anarchy-AI into another repo
 - `./ANARCHY_AI_ENVIRONMENT_TRUTH_MATRIX.md` - proven vs inferred environment behavior for Codex config, MCP mounting, marketplace lanes, and tool-surface verification
+- `./ANARCHY_AI_BUG_REPORTS.md` - active bug tickets for setup, mounting, divergence semantics, and proof-lane reliability
 - `./ANARCHY_AI_PLUGIN_README_SOURCE.md` - repo-authored source for the installed plugin README; the build helper publishes this into `plugins/anarchy-ai/README.md` with destination-relative install paths
 - `../harness/README.md` - local runtime harness boundary and capability notes
 - `../harness/setup/dotnet/AnarchyAi.Setup.csproj` - Windows-first setup/installer project that embeds the current plugin bundle and exposes GUI/CLI bootstrap behavior
@@ -89,7 +90,7 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 - `../harness/contracts/gov2gov-migration.contract.json` - second harness contract for `run_gov2gov_migration`
 - `../harness/server/README.md` - local MCP launch lane and Codex hookup notes
 - `../harness/server/dotnet/AnarchyAi.Mcp.Server.csproj` - Windows-first C# MCP server project (`net8.0` packaged path; `net48` target remains provisional)
-- `../harness/server/dotnet/Program.cs` - current C# MCP entrypoint for the five core harness tools
+- `../harness/server/dotnet/Program.cs` - current C# MCP entrypoint for the five core harness tools plus the experimental `direction_assist_test` module
 
 ## Anarchy-AI plugin delivery
 
@@ -100,7 +101,7 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 - `../plugins/anarchy-ai/scripts/bootstrap-anarchy-ai.ps1` - compatibility/fallback repo-bootstrap lane for registration, quick install assessment, and bundle refresh after the bundle exists
 - `../plugins/anarchy-ai/scripts/stop-anarchy-ai.ps1` - bounded runtime-lock assess, safe-release, and force-release command for the repo-local Anarchy-AI process
 - `../plugins/anarchy-ai/scripts/start-anarchy-ai.cmd` - development helper only, not the intended delivery path
-- `../plugins/anarchy-ai/skills/anarchy-ai-harness/SKILL.md` - usage layer for the five core harness tools
+- `../plugins/anarchy-ai/skills/anarchy-ai-harness/SKILL.md` - usage layer for the five core harness tools, with explicit discovery for the experimental `direction_assist_test` module
 - `../.agents/plugins/marketplace.json` - repo-local plugin marketplace entry
 
 ## Templates
@@ -132,4 +133,3 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 
 The framework should stay smaller than the systems it is trying to help.
 If it becomes a second opaque system, it has failed.
-

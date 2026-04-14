@@ -2,16 +2,20 @@
 
 ## Purpose
 
-Drop-in text for target repos that have installed Anarchy-AI and want the harness to behave like a harness, not like optional utilities.
+Drop-in text for target repos that want an agent to start meaningful governed work correctly, whether the Anarchy-AI harness is installed or still pending.
+
+The block below routes the agent through the harness when it is present and falls through to direct governance-file reading when it is absent. Installing the harness later changes which branch fires — the template itself does not need to change.
 
 Place this block in one of:
 
-- the target repo's `AGENTS.md` (under a named section)
-- the target repo's startup or control-plane prompt packet
-- the target repo's primary README startup truth chain
-- the target repo's scope read sequence
+- the target repo's auto-read surface for the host:
+  - Claude Code: `./CLAUDE.md` or `./.claude/CLAUDE.md` at project root
+  - Codex: `./AGENTS.md` at project root
+  - Cursor: `./.cursorrules` or `./.cursor/rules/`
+- a startup or control-plane prompt packet the agent reads first
+- a primary README startup truth chain
 
-The block below is written for direct paste. Adjust only the workspace-specific parts (workspace name, host context) where marked.
+Adjust the workspace-specific parts (workspace name, host context) where marked.
 
 ---
 
@@ -20,14 +24,23 @@ The block below is written for direct paste. Adjust only the workspace-specific 
 Copy everything between the fences:
 
 ```markdown
-## Anarchy-AI harness — meaningful-governed-work entry
+## Governance entry — meaningful-governed-work startup
 
-Meaningful governed work in this repo starts with `preflight_session`.
+Meaningful governed work in this repo starts by checking for the Anarchy-AI
+harness. The harness reads governance files correctly every session; direct
+file reading is the fallback when the harness is absent.
 
-Before beginning code changes, migrations, governance edits, or cross-file
-reconciliation work, call the harness:
+### Step 1 — check for the harness
 
-1. `preflight_session` — decide whether the repo/session is ready for this work
+Look for the Anarchy-AI MCP tool `preflight_session` in the available tool
+surface.
+
+### Step 2a — when `preflight_session` is available (harness present)
+
+Call the harness in this order as the situation calls for each tool:
+
+1. `preflight_session` — decide whether the repo/session is ready for
+   meaningful governed work; every governed-work session begins here
 2. when `preflight_state` returns `ready` or `ready_with_gaps`, follow the
    `recommended_path` and continue
 3. when `preflight_state` returns `bootstrap_needed`, follow the
@@ -36,40 +49,64 @@ reconciliation work, call the harness:
    at the schema level), report findings to the human and receive direction
    before continuing
 
-### Follow-on harness tools
+Follow-on harness tools (use when preflight surfaces the need, or when the
+situation calls for them directly):
 
-Use these when preflight surfaces the need or when the situation calls for
-them directly:
-
-- `assess_harness_gap_state` — call this when install, runtime, schema, or
-  adoption state is unclear; one call returns all five gap categories
-  together with admin and agent action lanes
-- `is_schema_real_or_shadow_copied` — call this before trusting copied
-  schema presence as operative reality; distinguishes real from shadow-copied
+- `assess_harness_gap_state` — when install, runtime, schema, or adoption
+  state is unclear; one call returns all five gap categories together with
+  admin and agent action lanes
+- `is_schema_real_or_shadow_copied` — before trusting copied schema
+  presence as operative reality; distinguishes real from shadow-copied
   schemas and reports integrity and possession state
-- `run_gov2gov_migration` — call this in `plan_only` first when existing
-  authority surfaces must be reconciled with the AGENTS schema family;
-  apply non-destructively only after the plan has been reviewed
-- `compile_active_work_state` — call this when session turbulence has
-  accumulated and the work needs to reanchor to workspace reality
+- `run_gov2gov_migration` — in `plan_only` first when existing authority
+  surfaces must be reconciled with the AGENTS schema family; apply
+  non-destructively only after the plan has been reviewed
+- `compile_active_work_state` — when session turbulence has accumulated
+  and the work needs to reanchor to workspace reality
+
+### Step 2b — else (harness absent, direct fallback)
+
+Read the governance files at the repo root in this order before making any
+changes:
+
+1. `AGENTS.md` — entry point and routing
+2. `AGENTS-hello.md` — scope, session contract, measurement references
+3. `AGENTS-Terms.md` — term definitions this repo uses
+4. `AGENTS-Vision.md` — scope-level direction and locked commitments
+5. `AGENTS-Rules.md` — operating rules for this scope
+6. `AGENTS-Pitfalls.md` — failure history
+
+These files are authoritative. Copying their rules into this startup block
+would fragment authority and drift. Read the source.
+
+When the rules surface a conflict or ambiguity, report to the human and
+receive direction before continuing — that is the schema-level
+report-to-human pattern.
 
 ### Default rule
 
-The default agent rule for this repo:
+Meaningful governed work in this repo begins with one of:
 
-- meaningful governed work starts with `preflight_session`
-- direct tool use remains valid when the lane is already clear
-- report to the human at the first signal of ambiguity rather than improvising
+- `preflight_session` when the harness is available
+- reading the AGENTS files at the repo root, in order, when the harness is
+  absent
+
+Direct tool use or direct code work remains valid when the lane is already
+clear. Report to the human at the first signal of ambiguity rather than
+improvising.
 
 ### Why this entry exists
 
-The harness reads workspace reality before the agent commits to a work
-path. That keeps the session anchored to what the repo actually contains
-rather than what the conversation implies. See:
+Agents do not auto-read arbitrary governance files. The host's auto-read
+surface (this file) is what every session sees; anything outside it
+loads only when the agent knows to look. This entry makes the lookup
+explicit either through the harness or through direct reading.
 
-- `docs/ANARCHY_AI_HARNESS_ARCHITECTURE.md` for the three-layer architecture
-- `docs/ANARCHY_AI_REPO_INSTALL_PROCESS.md` for installation and adoption
-- `docs/README_ai_links.md` for the harness scope boundary
+For the full architecture see:
+
+- `docs/ANARCHY_AI_HARNESS_ARCHITECTURE.md` — three-layer architecture
+- `docs/ANARCHY_AI_REPO_INSTALL_PROCESS.md` — installation and adoption
+- `docs/README_ai_links.md` — harness scope boundary
 ```
 
 ---
@@ -78,50 +115,62 @@ rather than what the conversation implies. See:
 
 ### Where to place the block
 
-Place the block high in whichever surface is the agent's first read. The
-goal is that the preflight instruction is visible before the agent picks
-a work approach from context.
+The goal is that the governance entry is visible in the agent's first read
+of the repo. The surface varies by host:
 
-Common placements:
+| Host | Auto-read surface (project-level) |
+|------|-----------------------------------|
+| Claude Code | `./CLAUDE.md` or `./.claude/CLAUDE.md` |
+| Codex | `./AGENTS.md` at project root |
+| Cursor | `./.cursorrules` or `./.cursor/rules/` |
 
-- `AGENTS.md` top-level section after the startup truth chain
-- control-plane prompt packet before the current-work section
-- primary README under a "How agents start here" header
+User-level memory (e.g. `~/.claude/CLAUDE.md`) is personal and not
+repo-editable. Target the project-level surface for this block.
+
+When the repo uses a control-plane prompt packet, place the block high in
+the packet — before the current-work section, so routing happens before
+the agent commits to a work approach from context.
 
 ### Minimum viable adoption
 
-If the target repo cannot accept the full block, the one-line default rule
-on its own is the minimum viable adoption:
+When the full block is too heavy for the target surface, the one-line
+default rule alone is enough:
 
-> Meaningful governed work in this repo starts with `preflight_session`.
+> Meaningful governed work in this repo starts with `preflight_session` when
+> the Anarchy-AI harness is available, else with reading the `AGENTS-*.md`
+> files at the repo root in order.
 
-This keeps the entry obvious even when the surrounding explanation is
-elided. Agents familiar with the harness will recognize it; agents new to
-the harness will follow the link chain to the harness docs.
+Agents familiar with the system recognize this entry; agents new to the
+system follow the link chain to the harness docs.
 
-### When the target repo has no harness installed yet
+### Detection caveats
 
-If the target repo has yet to install Anarchy-AI, leave the block out.
-Install first through:
+The block relies on the agent checking for the harness MCP tool list
+before acting. Host capability varies:
 
-- `plugins/AnarchyAi.Setup.exe /install /repolocal` or `/userprofile`
+- hosts that expose MCP tool surfaces to the agent context (Claude Code,
+  Codex) can do this check directly
+- hosts that hide the tool surface until a call is made may require a
+  try-and-fallback pattern — call `preflight_session`, and when the call
+  fails because the tool is absent, take the Step 2b fallback
 
-See `docs/ANARCHY_AI_REPO_INSTALL_PROCESS.md` for the full install process.
-
-The startup instruction presupposes the harness is callable. Placing it in
-a repo where the harness is missing produces agent confusion about why the
-referenced tools return errors.
+When the host cannot expose tool availability ahead of calling, report to
+the human the first time this branch is unclear, rather than guessing.
 
 ### Adoption verification
 
-After placing the block, verify adoption through:
+After placing the block, verify:
 
-- `AnarchyAi.Setup.exe /assess` returns `bootstrap_state = ready`
-- `preflight_session` is callable from the agent surface
-- the block is visible in the agent's default startup read path
+- the target file (e.g. `./CLAUDE.md`) contains the block verbatim
+- the block is in the agent's auto-read surface for this host
+- when the harness is installed, `AnarchyAi.Setup.exe /assess` returns
+  `bootstrap_state = ready`
+- when the harness is installed, `preflight_session` is callable from the
+  agent surface
 
-When all three are true, the target repo satisfies the startup instruction
-requirement from `ANARCHY_AI_REPO_INSTALL_PROCESS.md` section 2.
+The block works in both pre-harness and post-harness states. Installing
+the harness later changes which branch fires; the block itself does not
+need to change.
 
 ---
 
@@ -132,8 +181,9 @@ the AGENTS-schema-* family:
 
 - "report-to-human" replaces "blocked until human confirms"
 - "when X returns Y" replaces "if X is not Y"
-- "the default rule is" replaces "agents must not"
+- "else" replaces "if-unresolved" as the fallback branch label
 - tool usage framed as active lanes rather than prohibitions
+- "read the source" replaces "don't copy rules"
 
 When adapting this template, preserve the affirmative framing. Negations
 activate the prohibited concept first in both human neural processing

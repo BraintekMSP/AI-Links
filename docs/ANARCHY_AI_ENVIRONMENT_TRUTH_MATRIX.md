@@ -129,6 +129,10 @@ Proven by current source registration and packaged runtime delivery:
 - `assess_harness_gap_state`
 - `run_gov2gov_migration`
 
+Test-lane addition:
+
+- `direction_assist_test` is intentionally outside the five-core model and should be treated as experimental unless explicitly expected.
+
 ## Inferred (Not Yet Fully Proven)
 
 ### A. Codex may materialize an installed-copy cache under `~/.codex/plugins/cache/...`
