@@ -1,4 +1,4 @@
-﻿{
+{
   "contract_name": "direction_assist_test_contract",
   "contract_version": "0.1.0",
   "function_name": "direction_assist_test",
@@ -43,7 +43,7 @@
     },
     "cleaned_direction": {
       "type": "string",
-      "description": "Affirmative cleanup pass that removes or discards bad linguistic elements without abstract summarization."
+      "description": "Affirmative cleanup pass that rewrites problematic linguistic elements in affirmative form while preserving original intent."
     },
     "register_path": {
       "type": "absolute_path",

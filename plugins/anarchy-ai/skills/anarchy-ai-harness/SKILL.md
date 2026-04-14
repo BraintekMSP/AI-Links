@@ -22,8 +22,8 @@ Use this skill when:
 2. Call `assess_harness_gap_state` when installation, registration, runtime, or adoption state is unclear.
 3. Call `compile_active_work_state` when the current work needs to be normalized into one bounded packet.
 4. Call `is_schema_real_or_shadow_copied` before trusting a schema package.
-5. If `schema_reality_state` is `partial` or `copied_only`, call `run_gov2gov_migration`.
-6. If `schema_reality_state` is `real` and `possession_state` is `possessed`, prefer `plan_only` first so canonical divergence is reviewed before any apply step.
+5. For `partial` or `copied_only` schema reality, call `run_gov2gov_migration`.
+6. For `real` + `possessed` schema reality, prefer `plan_only` first so canonical divergence is reviewed before any apply step.
 
 ## Experimental/Test Tool
 

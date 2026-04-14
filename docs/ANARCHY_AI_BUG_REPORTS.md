@@ -223,6 +223,87 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
 - Acceptance:
   - Install success path includes post-install assess and lane-consistency verification.
 
+### AA-BUG-013: Missing harness-level mount diagnostics/action item method
+
+- Severity: High
+- Status: Open
+- Component: Harness API / Operator diagnostics
+- Repro:
+  - Install and registration surfaces are healthy on disk.
+  - New or restarted Codex thread cannot see Anarchy MCP server/tools (`unknown MCP server 'anarchy-ai'` / empty resources).
+- Expected:
+  - Harness stack provides an explicit diagnostic action path that the agent can invoke or route to when session-level mount visibility is inconsistent.
+- Actual:
+  - Diagnosis requires manual multi-file inspection and ad hoc shell steps; no single harness-directed diagnostic contract exists.
+- Evidence:
+  - User-profile and repo-local marketplace/runtime files present.
+  - Session still returned unknown/empty MCP visibility in current thread.
+- Required product direction:
+  - Add a bounded diagnostic method in harness scope (or setup-backed harness companion) that returns:
+    - active lane intent (`repo_local` vs `user_profile`)
+    - expected plugin root and marketplace path
+    - legacy custom MCP block presence
+    - runtime executable presence checks
+    - explicit next action item when mount mismatch is detected
+- Proposed method surface:
+  - `diagnose_harness_mount_state` (or equivalent stable name)
+  - read-only
+  - structured output for agent-safe action routing
+- Acceptance:
+  - One callable method returns actionable mount-state diagnostics with a single recommended next action.
+  - Output distinguishes:
+    - install/config healthy but session not mounted
+    - stale config/path mismatch
+    - runtime missing/corrupt
+  - Result is documented in skill/setup guidance so agents stop guessing.
+
+### AA-BUG-014: Missing harness method to trace execution path step-by-step
+
+- Severity: High
+- Status: Open
+- Component: Harness API / Debuggability
+- Repro:
+  - Agent spends extended time attempting fixes without isolating the true contradiction.
+  - Manual line-by-line code/comment walkthrough makes the fix obvious quickly.
+- Expected:
+  - Harness provides a structured execution-path tracer that externalizes hidden assumptions and identifies the first failing step.
+- Actual:
+  - No single harness method emits a bounded, stepwise intent-vs-observed-state trace.
+- Evidence:
+  - User-reported case: prolonged failed troubleshooting resolved after explicit line-by-line documentation pass.
+- Required product direction:
+  - Add a bounded read-only harness method that:
+    - enumerates execution steps in order
+    - records expected condition per step
+    - records observed condition per step
+    - marks first contradiction pivot
+    - returns one primary corrective action item
+- Proposed method surface:
+  - `trace_execution_path` (renamed from `explain_failure_path` — the word “failure” activates the wrong concept first per the negation-mitigation research; “trace” and “execution” are affirmative action words)
+  - read-only
+  - deterministic structured response
+- Required output fields (these are required, not optional — a trace without a next action becomes a satisfying stopping point instead of a repair action):
+  - `path_name`
+  - `steps[]` with:
+    - `step_id`
+    - `intent`
+    - `expected_state`
+    - `observed_state`
+    - `status` (`pass|fail|blocked|unknown`)
+    - `evidence`
+  - `first_contradiction_step_id` (renamed from `first_failure_step_id`)
+  - `root_contradiction`
+  - `recommended_next_action` (REQUIRED — the tool always produces an action, even when that action is report-to-human)
+  - `recommended_next_call` (REQUIRED — the tool always names the next callable method)
+- Relationship to AA-BUG-013:
+  - `diagnose_harness_mount_state` is a narrow diagnostic for mount-layer issues.
+  - `trace_execution_path` is a broader tracer for any harness lane, including mount flow.
+- Acceptance:
+  - Method consistently identifies the first contradiction in known broken scenarios.
+  - Output always includes `recommended_next_action` and `recommended_next_call` — a trace that ends at diagnosis without an action is incomplete.
+  - Output is concise enough for agent decisioning and detailed enough for human validation.
+  - Skill/setup docs reference it as the default “stop guessing” lane before destructive retries.
+
 ## Notes
 
 - These bug reports are about deployment and harness ergonomics, not about constraining repo expression in `AGENTS.md` or companion docs.
