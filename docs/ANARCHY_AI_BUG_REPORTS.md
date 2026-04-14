@@ -238,6 +238,7 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
 - Evidence:
   - User-profile and repo-local marketplace/runtime files present.
   - Session still returned unknown/empty MCP visibility in current thread.
+  - Deployment change report (2026-04-14) confirmed: `list_mcp_resources(server="anarchy-ai")` returned unknown MCP server; global resource/template lists returned empty arrays; runtime executables verified present in both `~/.codex/plugins/anarchy-ai/` and repo-local `plugins/anarchy-ai-*/`; marketplace entries verified in both `.agents/plugins/marketplace.json` locations.
 - Required product direction:
   - Add a bounded diagnostic method in harness scope (or setup-backed harness companion) that returns:
     - active lane intent (`repo_local` vs `user_profile`)
