@@ -367,6 +367,8 @@ powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\remove-
 powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\remove-anarchy-ai.ps1 -Mode Remove -Targets repo_local,user_profile,device_app
 ```
 
+In repos carrying the published delivery folder, the same retirement helper is also surfaced at `plugins/remove-anarchy-ai.ps1` so removal stays discoverable from the top-level `plugins/` lane.
+
 That script inventories first, preserves repo-authored source truth, backs up mutable files before rewrite, rewrites shared marketplace files in place to remove only Anarchy-AI entries, clears owned optional custom-MCP fallback blocks such as `mcp_servers.anarchy-ai-herringms` and older legacy `mcp_servers.anarchy-ai`, and retires the documented plugin-cache lane without guessing at broader Codex-private app databases.
 
 ## Compatibility and fallback lane

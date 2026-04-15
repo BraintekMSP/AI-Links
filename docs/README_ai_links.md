@@ -97,6 +97,7 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 ## Anarchy-AI plugin delivery
 
 - `../plugins/AnarchyAi.Setup.exe` - preferred single-file installer/bootstrap executable for Anarchy-AI after it is generated locally by the build helper; supports repo-local and user-profile lanes and is not tracked in git
+- `../plugins/remove-anarchy-ai.ps1` - top-level convenience entrypoint for the bounded retirement helper so removal does not require digging into the bundled plugin path first
 - `../plugins/anarchy-ai/.codex-plugin/plugin.json` - repo-local plugin manifest for Anarchy-AI delivery
 - `../plugins/anarchy-ai/.mcp.json` - plugin MCP declaration that launches the bundled runtime directly
 - `../plugins/anarchy-ai/runtime/win-x64/AnarchyAi.Mcp.Server.exe` - bundled Windows-first self-contained MCP runtime used by the delivery plugin

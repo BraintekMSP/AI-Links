@@ -11,6 +11,11 @@
 - Added explicit language that Anarchy-AI provides a non-destructive migration lane for current AGENTS files into a directionally stronger structure informed by the repo's Google Research-backed prompt-structure findings.
 - Extended the documentation-truth audit so active docs, the installed plugin README, the harness skill, and the preflight contract fail validation if stale "meaningful governed work" language reappears.
 
+### Top-level retirement entrypoint
+
+- Added `plugins/remove-anarchy-ai.ps1` as a visible top-level wrapper over the bundled retirement helper so removal is discoverable from the repo `plugins/` lane instead of requiring navigation into `plugins/anarchy-ai/scripts/`.
+- Updated the runbook and install-process docs to point at the new top-level removal entrypoint while keeping the bundled script as the canonical implementation.
+
 ## 2026-04-14
 
 ### Namespaced Codex identity ownership
