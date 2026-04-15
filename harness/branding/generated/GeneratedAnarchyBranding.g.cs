@@ -11,7 +11,7 @@ internal static class GeneratedAnarchyBranding
     public const string AuthorUrl = "https://github.com/BraintekMSP/AI-Links";
     public const string HomepageUrl = "https://github.com/BraintekMSP/AI-Links";
     public const string RepositoryUrl = "https://github.com/BraintekMSP/AI-Links";
-    public const string DeveloperName = "herringms";
+    public const string DeveloperName = "Matt Herring";
     public const string PrivacyPolicyUrl = "https://github.com/BraintekMSP/AI-Links/blob/main/plugins/anarchy-ai/PRIVACY.md";
     public const string TermsOfServiceUrl = "https://github.com/BraintekMSP/AI-Links/blob/main/LICENSE";
     public const string DefaultUpdateSourceZipUrl = "https://github.com/BraintekMSP/AI-Links/archive/refs/heads/main.zip";
@@ -27,8 +27,8 @@ internal static class GeneratedAnarchyBranding
     public const string BundleBrandingPsd1FileRelativePath = "branding/anarchy-branding.generated.psd1";
     public const string BundleSetupHeaderImageRelativePath = "assets/anarchy-ai.png";
     public const string BundleSetupIconRelativePath = "assets/anarchy-ai.ico";
-    public const string BundlePluginComposerIconRelativePath = "assets/anarchy-ai.png";
-    public const string BundlePluginLogoRelativePath = "assets/anarchy_ai.svg";
+    public const string BundlePluginComposerIconRelativePath = "assets/anarchy-ai.svg";
+    public const string BundlePluginLogoRelativePath = "assets/anarchy-ai.svg";
     public static readonly string[] PluginDefaultPromptLines = new[]
     {
         "Use Anarchy-AI as the runtime harness for the AGENTS Heuristic Underlay.",

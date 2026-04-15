@@ -3,12 +3,12 @@
 internal static class GeneratedAnarchyPathCanon
 {
     public const string Version = "0.1.0";
-    public const string DefaultPluginName = "anarchy-ai-herringms";
-    public const string RepoScopedMarketplaceNameTemplate = "anarchy-ai-herringms-local-<repo-slug>";
-    public const string RepoScopedPluginNameTemplate = "anarchy-ai-herringms-<repo-slug>-<stable-path-hash>";
+    public const string DefaultPluginName = "anarchy-ai";
+    public const string RepoScopedMarketplaceNameTemplate = "anarchy-ai-local-<repo-slug>";
+    public const string RepoScopedPluginDirectoryNameTemplate = "anarchy-ai-local-<repo-slug>-<stable-path-hash>";
     public const string RuntimeExecutableFileName = "AnarchyAi.Mcp.Server.exe";
     public const string SetupExecutableFileName = "AnarchyAi.Setup.exe";
-    public const string UserProfileMarketplaceName = "anarchy-ai-herringms-user-profile";
+    public const string UserProfileMarketplaceName = "anarchy-ai-user-profile";
     public const string BundleAssetsDirectoryRelativePath = "assets";
     public const string BundleContractsDirectoryRelativePath = "contracts";
     public const string BundleMcpFileRelativePath = ".mcp.json";
@@ -84,7 +84,9 @@ internal static class GeneratedAnarchyPathCanon
 
     public static readonly string[] OwnedMarketplaceNamePrefixes =
     [
+        "anarchy-ai-local-",
         "anarchy-ai-herringms-local-",
+        "anarchy-local-",
     ];
 
     public static readonly string[] OwnedMcpServerNames =
@@ -101,7 +103,9 @@ internal static class GeneratedAnarchyPathCanon
 
     public static readonly string[] OwnedPluginNamePrefixes =
     [
+        "anarchy-ai-local-",
         "anarchy-ai-herringms-",
+        "anarchy-local-",
     ];
 
     public static readonly string[] PluginSurfaces =

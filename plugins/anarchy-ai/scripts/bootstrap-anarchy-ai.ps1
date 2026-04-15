@@ -134,7 +134,8 @@ function Write-TextFile {
     }
   }
 
-  Set-Content -Path $Path -Value $Content -Encoding UTF8 -Force
+  $encoding = New-Object System.Text.UTF8Encoding($false)
+  [System.IO.File]::WriteAllText($Path, $Content, $encoding)
 }
 
 <#

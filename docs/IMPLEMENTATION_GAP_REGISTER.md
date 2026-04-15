@@ -1,4 +1,4 @@
-# Implementation Gap Register
+﻿# Implementation Gap Register
 
 ## Purpose
 
@@ -157,8 +157,8 @@ The stale model then bled into multiple places at once:
 
 - keep Codex home install plugin-marketplace-first:
   - `~/.agents/plugins/marketplace.json`
-  - `~/.codex/plugins/anarchy-ai-herringms`
-- treat custom `mcp_servers.anarchy-ai-herringms` as fallback/debug evidence only
+  - `~/.codex/plugins/anarchy-ai`
+- treat custom `mcp_servers.anarchy-ai` as fallback/debug evidence only
 - treat older legacy `mcp_servers.anarchy-ai` entries as cleanup evidence only
 - keep canonical docs and install assertions repo-authored, then publish/generate destination-relative install surfaces from those sources
 - detect failed legacy PoC home layouts honestly and repair them through inventory plus manual cleanup guidance rather than compatibility drift
@@ -737,3 +737,4 @@ When a later change is made, this document should answer:
 - what gap was being closed
 - why that change existed
 - what earlier failure, ambiguity, or delivery problem it was solving
+

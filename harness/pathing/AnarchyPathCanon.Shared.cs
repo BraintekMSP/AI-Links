@@ -144,7 +144,7 @@ internal static class AnarchyPathCanon
 
     public static string UserProfileMarketplaceName => GeneratedAnarchyPathCanon.UserProfileMarketplaceName;
 
-    public static string RepoScopedPluginNameTemplate => GeneratedAnarchyPathCanon.RepoScopedPluginNameTemplate;
+    public static string RepoScopedPluginDirectoryNameTemplate => GeneratedAnarchyPathCanon.RepoScopedPluginDirectoryNameTemplate;
 
     public static string RepoScopedMarketplaceNameTemplate => GeneratedAnarchyPathCanon.RepoScopedMarketplaceNameTemplate;
 

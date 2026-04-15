@@ -1,4 +1,4 @@
-# Anarchy-AI Plugin
+﻿# Anarchy-AI Plugin
 
 > This README is generated from `docs/ANARCHY_AI_PLUGIN_README_SOURCE.md` by `harness/setup/scripts/build-self-contained-exe.ps1`.
 > Keep install-story prose authored here so the published plugin bundle stays destination-relative and honest.
@@ -90,8 +90,8 @@ For Codex, the primary user-profile lane is the plugin marketplace lane:
 - personal marketplace at `{{USER_PROFILE_MARKETPLACE_PATH}}`
 - personal marketplace `source.path` of `{{USER_PROFILE_MARKETPLACE_SOURCE_PATH}}`
 
-The current optional custom `mcp_servers.anarchy-ai-herringms` block is no longer the primary Codex home-install truth.
-Older legacy `mcp_servers.anarchy-ai` entries are cleanup evidence only.
+The current optional custom `mcp_servers.anarchy-ai` block is no longer the primary Codex home-install truth.
+Older legacy `mcp_servers.anarchy-ai-herringms` entries are cleanup evidence only.
 
 ## Current Tool State
 
@@ -178,6 +178,13 @@ The safe/force split is intentional for both humans and agents:
 
 The bundled retirement script is the preferred bounded lane when Anarchy-AI needs to be removed or reset without guessing at paths.
 
+Human-friendly Windows quick cleanup:
+
+- double-click `scripts/Remove Anarchy-AI.cmd`
+- it performs safe quarantine-first cleanup across every reachable repo-local, user-profile, and documented plugin-cache surface for the current user
+- it keeps the console open and explains what was preserved
+- it does not rewrite shared `~/.codex/config.toml` by default
+
 The dedicated retirement commands are:
 
 - assess removable surfaces:
@@ -186,14 +193,30 @@ The dedicated retirement commands are:
   - `powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\remove-anarchy-ai.ps1 -Mode Quarantine -Targets repo_local,user_profile,device_app`
 - quarantine and then permanently delete the quarantined copies:
   - `powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\remove-anarchy-ai.ps1 -Mode Remove -Targets repo_local,user_profile,device_app`
+- advanced legacy custom-MCP cleanup:
+  - `powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\remove-anarchy-ai.ps1 -Mode Quarantine -Targets user_profile -IncludeLegacyCustomMcpConfig`
+
+Recommended defaults:
+
+- omit `-RepoRoot` to auto-detect the current repo context when the helper is being run from a repo-local source or installed bundle
+- omit `-UserProfileRoot` to auto-detect the current shell/user home directory
+- omit `-Targets` to use the recommended current-context scope set:
+  - `repo_local` when a repo context is detected
+  - `user_profile,device_app` when only a home-local context is detected
+- omit `-QuarantineRoot` to use a temp-directory quarantine lane outside the workspace
+
+Use the `.ps1` lane when an agent or power user needs exact control over mode, targets, or automation. Use `Remove Anarchy-AI.cmd` when a human simply wants the plugin gone responsibly.
 
 The retirement script:
 
 - inventories first and reports every target before destructive work
 - preserves repo-authored source truth in the source repo instead of treating `plugins/anarchy-ai` as disposable
-- backs up live marketplace and config files before editing them in place
+- backs up mutable files before editing or retiring them
+- removes Anarchy-only marketplace files after backup instead of leaving empty branded marketplace shells behind
+- detects both current and legacy installed plugin roots before retirement work
+- leaves shared `~/.codex/config.toml` untouched by default unless `-IncludeLegacyCustomMcpConfig` is explicitly requested
 - quarantines before delete so rollback remains possible unless `-Mode Remove` is explicitly chosen
-- clears owned optional custom-MCP fallback blocks such as `mcp_servers.anarchy-ai-herringms` and older legacy `mcp_servers.anarchy-ai` entries when present
+- clears owned optional custom-MCP fallback blocks such as `mcp_servers.anarchy-ai` and older legacy `mcp_servers.anarchy-ai-herringms` entries when present
 - retires documented plugin-cache roots when they exist, but does not guess at broader Codex app databases or private host state
 
 Marketplace files are treated as shared registries:
@@ -212,3 +235,4 @@ Marketplace files are treated as shared registries:
   - repo-local install
   - user-profile install
 - It is still not machine-wide or device-local.
+

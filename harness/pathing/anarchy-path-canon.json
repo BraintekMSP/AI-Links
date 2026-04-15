@@ -1,12 +1,12 @@
 {
   "version": "0.1.0",
   "names": {
-    "default_plugin_name": "anarchy-ai-herringms",
+    "default_plugin_name": "anarchy-ai",
     "setup_executable_file_name": "AnarchyAi.Setup.exe",
     "runtime_executable_file_name": "AnarchyAi.Mcp.Server.exe",
-    "repo_scoped_plugin_name_template": "anarchy-ai-herringms-<repo-slug>-<stable-path-hash>",
-    "user_profile_marketplace_name": "anarchy-ai-herringms-user-profile",
-    "repo_scoped_marketplace_name_template": "anarchy-ai-herringms-local-<repo-slug>"
+    "repo_scoped_plugin_directory_name_template": "anarchy-ai-local-<repo-slug>-<stable-path-hash>",
+    "user_profile_marketplace_name": "anarchy-ai-user-profile",
+    "repo_scoped_marketplace_name_template": "anarchy-ai-local-<repo-slug>"
   },
   "relative_paths": {
     "repo_source_plugin_directory_relative_path": "plugins/anarchy-ai",
@@ -76,7 +76,9 @@
       "anarchy-ai"
     ],
     "owned_plugin_name_prefixes": [
-      "anarchy-ai-herringms-"
+      "anarchy-ai-local-",
+      "anarchy-ai-herringms-",
+      "anarchy-local-"
     ],
     "owned_marketplace_name_exact": [
       "anarchy-ai-herringms-user-profile",
@@ -84,7 +86,9 @@
       "anarchy-user-profile"
     ],
     "owned_marketplace_name_prefixes": [
-      "anarchy-ai-herringms-local-"
+      "anarchy-ai-local-",
+      "anarchy-ai-herringms-local-",
+      "anarchy-local-"
     ],
     "owned_mcp_server_names": [
       "anarchy-ai-herringms",

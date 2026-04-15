@@ -1,5 +1,6 @@
 using Xunit;
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 
 namespace AnarchyAi.Setup.Tests;
@@ -25,7 +26,7 @@ public sealed class SetupEngineTests
     {
         var relativePath = SetupEngine.BuildPluginRelativePath(InstallScope.UserProfile, null);
 
-        Assert.Equal("./.codex/plugins/anarchy-ai-herringms", relativePath);
+        Assert.Equal("./.codex/plugins/anarchy-ai", relativePath);
     }
 
     /// <summary>
@@ -38,7 +39,7 @@ public sealed class SetupEngineTests
     {
         var pluginRoot = SetupEngine.ResolvePluginRoot(InstallScope.UserProfile, string.Empty);
 
-        Assert.EndsWith(Path.Combine(".codex", "plugins", "anarchy-ai-herringms"), pluginRoot, StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith(Path.Combine(".codex", "plugins", "anarchy-ai"), pluginRoot, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -51,7 +52,7 @@ public sealed class SetupEngineTests
     {
         var marketplaceName = SetupEngine.BuildMarketplaceName(InstallScope.UserProfile, null);
 
-        Assert.Equal("anarchy-ai-herringms-user-profile", marketplaceName);
+        Assert.Equal("anarchy-ai-user-profile", marketplaceName);
     }
 
     /// <summary>
@@ -66,7 +67,7 @@ public sealed class SetupEngineTests
             InstallScope.RepoLocal,
             Path.Combine(Path.GetTempPath(), "AI-Links"));
 
-        Assert.Equal("anarchy-ai-herringms-local-ai-links", marketplaceName);
+        Assert.Equal("anarchy-ai-local-ai-links", marketplaceName);
     }
 
     /// <summary>
@@ -79,9 +80,9 @@ public sealed class SetupEngineTests
     {
         var disclosure = SetupEngine.BuildInstallDisclosure(string.Empty, InstallScope.UserProfile);
 
-        Assert.Contains(@"~\.codex\plugins\anarchy-ai-herringms", disclosure);
+        Assert.Contains(@"~\.codex\plugins\anarchy-ai", disclosure);
         Assert.Contains(@"~/.agents/plugins/marketplace.json".Replace('/', Path.DirectorySeparatorChar), disclosure);
-        Assert.DoesNotContain("Updates ~/.codex/config.toml with mcp_servers.anarchy-ai-herringms", disclosure, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Updates ~/.codex/config.toml with mcp_servers.anarchy-ai", disclosure, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(@"~\plugins\anarchy-ai", disclosure, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -95,9 +96,9 @@ public sealed class SetupEngineTests
     {
         var help = SetupEngine.BuildCommandLineHelp(null);
 
-        Assert.Contains(@"~\.codex\plugins\anarchy-ai-herringms", help);
+        Assert.Contains(@"~\.codex\plugins\anarchy-ai", help);
         Assert.Contains("plugin marketplace lane", help, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("also registers mcp_servers.anarchy-ai-herringms", help, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("also registers mcp_servers.anarchy-ai", help, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -157,10 +158,41 @@ public sealed class SetupEngineTests
         var readmePath = Path.Combine(repoRoot, "plugins", "anarchy-ai", "README.md");
         var readme = File.ReadAllText(readmePath);
 
-        Assert.Contains(@"~\.codex\plugins\anarchy-ai-herringms", readme);
-        Assert.Contains("./.codex/plugins/anarchy-ai-herringms", readme);
+        Assert.Contains(@".\plugins\anarchy-ai-local-<repo-slug>-<stable-path-hash>", readme);
+        Assert.Contains(@"~\.codex\plugins\anarchy-ai", readme);
+        Assert.Contains("./.codex/plugins/anarchy-ai", readme);
         Assert.DoesNotContain("../../../", readme, StringComparison.Ordinal);
         Assert.DoesNotContain(@"~\plugins\anarchy-ai", readme, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that generated Codex-facing bundle files use UTF-8 without a byte-order mark.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts the leading bytes of plugin-facing generated files.</returns>
+    /// <remarks>Critical dependencies: build-time generation, repo root discovery, and Codex manifest parsing behavior.</remarks>
+    [Fact]
+    public void GeneratedPluginFacingFiles_DoNotUseUtf8Bom()
+    {
+        var repoRoot = FindRepoRoot();
+        var pluginRoot = Path.Combine(repoRoot, "plugins", "anarchy-ai");
+        var paths = new[]
+        {
+            Path.Combine(pluginRoot, ".codex-plugin", "plugin.json"),
+            Path.Combine(pluginRoot, ".mcp.json"),
+            Path.Combine(pluginRoot, "schemas", "schema-bundle.manifest.json")
+        };
+
+        foreach (var path in paths)
+        {
+            var bytes = File.ReadAllBytes(path);
+            var hasUtf8Bom = bytes.Length >= 3 &&
+                             bytes[0] == 0xEF &&
+                             bytes[1] == 0xBB &&
+                             bytes[2] == 0xBF;
+
+            Assert.False(hasUtf8Bom, $"Expected UTF-8 without BOM: {path}");
+            Assert.True(Encoding.UTF8.GetString(bytes).TrimStart().StartsWith("{", StringComparison.Ordinal), $"Expected JSON content in {path}");
+        }
     }
 
     /// <summary>
@@ -192,7 +224,7 @@ public sealed class SetupEngineTests
         var destination = paths.GetProperty("destination");
         var directories = destination.GetProperty("directories");
         var files = destination.GetProperty("files");
-        Assert.EndsWith(Path.Combine(".codex", "plugins", "anarchy-ai-herringms"), directories.GetProperty("plugin_root_directory_path").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith(Path.Combine(".codex", "plugins", "anarchy-ai"), directories.GetProperty("plugin_root_directory_path").GetString(), StringComparison.OrdinalIgnoreCase);
         Assert.EndsWith(Path.Combine(".agents", "plugins", "marketplace.json"), files.GetProperty("marketplace_file_path").GetString(), StringComparison.OrdinalIgnoreCase);
     }
 
@@ -248,6 +280,33 @@ public sealed class SetupEngineTests
         var standardError = process.StandardError.ReadToEnd();
 
         Assert.True(process.ExitCode == 0, $"Documentation-truth audit failed.{Environment.NewLine}STDOUT:{Environment.NewLine}{standardOutput}{Environment.NewLine}STDERR:{Environment.NewLine}{standardError}");
+    }
+
+    /// <summary>
+    /// Runs the removal-safety audit to prove the retirement helper preserves unrelated config while still retiring legacy Anarchy-AI surfaces.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts successful script exit.</returns>
+    /// <remarks>Critical dependencies: the PowerShell removal-safety audit, local PowerShell availability, repo root discovery, and the current retirement-helper defaults.</remarks>
+    [Fact]
+    public void RemovalSafetyAuditScript_Passes()
+    {
+        var repoRoot = FindRepoRoot();
+        var scriptPath = Path.Combine(repoRoot, "docs", "scripts", "test-removal-safety-compliance.ps1");
+        var process = Process.Start(new ProcessStartInfo
+        {
+            FileName = "powershell",
+            Arguments = $"-ExecutionPolicy Bypass -File \"{scriptPath}\" -RepoRoot \"{repoRoot}\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        })!;
+
+        process.WaitForExit();
+        var standardOutput = process.StandardOutput.ReadToEnd();
+        var standardError = process.StandardError.ReadToEnd();
+
+        Assert.True(process.ExitCode == 0, $"Removal-safety audit failed.{Environment.NewLine}STDOUT:{Environment.NewLine}{standardOutput}{Environment.NewLine}STDERR:{Environment.NewLine}{standardError}");
     }
 
     /// <summary>

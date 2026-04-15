@@ -1,12 +1,12 @@
 ﻿@{
   version = '0.1.0'
   names = @{
-    default_plugin_name = 'anarchy-ai-herringms'
-    repo_scoped_marketplace_name_template = 'anarchy-ai-herringms-local-<repo-slug>'
-    repo_scoped_plugin_name_template = 'anarchy-ai-herringms-<repo-slug>-<stable-path-hash>'
+    default_plugin_name = 'anarchy-ai'
+    repo_scoped_marketplace_name_template = 'anarchy-ai-local-<repo-slug>'
+    repo_scoped_plugin_directory_name_template = 'anarchy-ai-local-<repo-slug>-<stable-path-hash>'
     runtime_executable_file_name = 'AnarchyAi.Mcp.Server.exe'
     setup_executable_file_name = 'AnarchyAi.Setup.exe'
-    user_profile_marketplace_name = 'anarchy-ai-herringms-user-profile'
+    user_profile_marketplace_name = 'anarchy-ai-user-profile'
   }
   relative_paths = @{
     bundle_assets_directory_relative_path = 'assets'
@@ -79,7 +79,11 @@
       'anarchy-ai-user-profile'
       'anarchy-user-profile'
     )
-    owned_marketplace_name_prefixes = 'anarchy-ai-herringms-local-'
+    owned_marketplace_name_prefixes = @(
+      'anarchy-ai-local-'
+      'anarchy-ai-herringms-local-'
+      'anarchy-local-'
+    )
     owned_mcp_server_names = @(
       'anarchy-ai-herringms'
       'anarchy-ai'
@@ -88,7 +92,11 @@
       'anarchy-ai-herringms'
       'anarchy-ai'
     )
-    owned_plugin_name_prefixes = 'anarchy-ai-herringms-'
+    owned_plugin_name_prefixes = @(
+      'anarchy-ai-local-'
+      'anarchy-ai-herringms-'
+      'anarchy-local-'
+    )
     plugin_surfaces = @(
       '.codex-plugin'
       'assets'

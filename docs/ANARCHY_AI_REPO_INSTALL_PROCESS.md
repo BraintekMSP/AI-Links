@@ -1,10 +1,10 @@
-# Anarchy-AI Repo Installation Process
+﻿# Anarchy-AI Repo Installation Process
 
 ## Purpose
 
 This document defines the exact current installation process for bringing Anarchy-AI into another repository.
 
-This is the current real delivery path — a repo-bootstrap install.
+This is the current real delivery path - a repo-bootstrap install.
 Machine-level install is future work.
 This process makes the harness:
 
@@ -37,8 +37,8 @@ powershell -ExecutionPolicy Bypass -File .\harness\setup\scripts\build-self-cont
 That file now handles:
 
 - plugin bundle materialization into either:
-  - a repo-scoped `plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>/`
-  - or a Codex user-profile `~/.codex/plugins/anarchy-ai-herringms/`
+  - a repo-scoped `plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>/`
+  - or a Codex user-profile `~/.codex/plugins/anarchy-ai/`
 - matching marketplace registration in either:
   - `./.agents/plugins/marketplace.json`
   - or `~/.agents/plugins/marketplace.json`
@@ -66,9 +66,9 @@ Important targeting rule:
 The setup executable materializes one of these plugin roots:
 
 - repo-local:
-  - `plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>/`
+  - `plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>/`
 - user-profile:
-  - `~/.codex/plugins/anarchy-ai-herringms/`
+  - `~/.codex/plugins/anarchy-ai/`
 
 That bundle contains:
 
@@ -95,28 +95,29 @@ Setup also creates or updates one of these marketplace roots:
 
 The plugin identity rule is now split on purpose:
 
-- repo-local installs use repo-scoped plugin identity — one repo-local uninstall action in Codex keeps its effect contained to that repo instead of colliding with sibling repo installs
+- repo-local installs use repo-scoped install directories and marketplaces while keeping the visible plugin identity stable as `anarchy-ai`
 - user-profile installs use one stable user-profile plugin identity because the install root is intentionally shared for that user
-- both lanes keep the plugin-local MCP server key stable as `anarchy-ai-herringms`
+- both lanes keep the plugin-local MCP server key stable as `anarchy-ai`
 
 Current repo-local shape:
 
-- `name = anarchy-ai-herringms-local-<repo-slug>`
+- `name = anarchy-ai-local-<repo-slug>`
 - `interface.displayName = Anarchy-AI Local (<RepoName>)`
-- `plugins.<entry>.name = anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
-- `.codex-plugin/plugin.json -> name = anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
-- `.mcp.json -> mcpServers -> anarchy-ai-herringms`
+- `plugins.<entry>.name = anarchy-ai`
+- `plugins.<entry>.source.path = ./plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>`
+- `.codex-plugin/plugin.json -> name = anarchy-ai`
+- `.mcp.json -> mcpServers -> anarchy-ai`
 
 Current user-profile shape:
 
-- `name = anarchy-ai-herringms-user-profile`
+- `name = anarchy-ai-user-profile`
 - `interface.displayName = Anarchy-AI User Profile`
-- `plugins.<entry>.name = anarchy-ai-herringms`
-- `plugins.<entry>.source.path = ./.codex/plugins/anarchy-ai-herringms`
-- `.codex-plugin/plugin.json -> name = anarchy-ai-herringms`
-- `.mcp.json -> mcpServers -> anarchy-ai-herringms`
-- Codex home readiness is plugin-marketplace-first; a custom `mcp_servers.anarchy-ai-herringms` block is optional fallback/debug only
-- older legacy `mcp_servers.anarchy-ai` blocks are cleanup evidence only
+- `plugins.<entry>.name = anarchy-ai`
+- `plugins.<entry>.source.path = ./.codex/plugins/anarchy-ai`
+- `.codex-plugin/plugin.json -> name = anarchy-ai`
+- `.mcp.json -> mcpServers -> anarchy-ai`
+- Codex home readiness is plugin-marketplace-first; a custom `mcp_servers.anarchy-ai` block is optional fallback/debug only
+- older legacy `mcp_servers.anarchy-ai-herringms` blocks are cleanup evidence only
 
 Marketplace naming note:
 
@@ -128,10 +129,10 @@ It enforces this plugin entry shape:
 
 ```json
 {
-  "name": "anarchy-ai-herringms-<repo-slug>-<stable-path-hash>",
+  "name": "anarchy-ai",
   "source": {
     "source": "local",
-    "path": "./plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>"
+    "path": "./plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>"
   },
   "policy": {
     "installation": "INSTALLED_BY_DEFAULT",
@@ -159,7 +160,7 @@ That set is:
 - `Getting-Started-For-Humans.txt`
 
 Keep harness delivery separate from schema reality.
-Material governance requires the harness to be installed and enforced — copied schema files alone are delivery evidence, governance requires the harness running against them.
+Material governance requires the harness to be installed and enforced - copied schema files alone are delivery evidence, governance requires the harness running against them.
 
 ## Exact installation steps in another repo
 
@@ -201,13 +202,13 @@ Then use the simple installer UI.
 Result required:
 
 - repo-local:
-  - `./plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>/.codex-plugin/plugin.json` exists
-  - `./plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>/.mcp.json` exists
+  - `./plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>/.codex-plugin/plugin.json` exists
+  - `./plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>/.mcp.json` exists
   - `./.agents/plugins/marketplace.json` contains the repo-scoped Anarchy-AI plugin entry
 - user-profile:
-  - `~/.codex/plugins/anarchy-ai-herringms/.codex-plugin/plugin.json` exists
-  - `~/.codex/plugins/anarchy-ai-herringms/.mcp.json` exists
-  - `~/.agents/plugins/marketplace.json` contains the `anarchy-ai-herringms` plugin entry
+  - `~/.codex/plugins/anarchy-ai/.codex-plugin/plugin.json` exists
+  - `~/.codex/plugins/anarchy-ai/.mcp.json` exists
+  - `~/.agents/plugins/marketplace.json` contains the `anarchy-ai` plugin entry
 - both lanes:
   - the bundled runtime exists
   - `contracts/` contains all current contract files
@@ -240,7 +241,7 @@ Expected good result shape:
   - `paths.destination.root_path = <current-user-profile>`
   - portable schema seeding stays out of scope
 
-Any other result shape means the harness is partially delivered — files present, accessibility incomplete. Count installation as complete only when the expected good result shape is reached.
+Any other result shape means the harness is partially delivered â€” files present, accessibility incomplete. Count installation as complete only when the expected good result shape is reached.
 
 Install lock behavior:
 
@@ -293,12 +294,12 @@ Refresh the plugin bundle and root portable schema family together:
 Current update behavior:
 
 - refreshes the selected plugin bundle surfaces in either:
-  - repo-local `./plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>/`
-  - user-profile `~/.codex/plugins/anarchy-ai-herringms/`
+  - repo-local `./plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>/`
+  - user-profile `~/.codex/plugins/anarchy-ai/`
 - seeds missing portable root schema files during install by default
 - force-refreshes the root portable schema family only when `/refreshschemas` is passed
 - returns bounded update state in the JSON result
-- replacing a running `AnarchyAi.Mcp.Server.exe` in place requires stopping the active runtime first — update the bundled runtime only after release
+- replacing a running `AnarchyAi.Mcp.Server.exe` in place requires stopping the active runtime first â€” update the bundled runtime only after release
 
 Useful result fields:
 
@@ -349,11 +350,20 @@ powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\stop-an
 Where `<installed-plugin-root>` is one of:
 
 - repo-local:
-  - `.\plugins\anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
+  - `.\plugins\anarchy-ai-local-<repo-slug>-<stable-path-hash>`
 - user-profile:
-  - `~\.codex\plugins\anarchy-ai-herringms`
+  - `~\.codex\plugins\anarchy-ai`
 
 If Anarchy-AI needs to be retired cleanly instead of repaired, use the dedicated retirement script rather than ad hoc file deletion:
+
+Human-friendly Windows quick cleanup:
+
+```text
+double-click plugins\Remove Anarchy-AI.cmd
+```
+
+That path runs safe quarantine-first cleanup, removes every reachable live Anarchy-AI surface for the current repo/user context, preserves repo-authored source truth, and keeps the console open with a plain-language summary.
+It does not rewrite shared `~/.codex/config.toml` by default.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\remove-anarchy-ai.ps1 -Mode Assess
@@ -367,9 +377,26 @@ powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\remove-
 powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\remove-anarchy-ai.ps1 -Mode Remove -Targets repo_local,user_profile,device_app
 ```
 
-In repos carrying the published delivery folder, the same retirement helper is also surfaced at `plugins/remove-anarchy-ai.ps1` so removal stays discoverable from the top-level `plugins/` lane.
+```powershell
+powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\remove-anarchy-ai.ps1 -Mode Quarantine -Targets user_profile -IncludeLegacyCustomMcpConfig
+```
 
-That script inventories first, preserves repo-authored source truth, backs up mutable files before rewrite, rewrites shared marketplace files in place to remove only Anarchy-AI entries, clears owned optional custom-MCP fallback blocks such as `mcp_servers.anarchy-ai-herringms` and older legacy `mcp_servers.anarchy-ai`, and retires the documented plugin-cache lane without guessing at broader Codex-private app databases.
+In repos carrying the published delivery folder, the human-friendly Windows front door is surfaced at `plugins/Remove Anarchy-AI.cmd`. The canonical advanced/scriptable helper stays at `<installed-plugin-root>\scripts\remove-anarchy-ai.ps1`.
+
+Recommended defaults for the retirement helper:
+
+- omit `-RepoRoot` to auto-detect the current repo context when the helper is being run from a repo-local source or installed bundle
+- omit `-UserProfileRoot` to auto-detect the current shell/user home directory
+- omit `-Targets` to use the recommended current-context scope set:
+  - `repo_local` when a repo context is detected
+  - `user_profile,device_app` when only a home-local context is detected
+- omit `-QuarantineRoot` to use a temp-directory quarantine lane outside the workspace
+
+Use the `.ps1` lane when an agent or power user needs exact control over mode, targets, or automation. Use `Remove Anarchy-AI.cmd` when a human simply wants the plugin gone responsibly.
+
+That script inventories first, preserves repo-authored source truth, backs up mutable files before rewrite or retirement, removes Anarchy-only marketplace files after backup instead of leaving empty branded shells behind, detects both current and legacy installed plugin roots, and retires the documented plugin-cache lane without guessing at broader Codex-private app databases.
+
+Legacy custom-MCP fallback blocks such as current `mcp_servers.anarchy-ai` and older `mcp_servers.anarchy-ai-herringms` entries are now an explicit advanced cleanup path only. They are not touched by the human click-once flow or the helper defaults.
 
 ## Compatibility and fallback lane
 
@@ -396,7 +423,7 @@ powershell -ExecutionPolicy Bypass -File <repo-local-plugin-root>\scripts\bootst
 
 Where `<repo-local-plugin-root>` is:
 
-- `.\plugins\anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
+- `.\plugins\anarchy-ai-local-<repo-slug>-<stable-path-hash>`
 
 ## How to make the system accessible
 
@@ -406,14 +433,14 @@ For the current Codex-first path, accessibility requires all of the following:
 
 - `plugins/AnarchyAi.Setup.exe` or the already materialized plugin bundle is present
 - plugin bundle exists in either:
-  - `./plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
-  - `~/.codex/plugins/anarchy-ai-herringms`
+  - `./plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>`
+  - `~/.codex/plugins/anarchy-ai`
 - marketplace entry exists in either:
   - `./.agents/plugins/marketplace.json`
   - `~/.agents/plugins/marketplace.json`
 - when using user-profile lane with Codex:
-  - `~/.agents/plugins/marketplace.json` points at `./.codex/plugins/anarchy-ai-herringms`
-  - `~/.codex/plugins/anarchy-ai-herringms` contains the bundled runtime and plugin surfaces
+  - `~/.agents/plugins/marketplace.json` points at `./.codex/plugins/anarchy-ai`
+  - `~/.codex/plugins/anarchy-ai` contains the bundled runtime and plugin surfaces
   - `~/.codex/config.toml` custom MCP registration is optional fallback/debug only and is not required for `ready`
 - policy is `INSTALLED_BY_DEFAULT`
 - bundled runtime exists
@@ -421,7 +448,7 @@ For the current Codex-first path, accessibility requires all of the following:
 - skill exists in the plugin bundle
 - setup or bootstrap assessment returns `ready`
 
-When any of those are missing, the harness remains partially delivered — files present, accessibility incomplete. Count the harness as accessible only when every item above is satisfied.
+When any of those are missing, the harness remains partially delivered â€” files present, accessibility incomplete. Count the harness as accessible only when every item above is satisfied.
 
 ## How to make the system enforced enough to matter
 
@@ -463,7 +490,7 @@ Keep the marketplace policy set to `INSTALLED_BY_DEFAULT` when the goal is harne
 `AVAILABLE` means:
 
 - the harness exists as an available plugin
-- the host may defer presenting it to the agent at startup — that is a weaker operational state than installed-by-default
+- the host may defer presenting it to the agent at startup â€” that is a weaker operational state than installed-by-default
 
 `INSTALLED_BY_DEFAULT` is the current install policy that makes the harness present at startup in either lane.
 
@@ -487,7 +514,7 @@ The harness is real in the target repo when:
 
 When the target repo is using the schema family, schema reality must also be true.
 
-That means material governance — copied schema files are delivery evidence, governance requires the harness running against them.
+That means material governance â€” copied schema files are delivery evidence, governance requires the harness running against them.
 
 Use:
 
@@ -502,7 +529,7 @@ Expected stable state for a governed repo:
 - `possession_state = unpossessed`
 - `adoption_state = fully_adopted` or at minimum `partially_adopted` with named gaps being actively resolved
 
-A repo in any of these schema states stays in the "delivered, pre-governance" category — trust as governed only when schema reality reaches `real` / `aligned` / `unpossessed`:
+A repo in any of these schema states stays in the "delivered, pre-governance" category â€” trust as governed only when schema reality reaches `real` / `aligned` / `unpossessed`:
 
 - `partial`
 - `copied_only`
@@ -526,8 +553,8 @@ A target repo should only be considered fully adopted when all of the following 
 
 - `plugins/AnarchyAi.Setup.exe` has been used or the equivalent plugin bundle has already been materialized
 - either:
-  - `plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>/` is present
-  - or `~/.codex/plugins/anarchy-ai-herringms/` is present
+  - `plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>/` is present
+  - or `~/.codex/plugins/anarchy-ai/` is present
 - either:
   - `.agents/plugins/marketplace.json` contains the Anarchy-AI entry for the repo
   - or `~/.agents/plugins/marketplace.json` contains the Anarchy-AI entry for the current user
@@ -539,7 +566,7 @@ A target repo should only be considered fully adopted when all of the following 
 - the repo's agent-facing startup/control-plane direction expects preflight-first for complex changes
 - if the schema family is in use, the schema package is materially `real`, not merely copied
 
-## Current scope — what is in v1 and what is reserved for future delivery
+## Current scope â€” what is in v1 and what is reserved for future delivery
 
 This process is current and real, and it is an intermediate install architecture.
 
@@ -550,12 +577,12 @@ Current scope:
 - packaged delivery is Windows-first
 - Claude packaged adapter is future work; the contract model and MCP direction are shared today
 - Cursor first-class delivery is future work
-- host-native install suggestion chips fall outside the guaranteed install story — they exist when the host offers them, through a separate optional path
+- host-native install suggestion chips fall outside the guaranteed install story â€” they exist when the host offers them, through a separate optional path
 - GUI mode covers `Assess` and `Install` today; GUI `Update` is future work
-- reflection (`assess the last exchange and do better`) remains a secondary workflow — first-class install targeting is future work
+- reflection (`assess the last exchange and do better`) remains a secondary workflow â€” first-class install targeting is future work
 - public update depends on outbound access to the configured source zip and a working local trust/TLS path
 - local-source update is the safer fallback when public HTTPS is unreliable on the machine
-- runtime replacement requires the active Anarchy-AI process to be stopped first when the update touches `runtime/win-x64/AnarchyAi.Mcp.Server.exe` — updates that leave the runtime binary alone proceed in place
+- runtime replacement requires the active Anarchy-AI process to be stopped first when the update touches `runtime/win-x64/AnarchyAi.Mcp.Server.exe` â€” updates that leave the runtime binary alone proceed in place
 
 ## Minimum checklist for another repo
 
@@ -586,3 +613,4 @@ Environment claims should be graded across:
    - require second-device repeat with equivalent artifacts
 
 Do not mark portability as proven from single-session or single-device observations.
+

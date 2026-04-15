@@ -46,6 +46,7 @@ Critical dependencies: System.Collections.Generic.List and the final JSON result
 #>
 function Add-Finding {
   param(
+    [AllowEmptyCollection()]
     [Parameter(Mandatory = $true)]
     [System.Collections.Generic.List[object]]$Findings,
     [Parameter(Mandatory = $true)]
@@ -71,61 +72,58 @@ $activeDocRules = @(
   @{
     path = 'docs/ANARCHY_AI_SETUP_EXE_SPEC.md'
     required = @(
-      'anarchy-ai-herringms',
+      'anarchy-ai-user-profile',
+      '~/.codex/plugins/anarchy-ai',
+      'plugins.<entry>.name = anarchy-ai',
+      '.mcp.json -> mcpServers -> anarchy-ai'
+    )
+    forbidden = @(
       '~/.codex/plugins/anarchy-ai-herringms',
       'plugins.<entry>.name = anarchy-ai-herringms',
       '.mcp.json -> mcpServers -> anarchy-ai-herringms'
-    )
-    forbidden = @(
-      'callable MCP server key stable as `anarchy-ai`',
-      'plugin bundle under `~/.codex/plugins/anarchy-ai`',
-      '`plugins.<entry>.name = anarchy-ai`',
-      '`~/.codex/plugins/anarchy-ai` contains the bundled plugin and runtime surfaces'
     )
   },
   @{
     path = 'docs/ANARCHY_AI_REPO_INSTALL_PROCESS.md'
     required = @(
-      'anarchy-ai-herringms',
+      'anarchy-ai-local-<repo-slug>-<stable-path-hash>',
+      '~/.codex/plugins/anarchy-ai',
+      'plugins.<entry>.name = anarchy-ai',
+      'both lanes keep the plugin-local MCP server key stable as `anarchy-ai`'
+    )
+    forbidden = @(
       '~/.codex/plugins/anarchy-ai-herringms',
       'plugins.<entry>.name = anarchy-ai-herringms',
       'both lanes keep the plugin-local MCP server key stable as `anarchy-ai-herringms`'
-    )
-    forbidden = @(
-      'both lanes keep the callable MCP server key stable as `anarchy-ai`',
-      '`~/.codex/plugins/anarchy-ai/`',
-      '`~/.agents/plugins/marketplace.json` contains the `anarchy-ai` plugin entry',
-      '`plugins.<entry>.name = anarchy-ai`'
     )
   },
   @{
     path = 'docs/ANARCHY_AI_HARNESS_ARCHITECTURE.md'
     required = @(
-      '~/.codex/plugins/anarchy-ai-herringms'
+      '~/.codex/plugins/anarchy-ai'
     )
     forbidden = @(
-      '~/.codex/plugins/anarchy-ai`)'
+      '~/.codex/plugins/anarchy-ai-herringms'
     )
   },
   @{
     path = 'docs/ANARCHY_AI_ENVIRONMENT_TRUTH_MATRIX.md'
     required = @(
-      '~/.codex/plugins/anarchy-ai-herringms',
-      'source.path = "./.codex/plugins/anarchy-ai-herringms"'
+      '~/.codex/plugins/anarchy-ai',
+      'source.path = "./.codex/plugins/anarchy-ai"'
     )
     forbidden = @(
-      '### 2. Codex user-profile plugin root for this install is `~/.codex/plugins/anarchy-ai`',
-      '   - `~/.codex/plugins/anarchy-ai`'
+      'source.path = "./.codex/plugins/anarchy-ai-herringms"'
     )
   },
   @{
     path = 'harness/server/README.md'
     required = @(
-      '`anarchy-ai-herringms`',
+      '`anarchy-ai`',
       'installed plugin root'
     )
     forbidden = @(
-      '  - `anarchy-ai`',
+      'anarchy-ai-herringms',
       '`.../AI-Links/plugins/anarchy-ai`'
     )
   },
@@ -140,10 +138,12 @@ $activeDocRules = @(
   @{
     path = 'plugins/anarchy-ai/README.md'
     required = @(
-      '~\.codex\plugins\anarchy-ai-herringms',
-      'mcp_servers.anarchy-ai-herringms'
+      '~\.codex\plugins\anarchy-ai',
+      'mcp_servers.anarchy-ai'
     )
     forbidden = @(
+      '~\.codex\plugins\anarchy-ai-herringms',
+      'source.path` of `./.codex/plugins/anarchy-ai-herringms`',
       '~\plugins\anarchy-ai',
       '{{REPO_LOCAL_PLUGIN_ROOT}}',
       '{{USER_PROFILE_PLUGIN_ROOT}}'

@@ -102,3 +102,45 @@ Documentation completeness closure rule:
   - a completion claim can outrun repo truth if it is not backed by a repo-wide audit over active docs and non-generated executable surfaces
 - Investigation target:
   - keep the documentation-truth audit in the build and test loop and treat its passing state as part of any future completeness claim
+
+## 2026-04-15
+
+### AA-DOCBUG-006: Human cleanup missed legacy installed bundles and used an unsafe config rewrite path
+
+- Status: patched local
+- Discovery type: proven fact
+- Surface:
+  - `plugins/anarchy-ai/scripts/remove-anarchy-ai.ps1`
+  - `plugins/anarchy-ai/scripts/remove-anarchy-ai-human.ps1`
+- What documentation exposed:
+  - the human click-once cleanup touched shared `~/.codex/config.toml` through a regex rewrite path that could strip unrelated sections after the owned MCP block
+  - the same cleanup missed legacy installed home-local bundles such as `~/.codex/plugins/anarchy-ai-herringms`, so plugin removal looked successful while the live bundle remained in place
+  - Anarchy-only marketplace files were rewritten to empty branded marketplace shells, which left visible marketplace sections behind instead of retiring the marketplace cleanly
+- Why it matters:
+  - a human-facing cleanup path must prefer bounded, legible removal over broad shared-config mutation
+  - missed legacy bundles and empty marketplace shells make cleanup appear broken and undermine trust in the installer/removal story
+  - rewriting shared config unsafely can affect unrelated trust or host settings
+- Investigation target:
+  - keep shared Codex config untouched by default
+  - detect current and legacy owned plugin roots before retirement
+  - retire Anarchy-only marketplace files after backup instead of leaving empty marketplace shells behind
+
+### AA-DOCBUG-007: Generated plugin-facing JSON was valid text on disk but still invalid for Codex because it carried a UTF-8 BOM
+
+- Status: patched local
+- Discovery type: proven fact
+- Surface:
+  - `harness/setup/scripts/build-self-contained-exe.ps1`
+  - `plugins/anarchy-ai/scripts/bootstrap-anarchy-ai.ps1`
+  - `plugins/anarchy-ai/.codex-plugin/plugin.json`
+  - `plugins/anarchy-ai/.mcp.json`
+  - `plugins/anarchy-ai/schemas/schema-bundle.manifest.json`
+- What documentation exposed:
+  - the repo treated manifest generation as complete because the files existed and parsed locally, but the generated plugin-facing JSON still carried a UTF-8 byte-order mark from PowerShell's default UTF-8 writer behavior
+  - Codex plugin detail loading appears stricter than the repo's local JSON readers and can reject those files as missing or invalid even when the path is correct
+- Why it matters:
+  - "file exists" was not enough proof of a healthy Codex plugin payload
+  - without a no-BOM rule, the repo could repeatedly ship manifests that look healthy in local checks but fail in the real host UI
+- Investigation target:
+  - keep the no-BOM output path in the build and bootstrap writers
+  - keep the UTF-8-without-BOM regression test in the setup test suite

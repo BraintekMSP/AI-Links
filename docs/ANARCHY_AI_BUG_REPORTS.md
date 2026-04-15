@@ -331,6 +331,28 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
   - After Codex restart or install-state refresh, plugin cards no longer show stale path-derived marketplace identifiers.
   - If Codex is sourcing card titles from a separate cached catalog/install state, the truth matrix documents that surface explicitly instead of attributing it to current repo-authored manifests.
 
+### AA-BUG-016: Codex plugin detail page can fail on BOM-prefixed generated manifests
+
+- Severity: High
+- Status: Patched locally, fresh-session plugin resolution proven, full Codex install-state proof still pending
+- Component: Build / Setup payload / Plugin manifest generation
+- Repro:
+  - Install the generated home-local plugin bundle.
+  - Open the Anarchy-AI plugin card in the Codex Plugins UI.
+- Expected:
+  - Codex loads the plugin detail page and can proceed to install/enable the plugin.
+- Actual:
+  - Codex reports `Failed to load plugin` with `missing or invalid .codex-plugin/plugin.json` even though the file exists on disk.
+- Evidence:
+  - The live generated `plugins/anarchy-ai/.codex-plugin/plugin.json`, `plugins/anarchy-ai/.mcp.json`, and `plugins/anarchy-ai/schemas/schema-bundle.manifest.json` were emitted with a UTF-8 byte-order mark (`EF BB BF`) while the working OpenAI plugin manifests under `~/.codex/.tmp/plugins/` were plain UTF-8 without BOM.
+  - The plugin card itself can still appear because Codex can read the marketplace entry without successfully parsing the plugin-local manifest.
+  - After updating the build and bootstrap writers to emit UTF-8 without BOM, the repo-source and home-local plugin manifests were regenerated and confirmed to start directly with `{` instead of the BOM prefix.
+  - After reinstall and restart, the fresh-session mention `plugin://anarchy-ai@anarchy-ai-user-profile` resolved successfully, which did not happen while the invalid-manifest failure was active.
+- Acceptance:
+  - Repo-source `plugin.json`, `.mcp.json`, and `schema-bundle.manifest.json` are emitted as UTF-8 without BOM.
+  - The rebuilt setup EXE carries those normalized files into the home-local install.
+  - Codex can open the Anarchy-AI plugin detail page without the `missing or invalid .codex-plugin/plugin.json` error.
+
 ## Notes
 
 - These bug reports are about deployment and harness ergonomics, not about constraining repo expression in `AGENTS.md` or companion docs.

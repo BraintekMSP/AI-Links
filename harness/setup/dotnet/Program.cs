@@ -2372,11 +2372,20 @@ internal sealed class SetupEngine
         return AnarchyPathCanon.IsSupportedMarketplacePluginSourceRelativePath(pluginPath);
     }
 
-    // Purpose: Builds the expected plugin directory name for the selected install lane.
-    // Expected input: Install scope and optional repo root used for repo-scoped naming.
-    // Expected output: The user-profile default name or a repo-scoped plugin name with a stable path hash.
-    // Critical dependencies: GeneratedAnarchyPathCanon templates, NormalizeMarketplaceSlug, and SHA256 hashing.
+    // Purpose: Builds the stable plugin identity written into plugin manifests, marketplace entries, and MCP names.
+    // Expected input: Install scope and optional repo root retained for signature consistency.
+    // Expected output: The public Anarchy-AI plugin name shared across install lanes.
+    // Critical dependencies: GeneratedAnarchyPathCanon default plugin name.
     internal static string BuildPluginName(InstallScope installScope, string? repoRoot)
+    {
+        return GeneratedAnarchyPathCanon.DefaultPluginName;
+    }
+
+    // Purpose: Builds the install-lane-specific plugin directory name used for filesystem materialization.
+    // Expected input: Install scope and optional repo root used for repo-local directory scoping.
+    // Expected output: The shared user-profile directory name or a repo-scoped local directory name with a stable path hash.
+    // Critical dependencies: GeneratedAnarchyPathCanon templates, NormalizeMarketplaceSlug, and SHA256 hashing.
+    internal static string BuildPluginDirectoryName(InstallScope installScope, string? repoRoot)
     {
         if (installScope == InstallScope.UserProfile)
         {
@@ -2385,27 +2394,27 @@ internal sealed class SetupEngine
 
         if (string.IsNullOrWhiteSpace(repoRoot))
         {
-            return GeneratedAnarchyPathCanon.RepoScopedPluginNameTemplate;
+            return GeneratedAnarchyPathCanon.RepoScopedPluginDirectoryNameTemplate;
         }
 
         var repoName = new DirectoryInfo(repoRoot).Name;
         var slug = NormalizeMarketplaceSlug(repoName);
         var repoPathHash = SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(repoRoot).ToLowerInvariant()));
         var suffix = Convert.ToHexString(repoPathHash.AsSpan(0, 4)).ToLowerInvariant();
-        return GeneratedAnarchyPathCanon.RepoScopedPluginNameTemplate
+        return GeneratedAnarchyPathCanon.RepoScopedPluginDirectoryNameTemplate
             .Replace("<repo-slug>", slug, StringComparison.Ordinal)
             .Replace("<stable-path-hash>", suffix, StringComparison.Ordinal);
     }
 
-    // Purpose: Builds the marketplace-relative source.path used to point at the selected plugin root.
+    // Purpose: Builds the marketplace-relative source.path used to point at the selected plugin directory.
     // Expected input: Install scope and optional repo root context.
     // Expected output: A marketplace-relative source.path for repo-local or user-profile registration.
-    // Critical dependencies: AnarchyPathCanon.BuildMarketplacePluginSourceRelativePath and BuildPluginName.
+    // Critical dependencies: AnarchyPathCanon.BuildMarketplacePluginSourceRelativePath and BuildPluginDirectoryName.
     internal static string BuildPluginRelativePath(InstallScope installScope, string? repoRoot)
     {
         return AnarchyPathCanon.BuildMarketplacePluginSourceRelativePath(
             installScope == InstallScope.UserProfile,
-            BuildPluginName(installScope, repoRoot));
+            BuildPluginDirectoryName(installScope, repoRoot));
     }
 
     // Purpose: Returns the plugin-local MCP server name expected in .mcp.json.
@@ -2480,12 +2489,12 @@ internal sealed class SetupEngine
     // Purpose: Resolves the absolute plugin root for the selected install lane.
     // Expected input: Install scope and repo root context.
     // Expected output: An absolute plugin root under the repo or user profile.
-    // Critical dependencies: AnarchyPathCanon and BuildPluginName.
+    // Critical dependencies: AnarchyPathCanon and BuildPluginDirectoryName.
     internal static string ResolvePluginRoot(InstallScope installScope, string repoRoot)
     {
         return installScope == InstallScope.UserProfile
-            ? AnarchyPathCanon.ResolveUserProfilePluginRoot(GetUserProfileDirectory(), BuildPluginName(installScope, repoRoot))
-            : AnarchyPathCanon.ResolveRepoLocalPluginRoot(repoRoot, BuildPluginName(installScope, repoRoot));
+            ? AnarchyPathCanon.ResolveUserProfilePluginRoot(GetUserProfileDirectory(), BuildPluginDirectoryName(installScope, repoRoot))
+            : AnarchyPathCanon.ResolveRepoLocalPluginRoot(repoRoot, BuildPluginDirectoryName(installScope, repoRoot));
     }
 
     // Purpose: Resolves the marketplace file path for the selected install lane.
@@ -2522,18 +2531,18 @@ internal sealed class SetupEngine
     // Purpose: Builds the human-facing plugin-folder label for the selected install lane.
     // Expected input: Install scope and optional repo root context.
     // Expected output: A repo-relative or home-relative plugin-folder label.
-    // Critical dependencies: BuildPluginName and AnarchyPathCanon label builders.
+    // Critical dependencies: BuildPluginDirectoryName and AnarchyPathCanon label builders.
     internal static string BuildPluginFolderLabel(InstallScope installScope, string? repoRoot)
     {
         return installScope == InstallScope.UserProfile
             ? AnarchyPathCanon.BuildHomeLabelPath(
                 AnarchyPathCanon.CombineCanonRelativePath(
                     AnarchyPathCanon.UserProfilePluginParentDirectoryRelativePath,
-                    BuildPluginName(installScope, repoRoot)))
+                    BuildPluginDirectoryName(installScope, repoRoot)))
             : AnarchyPathCanon.BuildRepoLabelPath(
                 AnarchyPathCanon.CombineCanonRelativePath(
                     AnarchyPathCanon.RepoLocalPluginParentDirectoryRelativePath,
-                    BuildPluginName(installScope, repoRoot)));
+                    BuildPluginDirectoryName(installScope, repoRoot)));
     }
 
     // Purpose: Builds the human-facing marketplace-path label for the selected install lane.

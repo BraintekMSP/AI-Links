@@ -13,7 +13,7 @@ Skips copying the published EXE back into the repo-local plugins folder.
 .OUTPUTS
 JSON build status describing generated surfaces, publish outputs, and validation results.
 .NOTES
-Critical dependencies: the branding/path-canon generators, dotnet SDK availability, generated README/.mcp/manifest flows, and the path/documentation audit scripts.
+Critical dependencies: the branding/path-canon generators, dotnet SDK availability, generated README/.mcp/manifest flows, and the path/documentation/removal audit scripts.
 #>
 param(
   [ValidateSet('Release', 'Debug')]
@@ -61,6 +61,66 @@ if (-not (Test-Path $pathCanonPath)) {
 }
 
 $pathCanon = Import-PowerShellDataFile -Path $pathCanonPath
+
+<#
+.SYNOPSIS
+Writes text content as UTF-8 without a byte-order mark.
+.DESCRIPTION
+Uses the .NET UTF8Encoding overload with BOM disabled so Codex-facing JSON manifests remain consumable by strict parsers.
+.PARAMETER Path
+Absolute file path to write.
+.PARAMETER Content
+Text content to persist.
+.OUTPUTS
+No direct return value.
+.NOTES
+Critical dependencies: System.IO.File and System.Text.UTF8Encoding.
+#>
+function Set-Utf8NoBomContent {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path,
+    [Parameter(Mandatory = $true)]
+    [string]$Content
+  )
+
+  $directory = Split-Path -Parent $Path
+  if (-not [string]::IsNullOrWhiteSpace($directory) -and -not (Test-Path $directory)) {
+    New-Item -ItemType Directory -Path $directory -Force | Out-Null
+  }
+
+  $encoding = New-Object System.Text.UTF8Encoding($false)
+  [System.IO.File]::WriteAllText($Path, $Content, $encoding)
+}
+
+<#
+.SYNOPSIS
+Detects whether a text file starts with the UTF-8 byte-order mark.
+.DESCRIPTION
+Reads the first three bytes only so build-time normalization can distinguish BOM-only drift from content drift.
+.PARAMETER Path
+Absolute file path to inspect.
+.OUTPUTS
+System.Boolean. True when the file starts with EF BB BF.
+.NOTES
+Critical dependencies: readable file access and System.IO.File.
+#>
+function Test-HasUtf8Bom {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path
+  )
+
+  if (-not (Test-Path $Path)) {
+    return $false
+  }
+
+  $bytes = [System.IO.File]::ReadAllBytes($Path)
+  return $bytes.Length -ge 3 -and
+    $bytes[0] -eq 0xEF -and
+    $bytes[1] -eq 0xBB -and
+    $bytes[2] -eq 0xBF
+}
 
 <#
 .SYNOPSIS
@@ -331,8 +391,8 @@ function Sync-SchemaBundleManifest {
     ''
   }
 
-  if (-not [string]::Equals($newJson, $existingJson, [System.StringComparison]::Ordinal)) {
-    Set-Content -Path $manifestPath -Value $newJson -Encoding UTF8
+  if ((-not [string]::Equals($newJson, $existingJson, [System.StringComparison]::Ordinal)) -or (Test-HasUtf8Bom -Path $manifestPath)) {
+    Set-Utf8NoBomContent -Path $manifestPath -Content $newJson
     return $true
   }
 
@@ -366,7 +426,7 @@ function Update-GeneratedPluginReadme {
   }
 
   $template = Get-Content $templatePath -Raw
-  $repoLocalPluginRootLabel = '.\' + (($pathCanon.relative_paths.repo_local_plugin_parent_directory_relative_path + '/' + $pathCanon.names.repo_scoped_plugin_name_template).Replace('/', '\'))
+  $repoLocalPluginRootLabel = '.\' + (($pathCanon.relative_paths.repo_local_plugin_parent_directory_relative_path + '/' + $pathCanon.names.repo_scoped_plugin_directory_name_template).Replace('/', '\'))
   $userProfilePluginRootLabel = '~\' + (($pathCanon.relative_paths.user_profile_plugin_parent_directory_relative_path + '/' + $pathCanon.names.default_plugin_name).Replace('/', '\'))
   $userProfileMarketplacePathLabel = '~\' + ($pathCanon.relative_paths.user_profile_marketplace_file_relative_path.Replace('/', '\'))
   $setupExeRelativePath = (Get-PortableRelativePath `
@@ -397,8 +457,8 @@ function Update-GeneratedPluginReadme {
   }
 
   $existing = if (Test-Path $readmePath) { Get-Content $readmePath -Raw } else { '' }
-  if (-not [string]::Equals($existing, $rendered, [System.StringComparison]::Ordinal)) {
-    Set-Content -Path $readmePath -Value $rendered -Encoding UTF8
+  if ((-not [string]::Equals($existing, $rendered, [System.StringComparison]::Ordinal)) -or (Test-HasUtf8Bom -Path $readmePath)) {
+    Set-Utf8NoBomContent -Path $readmePath -Content $rendered
     return $true
   }
 
@@ -435,8 +495,8 @@ function Update-GeneratedPluginMcpDeclaration {
   } | ConvertTo-Json -Depth 10
 
   $existing = if (Test-Path $mcpPath) { Get-Content $mcpPath -Raw } else { '' }
-  if (-not [string]::Equals($existing.Trim(), $expectedMcp.Trim(), [System.StringComparison]::Ordinal)) {
-    Set-Content -Path $mcpPath -Value $expectedMcp -Encoding UTF8
+  if ((-not [string]::Equals($existing.Trim(), $expectedMcp.Trim(), [System.StringComparison]::Ordinal)) -or (Test-HasUtf8Bom -Path $mcpPath)) {
+    Set-Utf8NoBomContent -Path $mcpPath -Content $expectedMcp
     return $true
   }
 
@@ -506,8 +566,8 @@ function Update-GeneratedPluginManifest {
   } | ConvertTo-Json -Depth 10
 
   $existing = if (Test-Path $manifestPath) { Get-Content $manifestPath -Raw } else { '' }
-  if (-not [string]::Equals($existing.Trim(), $manifestObject.Trim(), [System.StringComparison]::Ordinal)) {
-    Set-Content -Path $manifestPath -Value $manifestObject -Encoding UTF8
+  if ((-not [string]::Equals($existing.Trim(), $manifestObject.Trim(), [System.StringComparison]::Ordinal)) -or (Test-HasUtf8Bom -Path $manifestPath)) {
+    Set-Utf8NoBomContent -Path $manifestPath -Content $manifestObject
     return $true
   }
 
@@ -562,6 +622,7 @@ $pluginsRoot = Join-Path $repoRoot 'plugins'
 $targetExePath = Join-Path $pluginsRoot 'AnarchyAi.Setup.exe'
 $pathAuditScriptPath = Join-Path $repoRoot 'harness\pathing\scripts\test-path-canon-compliance.ps1'
 $documentationAuditScriptPath = Join-Path $repoRoot 'docs\scripts\test-documentation-truth-compliance.ps1'
+$removalSafetyAuditScriptPath = Join-Path $repoRoot 'docs\scripts\test-removal-safety-compliance.ps1'
 
 $tempRoot = Join-Path $env:LOCALAPPDATA 'Temp\ai-links-setup-build'
 $objRoot = Join-Path $tempRoot 'obj'
@@ -606,6 +667,7 @@ $pluginMcpDeclarationGenerated = $false
 $pluginManifestGenerated = $false
 $pathAuditValidated = $false
 $documentationTruthAuditValidated = $false
+$removalSafetyAuditValidated = $false
 $publishedHelpContractValidated = $false
 $targetHelpContractValidated = $false
 
@@ -640,6 +702,14 @@ try {
     throw "Documentation truth audit script failed with exit code $LASTEXITCODE"
   }
   $documentationTruthAuditValidated = $true
+  if (-not (Test-Path $removalSafetyAuditScriptPath)) {
+    throw "Removal safety audit script not found: $removalSafetyAuditScriptPath"
+  }
+  & powershell -ExecutionPolicy Bypass -File $removalSafetyAuditScriptPath -RepoRoot $repoRoot
+  if ($LASTEXITCODE -ne 0) {
+    throw "Removal safety audit script failed with exit code $LASTEXITCODE"
+  }
+  $removalSafetyAuditValidated = $true
 
   if (Test-Path $publishRoot) {
     Remove-Item $publishRoot -Recurse -Force
@@ -691,6 +761,7 @@ try {
         schema_manifest_synced = $schemaManifestSynced
         path_audit_validated = $pathAuditValidated
         documentation_truth_audit_validated = $documentationTruthAuditValidated
+        removal_safety_audit_validated = $removalSafetyAuditValidated
         published_help_contract_validated = $publishedHelpContractValidated
         target_help_contract_validated = $targetHelpContractValidated
         copy_to_plugins_requested = $true
@@ -732,6 +803,7 @@ try {
     schema_manifest_synced = $schemaManifestSynced
     path_audit_validated = $pathAuditValidated
     documentation_truth_audit_validated = $documentationTruthAuditValidated
+    removal_safety_audit_validated = $removalSafetyAuditValidated
     published_help_contract_validated = $publishedHelpContractValidated
     target_help_contract_validated = if ($SkipCopyToPlugins) { $false } else { $targetHelpContractValidated }
     copy_to_plugins_requested = (-not $SkipCopyToPlugins)
@@ -757,6 +829,7 @@ catch {
     schema_manifest_synced = $schemaManifestSynced
     path_audit_validated = $pathAuditValidated
     documentation_truth_audit_validated = $documentationTruthAuditValidated
+    removal_safety_audit_validated = $removalSafetyAuditValidated
     published_help_contract_validated = $publishedHelpContractValidated
     target_help_contract_validated = $targetHelpContractValidated
     copy_to_plugins_requested = (-not $SkipCopyToPlugins)

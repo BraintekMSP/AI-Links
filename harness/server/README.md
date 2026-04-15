@@ -1,4 +1,4 @@
-# Anarchy-AI MCP Server
+﻿# Anarchy-AI MCP Server
 
 ## Purpose
 
@@ -24,7 +24,7 @@ The server remains separate so the harness keeps a clean boundary between:
 For the packaged local delivery surface, the expected MCP shape is:
 
 - Name:
-  - `anarchy-ai-herringms`
+  - `anarchy-ai`
 - Command to launch:
   - `.\runtime\win-x64\AnarchyAi.Mcp.Server.exe`
 - Arguments:
@@ -78,3 +78,4 @@ Experimental test-lane tool:
 
 The five core tools remain the default runtime contract surface.
 `direction_assist_test` is explicitly test-lane and should only be promoted into prime orchestration by reusing the same runner module.
+

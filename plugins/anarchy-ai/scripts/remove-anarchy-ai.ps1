@@ -11,13 +11,15 @@ Selects whether the script only assesses state, quarantines active Anarchy-AI su
 .PARAMETER RepoRoot
 Optional repo root whose repo-local registration and installed bundle surfaces should be inspected.
 .PARAMETER UserProfileRoot
-Optional user-profile root used to inspect home-local and device-app surfaces; defaults to the current Windows profile.
+Optional user-profile root used to inspect home-local and device-app surfaces; defaults to the current shell/user home directory.
 .PARAMETER Targets
-Optional scope list containing repo_local, user_profile, and/or device_app. When omitted, the script inspects every reachable scope.
+Optional scope list containing repo_local, user_profile, and/or device_app. When omitted, the script uses the recommended current-context default: repo_local when a repo context is detected, otherwise user_profile and device_app for a home-local context.
 .PARAMETER QuarantineRoot
 Optional absolute quarantine root. Defaults to a temp-directory lane outside synced workspace paths.
 .PARAMETER ForceRuntimeLockRelease
 Requests the force-release runtime helper instead of the safe-release helper before destructive retirement work.
+.PARAMETER IncludeLegacyCustomMcpConfig
+Opt-in switch for rewriting legacy Anarchy-AI custom MCP fallback blocks in the shared Codex config file. The safer default is to leave shared Codex config untouched during normal cleanup.
 .PARAMETER AllowMixedMarketplaceRewrite
 Retained for backward CLI compatibility. Shared marketplace files are now always backed up and rewritten in place to remove only Anarchy-AI entries, so this switch no longer changes behavior.
 .OUTPUTS
@@ -34,6 +36,7 @@ param(
   [string[]]$Targets = @(),
   [string]$QuarantineRoot = '',
   [switch]$ForceRuntimeLockRelease,
+  [switch]$IncludeLegacyCustomMcpConfig,
   [switch]$AllowMixedMarketplaceRewrite
 )
 
@@ -148,6 +151,47 @@ function Test-IsOwnedPluginName {
     -Value $PluginName `
     -Exact @($pathCanon.arrays.owned_plugin_name_exact) `
     -Prefixes @($pathCanon.arrays.owned_plugin_name_prefixes)
+}
+
+<#
+.SYNOPSIS
+Checks whether a plugin-root directory belongs to the current or legacy owned Anarchy-AI identities.
+.DESCRIPTION
+Accepts either a matching directory name or a matching bundled plugin manifest name so older repo-scoped bundle names remain discoverable without broad prefix matching.
+.PARAMETER PluginRootPath
+Absolute plugin-root directory path to classify.
+.OUTPUTS
+System.Boolean. True when the directory clearly belongs to this repo's Anarchy-AI delivery.
+.NOTES
+Critical dependencies: Test-IsOwnedPluginName, the bundled plugin manifest location, and JSON manifest readability.
+#>
+function Test-IsOwnedPluginRootDirectory {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$PluginRootPath
+  )
+
+  if ([string]::IsNullOrWhiteSpace($PluginRootPath) -or -not (Test-Path $PluginRootPath)) {
+    return $false
+  }
+
+  $rootName = Split-Path -Leaf ([System.IO.Path]::GetFullPath($PluginRootPath))
+  if (Test-IsOwnedPluginName -PluginName $rootName) {
+    return $true
+  }
+
+  $manifestPath = Join-Path $PluginRootPath $pathCanon.relative_paths.bundle_plugin_manifest_file_relative_path.Replace('/', '\')
+  if (-not (Test-Path $manifestPath)) {
+    return $false
+  }
+
+  try {
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    return Test-IsOwnedPluginName -PluginName ([string]$manifest.name)
+  }
+  catch {
+    return $false
+  }
 }
 
 <#
@@ -447,6 +491,33 @@ function Get-NormalizedMarketplaceSlug {
 
 <#
 .SYNOPSIS
+Attempts to infer the current user/home root from common shell and Windows profile sources.
+.DESCRIPTION
+Checks HOME, USERPROFILE, and the Windows special-folder profile path in that order and returns the first existing absolute path.
+.OUTPUTS
+System.String. Absolute user-profile root when detectable; otherwise an empty string.
+.NOTES
+Critical dependencies: environment variables, the Windows special-folder profile path, and exact full-path normalization.
+#>
+function Get-AutoUserProfileRoot {
+  $candidateRoots = @(
+    $HOME,
+    $env:USERPROFILE,
+    [Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)
+  ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+
+  foreach ($candidateRoot in $candidateRoots) {
+    $resolvedCandidate = [System.IO.Path]::GetFullPath([string]$candidateRoot)
+    if (Test-Path $resolvedCandidate) {
+      return $resolvedCandidate
+    }
+  }
+
+  return ''
+}
+
+<#
+.SYNOPSIS
 Attempts to infer a repo root from the current plugin-root location.
 .DESCRIPTION
 Returns the surrounding repo root only when the current plugin root sits beneath the canon repo-local plugin parent path.
@@ -490,7 +561,8 @@ function Get-AutoRepoRoot {
 .SYNOPSIS
 Normalizes the requested scope list into the reachable targets for this invocation.
 .DESCRIPTION
-Uses explicit target arguments when supplied and otherwise enables every reachable scope based on the supplied repo and user-profile roots.
+Uses explicit target arguments when supplied and otherwise selects the recommended current-context scope set:
+repo_local when a repo context is detected, otherwise user_profile and device_app when only a home-local context is detected.
 .PARAMETER RequestedTargets
 Optional explicit scope list from the caller.
 .PARAMETER ResolvedRepoRoot
@@ -526,17 +598,15 @@ function Resolve-TargetScopes {
     return @($normalizedTargets | Select-Object -Unique)
   }
 
-  $resolvedTargets = New-Object System.Collections.Generic.List[string]
   if (-not [string]::IsNullOrWhiteSpace($ResolvedRepoRoot)) {
-    $resolvedTargets.Add('repo_local')
+    return @('repo_local')
   }
 
   if (-not [string]::IsNullOrWhiteSpace($ResolvedUserProfileRoot)) {
-    $resolvedTargets.Add('user_profile')
-    $resolvedTargets.Add('device_app')
+    return @('user_profile', 'device_app')
   }
 
-  return @($resolvedTargets | Select-Object -Unique)
+  return @()
 }
 
 <#
@@ -779,7 +849,7 @@ function Find-OrphanedRepoLocalPluginRoots {
 
   $results = New-Object System.Collections.Generic.List[string]
   foreach ($directory in Get-ChildItem $pluginParent -Directory -ErrorAction SilentlyContinue) {
-    if (-not (Test-IsOwnedPluginName -PluginName $directory.Name)) {
+    if (-not (Test-IsOwnedPluginRootDirectory -PluginRootPath $directory.FullName)) {
       continue
     }
 
@@ -797,6 +867,49 @@ function Find-OrphanedRepoLocalPluginRoots {
     }
 
     $results.Add($directory.FullName)
+  }
+
+  return @($results | Select-Object -Unique)
+}
+
+<#
+.SYNOPSIS
+Finds owned plugin-root directories beneath one parent directory.
+.DESCRIPTION
+Scans the supplied parent for plugin bundles that belong to the current or legacy Anarchy-AI identities and excludes any explicitly preserved paths.
+.PARAMETER ParentPath
+Absolute parent directory to inspect.
+.PARAMETER ExcludedPaths
+Absolute plugin-root paths that must not be returned.
+.OUTPUTS
+System.String[]. Owned plugin-root directories beneath the parent.
+.NOTES
+Critical dependencies: Test-IsOwnedPluginRootDirectory and exact full-path normalization.
+#>
+function Find-OwnedPluginRootsUnderParent {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$ParentPath,
+    [string[]]$ExcludedPaths = @()
+  )
+
+  if ([string]::IsNullOrWhiteSpace($ParentPath) -or -not (Test-Path $ParentPath)) {
+    return @()
+  }
+
+  $normalizedExcludedPaths = @($ExcludedPaths | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { [System.IO.Path]::GetFullPath([string]$_) })
+  $results = New-Object System.Collections.Generic.List[string]
+  foreach ($directory in Get-ChildItem -LiteralPath $ParentPath -Directory -ErrorAction SilentlyContinue) {
+    if (-not (Test-IsOwnedPluginRootDirectory -PluginRootPath $directory.FullName)) {
+      continue
+    }
+
+    $normalizedDirectoryPath = [System.IO.Path]::GetFullPath($directory.FullName)
+    if (@($normalizedExcludedPaths | Where-Object { [string]::Equals($_, $normalizedDirectoryPath, [System.StringComparison]::OrdinalIgnoreCase) }).Count -gt 0) {
+      continue
+    }
+
+    $results.Add($normalizedDirectoryPath)
   }
 
   return @($results | Select-Object -Unique)
@@ -911,18 +1024,30 @@ function Add-UserProfileTargets {
     [string]$ResolvedUserProfileRoot
   )
 
+  $userProfilePluginParent = Resolve-CanonRelativePath -RootPath $ResolvedUserProfileRoot -RelativePath $pathCanon.relative_paths.user_profile_plugin_parent_directory_relative_path
   $userProfilePluginRoot = Resolve-CanonRelativePath -RootPath $ResolvedUserProfileRoot -RelativePath (Join-Path $pathCanon.relative_paths.user_profile_plugin_parent_directory_relative_path $pathCanon.names.default_plugin_name).Replace('\','/')
   $legacyPluginRoot = Resolve-CanonRelativePath -RootPath $ResolvedUserProfileRoot -RelativePath (Join-Path $pathCanon.relative_paths.legacy_user_profile_plugin_parent_directory_relative_path $pathCanon.names.default_plugin_name).Replace('\','/')
+  $legacyPluginParent = Resolve-CanonRelativePath -RootPath $ResolvedUserProfileRoot -RelativePath $pathCanon.relative_paths.legacy_user_profile_plugin_parent_directory_relative_path
   $userMarketplacePath = Resolve-CanonRelativePath -RootPath $ResolvedUserProfileRoot -RelativePath $pathCanon.relative_paths.user_profile_marketplace_file_relative_path
   $codexConfigPath = Resolve-CanonRelativePath -RootPath $ResolvedUserProfileRoot -RelativePath $pathCanon.relative_paths.user_profile_codex_config_file_relative_path
 
-  if (Test-Path $userProfilePluginRoot) {
-    $script:inventory.Add((New-InventoryTarget -Scope 'user_profile' -SurfaceKind 'plugin_root_directory' -Path $userProfilePluginRoot -PlannedAction 'quarantine_directory' -Details 'user_profile_plugin_root'))
+  $discoveredUserProfileRoots = New-Object System.Collections.Generic.List[string]
+  foreach ($ownedRoot in @(Find-OwnedPluginRootsUnderParent -ParentPath $userProfilePluginParent)) {
+    $discoveredUserProfileRoots.Add($ownedRoot)
+  }
+  foreach ($ownedRoot in @(Find-OwnedPluginRootsUnderParent -ParentPath $legacyPluginParent -ExcludedPaths @($userProfilePluginParent))) {
+    $discoveredUserProfileRoots.Add($ownedRoot)
   }
 
-  if (Test-Path $legacyPluginRoot) {
+  foreach ($ownedRoot in @($discoveredUserProfileRoots | Select-Object -Unique)) {
+    $isCurrentRoot = [string]::Equals($ownedRoot, $userProfilePluginRoot, [System.StringComparison]::OrdinalIgnoreCase)
+    if ($isCurrentRoot) {
+      $script:inventory.Add((New-InventoryTarget -Scope 'user_profile' -SurfaceKind 'plugin_root_directory' -Path $ownedRoot -PlannedAction 'quarantine_directory' -Details 'user_profile_plugin_root'))
+      continue
+    }
+
     $script:findings.Add('legacy_user_profile_plugin_root_present')
-    $script:inventory.Add((New-InventoryTarget -Scope 'user_profile' -SurfaceKind 'legacy_plugin_root_directory' -Path $legacyPluginRoot -PlannedAction 'quarantine_directory' -Details 'legacy_user_profile_plugin_root'))
+    $script:inventory.Add((New-InventoryTarget -Scope 'user_profile' -SurfaceKind 'legacy_plugin_root_directory' -Path $ownedRoot -PlannedAction 'quarantine_directory' -Details 'legacy_user_profile_plugin_root'))
   }
 
   $marketplaceInventory = Get-MarketplaceInventory -MarketplacePath $userMarketplacePath -MarketplaceSourceRoot $ResolvedUserProfileRoot
@@ -948,7 +1073,12 @@ function Add-UserProfileTargets {
   if (Test-Path $codexConfigPath) {
     $configContent = Get-Content $codexConfigPath -Raw
     if ($configContent -match $script:codexCustomMcpServerBlockPattern) {
-      $script:inventory.Add((New-InventoryTarget -Scope 'user_profile' -SurfaceKind 'codex_config_file' -Path $codexConfigPath -PlannedAction 'rewrite_file_after_backup' -Details 'remove_anarchy_custom_mcp_block'))
+      if ($IncludeLegacyCustomMcpConfig) {
+        $script:inventory.Add((New-InventoryTarget -Scope 'user_profile' -SurfaceKind 'codex_config_file' -Path $codexConfigPath -PlannedAction 'rewrite_file_after_backup' -Details 'remove_anarchy_custom_mcp_block'))
+      }
+      else {
+        $script:findings.Add('legacy_custom_mcp_block_present_not_targeted_by_default')
+      }
     }
   }
 }
@@ -987,9 +1117,38 @@ function Add-DeviceAppTargets {
 
 <#
 .SYNOPSIS
+Builds a short stable fingerprint for one path string.
+.DESCRIPTION
+Hashes the normalized path so quarantine paths stay short enough for Windows while remaining collision-resistant.
+.PARAMETER Value
+Path string to fingerprint.
+.OUTPUTS
+System.String. Lowercase short hash suffix.
+.NOTES
+Critical dependencies: SHA-256 hashing and UTF-8 string encoding.
+#>
+function Get-ShortPathFingerprint {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Value
+  )
+
+  $sha256 = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($Value)
+    $hashBytes = $sha256.ComputeHash($bytes)
+    return ([System.BitConverter]::ToString($hashBytes)).Replace('-', '').ToLowerInvariant().Substring(0, 12)
+  }
+  finally {
+    $sha256.Dispose()
+  }
+}
+
+<#
+.SYNOPSIS
 Builds a readable and collision-safe quarantine path for one discovered surface.
 .DESCRIPTION
-Preserves drive, scope, and original relative path segments so rollback remains legible.
+Preserves drive, scope, and a short readable leaf name plus path fingerprint so rollback remains legible without exceeding Windows path limits.
 .PARAMETER OriginalPath
 Original path that will be quarantined or backed up.
 .PARAMETER Scope
@@ -1022,13 +1181,19 @@ function Get-QuarantinePath {
     $driveLabel = 'root'
   }
 
-  $relativePath = $resolvedOriginalPath.Substring($pathRoot.Length).TrimStart('\')
   $quarantineBase = Join-Path $QuarantineRootPath (Join-Path $Scope (Join-Path $SurfaceKind $driveLabel))
-  if ([string]::IsNullOrWhiteSpace($relativePath)) {
-    return $quarantineBase
+  $leafName = Split-Path -Leaf $resolvedOriginalPath
+  if ([string]::IsNullOrWhiteSpace($leafName)) {
+    $leafName = 'root'
   }
 
-  return Join-Path $quarantineBase $relativePath
+  $safeLeafName = [regex]::Replace($leafName, '[^A-Za-z0-9._-]+', '-').Trim('-')
+  if ([string]::IsNullOrWhiteSpace($safeLeafName)) {
+    $safeLeafName = 'item'
+  }
+
+  $fingerprint = Get-ShortPathFingerprint -Value $resolvedOriginalPath
+  return Join-Path $quarantineBase ($safeLeafName + '-' + $fingerprint)
 }
 
 <#
@@ -1143,7 +1308,13 @@ function Move-PathToQuarantine {
 
     Assert-GuardedPath -OperationName 'Move-PathToQuarantine' -TargetPath $validatedOriginalPath -ExpectedRoot $ExpectedRoot -RequireExisting | Out-Null
     Set-NormalAttributes -TargetPath $validatedOriginalPath
-    Move-Item -LiteralPath $validatedOriginalPath -Destination $validatedQuarantinePath -Force
+    $moveDestination = if ((Get-Item -LiteralPath $validatedOriginalPath -Force).PSIsContainer) {
+      $quarantineDirectory
+    }
+    else {
+      $validatedQuarantinePath
+    }
+    Move-Item -LiteralPath $validatedOriginalPath -Destination $moveDestination -Force
   }
   catch {
     throw "Move-PathToQuarantine failed for '$validatedOriginalPath': $($_.Exception.Message)"
@@ -1298,7 +1469,8 @@ for (`$attempt = 0; `$attempt -lt 20; `$attempt++) {
     }
 
     Set-NormalAttributes -PathToNormalize `$resolvedTarget
-    Move-Item -LiteralPath `$resolvedTarget -Destination `$resolvedDestination -Force
+    `$moveDestination = if ((Get-Item -LiteralPath `$resolvedTarget -Force).PSIsContainer) { `$destinationDirectory } else { `$resolvedDestination }
+    Move-Item -LiteralPath `$resolvedTarget -Destination `$moveDestination -Force
     if (`$purgeAfterMoveFlag -and (Test-Path `$resolvedDestination)) {
       Assert-GuardedPath -OperationName 'DeferredSelfRetirementRemove' -PathToValidate `$resolvedDestination -ExpectedRootPath `$ExpectedDestinationRoot -RequireExisting `$true | Out-Null
       Set-NormalAttributes -PathToNormalize `$resolvedDestination
@@ -1515,22 +1687,38 @@ function Rewrite-MarketplaceWithoutAnarchy {
   }
 
   $marketplaceInventory.marketplace_object.plugins = @($retainedPlugins)
-  try {
-    Assert-GuardedPath -OperationName 'Rewrite-MarketplaceWithoutAnarchy' -TargetPath $validatedMarketplacePath -ExpectedRoot $marketplaceOwnerRoot -RequireExisting | Out-Null
-    $marketplaceInventory.marketplace_object | ConvertTo-Json -Depth 10 | Set-Content $validatedMarketplacePath
+  if ($retainedPlugins.Count -eq 0) {
+    try {
+      Assert-GuardedPath -OperationName 'Rewrite-MarketplaceWithoutAnarchy' -TargetPath $validatedMarketplacePath -ExpectedRoot $marketplaceOwnerRoot -RequireExisting | Out-Null
+      Remove-Item -LiteralPath $validatedMarketplacePath -Force
+    }
+    catch {
+      throw "Rewrite-MarketplaceWithoutAnarchy failed while removing '$validatedMarketplacePath': $($_.Exception.Message)"
+    }
   }
-  catch {
-    throw "Rewrite-MarketplaceWithoutAnarchy failed for '$validatedMarketplacePath': $($_.Exception.Message)"
+  else {
+    try {
+      Assert-GuardedPath -OperationName 'Rewrite-MarketplaceWithoutAnarchy' -TargetPath $validatedMarketplacePath -ExpectedRoot $marketplaceOwnerRoot -RequireExisting | Out-Null
+      $marketplaceInventory.marketplace_object | ConvertTo-Json -Depth 10 | Set-Content $validatedMarketplacePath
+    }
+    catch {
+      throw "Rewrite-MarketplaceWithoutAnarchy failed for '$validatedMarketplacePath': $($_.Exception.Message)"
+    }
   }
 
-  $script:actionsTaken.Add("rewrote_$($Scope)_marketplace_without_anarchy_entries")
   if ($retainedPlugins.Count -eq 0) {
-    $script:actionsTaken.Add("left_empty_$($Scope)_marketplace_after_anarchy_removal")
+    $script:actionsTaken.Add("removed_empty_$($Scope)_marketplace_after_anarchy_removal")
+  }
+  else {
+    $script:actionsTaken.Add("rewrote_$($Scope)_marketplace_without_anarchy_entries")
+  }
+  if ($retainedPlugins.Count -eq 0) {
+    $script:actionsTaken.Add("retired_$($Scope)_marketplace_after_backup")
   }
 
   return [pscustomobject]@{
     status = 'updated'
-    reason = $(if ($retainedPlugins.Count -eq 0) { 'rewrote_marketplace_to_empty_after_backup' } else { 'rewrote_marketplace_after_backup' })
+    reason = $(if ($retainedPlugins.Count -eq 0) { 'removed_marketplace_after_backup' } else { 'rewrote_marketplace_after_backup' })
     quarantine_path = $backupPath
   }
 }
@@ -1577,7 +1765,30 @@ function Rewrite-CodexConfigWithoutAnarchyBlock {
 
   $backupPath = Backup-FileToQuarantine -OriginalPath $validatedConfigPath -Scope 'user_profile' -SurfaceKind 'codex_config_file' -QuarantineRootPath $QuarantineRootPath
   $newline = if ($content.Contains("`r`n")) { "`r`n" } else { "`n" }
-  $updatedContent = [regex]::Replace($content, $script:codexCustomMcpServerBlockPattern, '')
+  $lines = [System.Collections.Generic.List[string]]::new()
+  foreach ($line in @([regex]::Split($content, '\r?\n'))) {
+    $lines.Add([string]$line)
+  }
+  $retainedLines = New-Object System.Collections.Generic.List[string]
+  $insideOwnedBlock = $false
+
+  foreach ($line in $lines) {
+    if ($line -match '^\[(.+?)\]\s*$') {
+      $sectionName = [string]$Matches[1]
+      if ($sectionName -match '^mcp_servers\.(.+)$' -and (Test-IsOwnedMcpServerName -ServerName ([string]$Matches[1]))) {
+        $insideOwnedBlock = $true
+        continue
+      }
+
+      $insideOwnedBlock = $false
+    }
+
+    if (-not $insideOwnedBlock) {
+      $retainedLines.Add($line)
+    }
+  }
+
+  $updatedContent = [string]::Join($newline, @($retainedLines))
   $updatedContent = [regex]::Replace($updatedContent, "(\r?\n){3,}", $newline + $newline)
   $updatedContent = $updatedContent.TrimEnd("`r", "`n")
   if (-not [string]::IsNullOrWhiteSpace($updatedContent)) {
@@ -1701,24 +1912,44 @@ function Invoke-InventoryTargetAction {
   }
 }
 
+$defaultsApplied = New-Object System.Collections.Generic.List[string]
+
 if ([string]::IsNullOrWhiteSpace($UserProfileRoot)) {
-  $UserProfileRoot = [Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)
+  $UserProfileRoot = Get-AutoUserProfileRoot
+  if (-not [string]::IsNullOrWhiteSpace($UserProfileRoot)) {
+    $defaultsApplied.Add('user_profile_root:auto_current_home_directory')
+  }
 }
-else {
+elseif (-not [string]::IsNullOrWhiteSpace($UserProfileRoot)) {
   $UserProfileRoot = [System.IO.Path]::GetFullPath($UserProfileRoot)
 }
 
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
   $RepoRoot = Get-AutoRepoRoot -ResolvedUserProfileRoot $UserProfileRoot
+  if (-not [string]::IsNullOrWhiteSpace($RepoRoot)) {
+    $defaultsApplied.Add('repo_root:auto_detected_current_repo_context')
+  }
 }
 else {
   $RepoRoot = [System.IO.Path]::GetFullPath($RepoRoot)
 }
 
 $resolvedTargets = Resolve-TargetScopes -RequestedTargets @($Targets) -ResolvedRepoRoot $RepoRoot -ResolvedUserProfileRoot $UserProfileRoot
+if ($Targets.Count -eq 0) {
+  if ($resolvedTargets.Count -eq 1 -and $resolvedTargets[0] -eq 'repo_local') {
+    $defaultsApplied.Add('targets:recommended_repo_local')
+  }
+  elseif ($resolvedTargets.Count -eq 2 -and $resolvedTargets -contains 'user_profile' -and $resolvedTargets -contains 'device_app') {
+    $defaultsApplied.Add('targets:recommended_user_profile_and_device_app')
+  }
+  elseif ($resolvedTargets.Count -eq 0) {
+    $defaultsApplied.Add('targets:none_reachable')
+  }
+}
 
 if ([string]::IsNullOrWhiteSpace($QuarantineRoot)) {
   $QuarantineRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("anarchy-ai-retired-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N'))
+  $defaultsApplied.Add('quarantine_root:auto_temp_directory')
 }
 else {
   $QuarantineRoot = [System.IO.Path]::GetFullPath($QuarantineRoot)
@@ -1778,6 +2009,7 @@ $destinationPaths = New-PathRoleReport `
 
 $result = New-Object PSObject
 $result | Add-Member -NotePropertyName mode -NotePropertyValue $Mode
+$result | Add-Member -NotePropertyName defaults_applied -NotePropertyValue ([object[]]@($defaultsApplied))
 $result | Add-Member -NotePropertyName targets_requested -NotePropertyValue ([object[]]@($resolvedTargets))
 $result | Add-Member -NotePropertyName quarantine_root -NotePropertyValue $QuarantineRoot
 $result | Add-Member -NotePropertyName inventory -NotePropertyValue ([object[]]@($inventorySnapshot))

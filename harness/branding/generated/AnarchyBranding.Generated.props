@@ -9,7 +9,7 @@
     <AnarchyBrandingAuthorUrl>https://github.com/BraintekMSP/AI-Links</AnarchyBrandingAuthorUrl>
     <AnarchyBrandingHomepageUrl>https://github.com/BraintekMSP/AI-Links</AnarchyBrandingHomepageUrl>
     <AnarchyBrandingRepositoryUrl>https://github.com/BraintekMSP/AI-Links</AnarchyBrandingRepositoryUrl>
-    <AnarchyBrandingDeveloperName>herringms</AnarchyBrandingDeveloperName>
+    <AnarchyBrandingDeveloperName>Matt Herring</AnarchyBrandingDeveloperName>
     <AnarchyBrandingPrivacyPolicyUrl>https://github.com/BraintekMSP/AI-Links/blob/main/plugins/anarchy-ai/PRIVACY.md</AnarchyBrandingPrivacyPolicyUrl>
     <AnarchyBrandingTermsOfServiceUrl>https://github.com/BraintekMSP/AI-Links/blob/main/LICENSE</AnarchyBrandingTermsOfServiceUrl>
     <AnarchyBrandingDefaultUpdateSourceZipUrl>https://github.com/BraintekMSP/AI-Links/archive/refs/heads/main.zip</AnarchyBrandingDefaultUpdateSourceZipUrl>
@@ -25,7 +25,7 @@
     <AnarchyBrandingBundleBrandingPsd1FileRelativePath>branding/anarchy-branding.generated.psd1</AnarchyBrandingBundleBrandingPsd1FileRelativePath>
     <AnarchyBrandingBundleSetupHeaderImageRelativePath>assets/anarchy-ai.png</AnarchyBrandingBundleSetupHeaderImageRelativePath>
     <AnarchyBrandingBundleSetupIconRelativePath>assets/anarchy-ai.ico</AnarchyBrandingBundleSetupIconRelativePath>
-    <AnarchyBrandingBundlePluginComposerIconRelativePath>assets/anarchy-ai.png</AnarchyBrandingBundlePluginComposerIconRelativePath>
-    <AnarchyBrandingBundlePluginLogoRelativePath>assets/anarchy_ai.svg</AnarchyBrandingBundlePluginLogoRelativePath>
+    <AnarchyBrandingBundlePluginComposerIconRelativePath>assets/anarchy-ai.svg</AnarchyBrandingBundlePluginComposerIconRelativePath>
+    <AnarchyBrandingBundlePluginLogoRelativePath>assets/anarchy-ai.svg</AnarchyBrandingBundlePluginLogoRelativePath>
   </PropertyGroup>
 </Project>

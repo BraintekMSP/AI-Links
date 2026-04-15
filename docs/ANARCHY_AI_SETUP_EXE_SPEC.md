@@ -1,4 +1,4 @@
-# Anarchy-AI Setup EXE Specification
+﻿# Anarchy-AI Setup EXE Specification
 
 ## Purpose
 
@@ -66,8 +66,8 @@ Marketplace identity rule:
 - each repo-local install uses its own repo-scoped marketplace root identity
 - setup generates a repo-scoped marketplace `name` while keeping the human-facing display name recognizable
 - this reduces collisions with Codex host-side install and uninstall state
-- setup keeps the installed plugin identity repo-scoped for repo-local installs, while keeping the plugin-local MCP server key stable as `anarchy-ai-herringms`
-- this preserves predictable tool syntax like `mcp__anarchy_ai_herringms__...` while avoiding plugin install and uninstall collisions at the plugin identity layer
+- setup keeps the repo-local install directory repo-scoped while keeping the visible plugin identity and MCP server key stable as `anarchy-ai`
+- this preserves predictable tool syntax like `mcp__anarchy_ai__...` while still keeping repo-local bundle materialization bounded to the selected workspace
 
 ### `AnarchyAi.Mcp.Server.exe`
 
@@ -96,10 +96,10 @@ The preferred v1 delivery model is:
 Current lanes:
 
 - `repo-local`
-  - plugin bundle under `./plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
+  - plugin bundle under `./plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>`
   - marketplace under `./.agents/plugins/marketplace.json`
 - `user-profile`
-  - plugin bundle under `~/.codex/plugins/anarchy-ai-herringms`
+  - plugin bundle under `~/.codex/plugins/anarchy-ai`
   - marketplace under `~/.agents/plugins/marketplace.json`
 
 The generated marketplace root should be repo-scoped for repo-local installs, not globally reused.
@@ -107,27 +107,27 @@ Keep the top-level marketplace `name` branded and readable because current Codex
 
 Current repo-local shape:
 
-- `name = anarchy-ai-herringms-local-<repo-slug>`
+- `name = anarchy-ai-local-<repo-slug>`
 - `interface.displayName = Anarchy-AI Local (<RepoName>)`
-- `plugins.<entry>.name = anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
-- `plugins.<entry>.source.path = ./plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
-- `.codex-plugin/plugin.json -> name = anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
-- `.mcp.json -> mcpServers -> anarchy-ai-herringms`
+- `plugins.<entry>.name = anarchy-ai`
+- `plugins.<entry>.source.path = ./plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>`
+- `.codex-plugin/plugin.json -> name = anarchy-ai`
+- `.mcp.json -> mcpServers -> anarchy-ai`
 
 Current user-profile shape:
 
-- `name = anarchy-ai-herringms-user-profile`
+- `name = anarchy-ai-user-profile`
 - `interface.displayName = Anarchy-AI User Profile`
-- `plugins.<entry>.name = anarchy-ai-herringms`
-- `plugins.<entry>.source.path = ./.codex/plugins/anarchy-ai-herringms`
-- `.codex-plugin/plugin.json -> name = anarchy-ai-herringms`
-- `.mcp.json -> mcpServers -> anarchy-ai-herringms`
+- `plugins.<entry>.name = anarchy-ai`
+- `plugins.<entry>.source.path = ./.codex/plugins/anarchy-ai`
+- `.codex-plugin/plugin.json -> name = anarchy-ai`
+- `.mcp.json -> mcpServers -> anarchy-ai`
 
 Codex home readiness is plugin-marketplace-first:
 
 - the normal home registration mode is the personal marketplace lane
-- a custom `[mcp_servers.anarchy-ai-herringms]` block in `~/.codex/config.toml` is optional fallback or debug evidence only
-- older legacy `[mcp_servers.anarchy-ai]` blocks are cleanup evidence only
+- a custom `[mcp_servers.anarchy-ai]` block in `~/.codex/config.toml` is optional fallback or debug evidence only
+- older legacy `[mcp_servers.anarchy-ai-herringms]` blocks are cleanup evidence only
 - readiness does not require that custom MCP block
 
 The preferred default targeting behavior is:
@@ -368,10 +368,10 @@ Current proven environment fact for the user-profile lane:
 
 - user-profile install is considered ready when:
   - `~/.agents/plugins/marketplace.json` contains the Anarchy-AI user-profile entry
-  - `plugins.<entry>.source.path = ./.codex/plugins/anarchy-ai-herringms`
-  - `~/.codex/plugins/anarchy-ai-herringms` contains the bundled plugin and runtime surfaces
+  - `plugins.<entry>.source.path = ./.codex/plugins/anarchy-ai`
+  - `~/.codex/plugins/anarchy-ai` contains the bundled plugin and runtime surfaces
   - setup result reports `registration_mode = plugin_marketplace`
-- a custom `[mcp_servers.anarchy-ai-herringms]` entry is optional fallback or debug evidence only and is not required for readiness
+- a custom `[mcp_servers.anarchy-ai]` entry is optional fallback or debug evidence only and is not required for readiness
 - older legacy `[mcp_servers.anarchy-ai]` entries are cleanup evidence only
 
 Current inferred behavior that still needs direct local proof:
@@ -413,3 +413,4 @@ Its current responsibilities are:
 - refresh the local generated `plugins/AnarchyAi.Setup.exe`
 
 That keeps setup regeneration machine-local and avoids synced-workspace build churn.
+

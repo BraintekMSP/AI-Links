@@ -97,11 +97,13 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 ## Anarchy-AI plugin delivery
 
 - `../plugins/AnarchyAi.Setup.exe` - preferred single-file installer/bootstrap executable for Anarchy-AI after it is generated locally by the build helper; supports repo-local and user-profile lanes and is not tracked in git
-- `../plugins/remove-anarchy-ai.ps1` - top-level convenience entrypoint for the bounded retirement helper so removal does not require digging into the bundled plugin path first
+- `../plugins/Remove Anarchy-AI.cmd` - top-level human-friendly Windows cleanup entrypoint that performs safe quarantine-first removal, keeps the console open, and leaves shared Codex config untouched by default
 - `../plugins/anarchy-ai/.codex-plugin/plugin.json` - repo-local plugin manifest for Anarchy-AI delivery
 - `../plugins/anarchy-ai/.mcp.json` - plugin MCP declaration that launches the bundled runtime directly
 - `../plugins/anarchy-ai/runtime/win-x64/AnarchyAi.Mcp.Server.exe` - bundled Windows-first self-contained MCP runtime used by the delivery plugin
 - `../plugins/anarchy-ai/scripts/bootstrap-anarchy-ai.ps1` - compatibility/fallback repo-bootstrap lane for registration, quick install assessment, and bundle refresh after the bundle exists
+- `../plugins/anarchy-ai/scripts/Remove Anarchy-AI.cmd` - bundled human-friendly Windows cleanup entrypoint for installed plugin bundles
+- `../plugins/anarchy-ai/scripts/remove-anarchy-ai.ps1` - canonical advanced/scriptable retirement helper for agents and power users
 - `../plugins/anarchy-ai/scripts/stop-anarchy-ai.ps1` - bounded runtime-lock assess, safe-release, and force-release command for the repo-local Anarchy-AI process
 - `../plugins/anarchy-ai/scripts/start-anarchy-ai.cmd` - development helper only, not the intended delivery path
 - `../plugins/anarchy-ai/skills/anarchy-ai-harness/SKILL.md` - usage layer for the five core harness tools, with explicit discovery for the experimental `direction_assist_test` module

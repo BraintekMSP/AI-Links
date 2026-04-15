@@ -1,11 +1,11 @@
-﻿{
+{
     "mcpServers":  {
-                       "anarchy-ai-herringms":  {
-                                                    "command":  ".\\runtime\\win-x64\\AnarchyAi.Mcp.Server.exe",
-                                                    "args":  [
+                       "anarchy-ai":  {
+                                          "command":  ".\\runtime\\win-x64\\AnarchyAi.Mcp.Server.exe",
+                                          "args":  [
 
-                                                             ],
-                                                    "cwd":  "."
-                                                }
+                                                   ],
+                                          "cwd":  "."
+                                      }
                    }
 }

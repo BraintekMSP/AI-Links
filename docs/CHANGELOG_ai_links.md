@@ -3,6 +3,29 @@
 
 ## 2026-04-15
 
+### Codex plugin manifest encoding repair
+
+- Found that the generated Anarchy-AI plugin-facing JSON surfaces were being emitted with a UTF-8 byte-order mark, which left Codex showing `missing or invalid .codex-plugin/plugin.json` even though the manifest existed on disk.
+- Updated the setup build helper and repo-local bootstrap writer to emit UTF-8 without BOM for the generated `plugin.json`, `.mcp.json`, and schema manifest surfaces that Codex consumes directly.
+- Added a setup test that fails if the generated plugin-facing JSON surfaces ever regain a BOM.
+- Rebuilt `plugins/AnarchyAi.Setup.exe` and refreshed the live home-local bundle under `~/.codex/plugins/anarchy-ai` with the normalized no-BOM payload.
+- Verified that a fresh-session `plugin://anarchy-ai@anarchy-ai-user-profile` mention now resolves again after reinstall, while keeping Codex cache/config-state materialization as a separate still-open proof boundary.
+
+### Public plugin identity and SVG logo realignment
+
+- Returned the surfaced Codex plugin identity to plain `anarchy-ai` and the personal marketplace root to `anarchy-ai-user-profile` after confirming Codex exposes those technical IDs directly in plugin install surfaces.
+- Split public plugin identity from repo-local install-directory naming so repo-local bundles stay safely scoped as `anarchy-ai-local-<repo-slug>-<stable-path-hash>` without leaking that suffix into the visible plugin card or install modal.
+- Changed the published plugin manifest to use the SVG logo for both `composerIcon` and `logo`, added `assets/anarchy-ai.svg`, and refreshed the live home-local install so Codex now reads the plain name plus SVG-backed asset paths from `~/.codex/plugins/anarchy-ai`.
+- Kept legacy exact identities such as `anarchy-ai-herringms`, `anarchy-ai-herringms-user-profile`, and `mcp_servers.anarchy-ai-herringms` in the ownership canon strictly for cleanup, detection, and migration of older installs.
+
+### Cleanup safety hardening after live removal incident
+
+- Patched `plugins/anarchy-ai/scripts/remove-anarchy-ai.ps1` so human and default helper flows no longer rewrite shared `~/.codex/config.toml` unless `-IncludeLegacyCustomMcpConfig` is explicitly requested.
+- Replaced the overly broad custom-MCP regex rewrite with a section-aware config rewrite path that preserves unrelated Codex settings such as trust and host configuration.
+- Expanded installed-bundle discovery so cleanup now detects legacy home-local bundles such as `~/.codex/plugins/anarchy-ai-herringms`, not only the current active root.
+- Changed marketplace retirement behavior so Anarchy-only marketplace files are backed up and then removed, instead of being rewritten into empty branded marketplace shells that still show up in Codex.
+- Updated the human cleanup output and active docs to say clearly that shared Codex config is left untouched by default.
+
 ### Sales-facing Anarchy-AI language refresh
 
 - Moved the plugin promise into the repo-authored branding canon so the product pitch, default prompt, and future rebrand copy stop living as hard-coded strings inside the build helper.
@@ -15,6 +38,21 @@
 
 - Added `plugins/remove-anarchy-ai.ps1` as a visible top-level wrapper over the bundled retirement helper so removal is discoverable from the repo `plugins/` lane instead of requiring navigation into `plugins/anarchy-ai/scripts/`.
 - Updated the runbook and install-process docs to point at the new top-level removal entrypoint while keeping the bundled script as the canonical implementation.
+- Changed retirement-helper defaults so no-argument current-context use is narrower and more useful:
+  - repo-local invocation now defaults to `repo_local`
+  - home-local invocation now defaults to `user_profile,device_app`
+  - home/root and quarantine lanes are auto-detected and reported in `defaults_applied`
+
+### Human-friendly Windows cleanup front door
+
+- Added `plugins/Remove Anarchy-AI.cmd` and `plugins/anarchy-ai/scripts/Remove Anarchy-AI.cmd` as click-once Windows cleanup entrypoints that keep the console open.
+- Added `plugins/anarchy-ai/scripts/remove-anarchy-ai-human.ps1` to translate the maintenance-oriented JSON helper into a plain-language, quarantine-first cleanup flow for humans.
+- The human lane now expands to every reachable repo-local, user-profile, and documented plugin-cache surface for the current user, while still preserving repo-authored source truth.
+
+### Removal entrypoint consolidation
+
+- Removed the extra top-level `plugins/remove-anarchy-ai.ps1` wrapper so the repo only keeps one canonical machine-facing removal script at `plugins/anarchy-ai/scripts/remove-anarchy-ai.ps1`.
+- Kept `plugins/Remove Anarchy-AI.cmd` as the only top-level human front door, which reduces drift risk and avoids future disagreement between parallel PowerShell entrypoints.
 
 ## 2026-04-14
 

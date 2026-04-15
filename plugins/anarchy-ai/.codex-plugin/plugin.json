@@ -1,5 +1,5 @@
-﻿{
-    "name":  "anarchy-ai-herringms",
+{
+    "name":  "anarchy-ai",
     "version":  "0.1.7",
     "description":  "Windows-first local Anarchy-AI harness that turns incomplete repo context into durable working context for complex changes.",
     "author":  {
@@ -24,7 +24,7 @@
                       "displayName":  "Anarchy-AI",
                       "shortDescription":  "Turn incomplete context into higher-value working context for complex changes",
                       "longDescription":  "Installs Anarchy-AI, the runtime harness for the AGENTS Heuristic Underlay. It helps transform incomplete repo context into valuable working context for complex changes, often with lower token consumption than rebuilding that context from scratch in chat. Anarchy-AI preflights complex changes, compiles active work, checks schema reality, and non-destructively migrates current AGENTS files into a directionally stronger structure informed by Google Research on repeated exposure and structured context.",
-                      "developerName":  "herringms",
+                      "developerName":  "Matt Herring",
                       "category":  "Coding",
                       "capabilities":  [
                                            "Interactive",
@@ -39,8 +39,8 @@
                                             "Use assess_harness_gap_state when install, runtime, schema, or adoption state is unclear, and use run_gov2gov_migration to plan non-destructive AGENTS migration when current files are partial or drifting."
                                         ],
                       "brandColor":  "#203630",
-                      "composerIcon":  "./assets/anarchy-ai.png",
-                      "logo":  "./assets/anarchy_ai.svg",
+                      "composerIcon":  "./assets/anarchy-ai.svg",
+                      "logo":  "./assets/anarchy-ai.svg",
                       "screenshots":  [
 
                                       ]

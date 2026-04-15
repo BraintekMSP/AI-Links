@@ -11,7 +11,7 @@
     author_url = 'https://github.com/BraintekMSP/AI-Links'
     homepage_url = 'https://github.com/BraintekMSP/AI-Links'
     repository_url = 'https://github.com/BraintekMSP/AI-Links'
-    developer_name = 'herringms'
+    developer_name = 'Matt Herring'
     privacy_policy_url = 'https://github.com/BraintekMSP/AI-Links/blob/main/plugins/anarchy-ai/PRIVACY.md'
     terms_of_service_url = 'https://github.com/BraintekMSP/AI-Links/blob/main/LICENSE'
     default_update_source_zip_url = 'https://github.com/BraintekMSP/AI-Links/archive/refs/heads/main.zip'
@@ -36,7 +36,7 @@
     bundle_branding_psd1_file_relative_path = 'branding/anarchy-branding.generated.psd1'
     bundle_setup_header_image_relative_path = 'assets/anarchy-ai.png'
     bundle_setup_icon_relative_path = 'assets/anarchy-ai.ico'
-    bundle_plugin_composer_icon_relative_path = 'assets/anarchy-ai.png'
-    bundle_plugin_logo_relative_path = 'assets/anarchy_ai.svg'
+    bundle_plugin_composer_icon_relative_path = 'assets/anarchy-ai.svg'
+    bundle_plugin_logo_relative_path = 'assets/anarchy-ai.svg'
   }
 }

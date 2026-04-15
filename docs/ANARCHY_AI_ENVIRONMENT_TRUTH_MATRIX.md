@@ -1,4 +1,4 @@
-# Anarchy-AI Environment Truth Matrix
+﻿# Anarchy-AI Environment Truth Matrix
 
 ## Purpose
 
@@ -10,7 +10,7 @@ Use this as the environment companion to:
 - `ANARCHY_AI_REPO_INSTALL_PROCESS.md`
 - `ANARCHY_AI_HARNESS_ARCHITECTURE.md`
 
-Date baseline for this matrix: `2026-04-13`.
+Date baseline for this matrix: `2026-04-15`.
 
 ## Headline
 
@@ -56,14 +56,14 @@ Proven by local file presence and current install output:
 - user-profile marketplace path: `C:\Users\mherring\.agents\plugins\marketplace.json`
 - repo-local marketplace path: `<repo>\.agents\plugins\marketplace.json`
 
-### 2. Codex user-profile plugin root for this install is `~/.codex/plugins/anarchy-ai-herringms`
+### 2. Codex user-profile plugin root for this install is `~/.codex/plugins/anarchy-ai`
 
-Proven by controlled local install on `2026-04-13`:
+Proven by controlled local install on `2026-04-15`:
 
 - command:
   - `.\plugins\AnarchyAi.Setup.exe /install /userprofile /silent /json`
 - resulting bundle root:
-  - `C:\Users\mherring\.codex\plugins\anarchy-ai-herringms`
+  - `C:\Users\mherring\.codex\plugins\anarchy-ai`
 - resulting plugin surfaces observed on disk:
   - `.codex-plugin\plugin.json`
   - `.mcp.json`
@@ -77,8 +77,8 @@ Proven by the controlled local install output and resulting marketplace file:
 
 - file: `C:\Users\mherring\.agents\plugins\marketplace.json`
 - observed Anarchy user-profile entry:
-  - `name = "anarchy-ai-herringms"`
-  - `source.path = "./.codex/plugins/anarchy-ai-herringms"`
+  - `name = "anarchy-ai"`
+  - `source.path = "./.codex/plugins/anarchy-ai"`
   - `policy.installation = "INSTALLED_BY_DEFAULT"`
 
 ### 4. Codex home readiness is plugin-marketplace-first
@@ -88,18 +88,18 @@ Proven by current setup behavior and assess output:
 - command:
   - `.\plugins\AnarchyAi.Setup.exe /assess /userprofile /silent /json`
 - observed behavior:
-  - `paths.destination.directories.plugin_root_directory_path = "C:\\Users\\mherring\\.codex\\plugins\\anarchy-ai-herringms"`
+  - `paths.destination.directories.plugin_root_directory_path = "C:\\Users\\mherring\\.codex\\plugins\\anarchy-ai"`
   - `registration_mode = "plugin_marketplace"`
 - readiness model in current local setup build does not require a custom MCP config block to describe the intended ready lane
 
-### 5. Successful user-profile install did not require or write `[mcp_servers.anarchy-ai-herringms]`
+### 5. Successful user-profile install did not require or write `[mcp_servers.anarchy-ai]`
 
 Proven by direct file inspection after controlled install:
 
 - file: `C:\Users\mherring\.codex\config.toml`
 - observed contents remained limited to existing app settings such as model, windows, and playwright configuration
-- no `[mcp_servers.anarchy-ai-herringms]` block was present after the successful `userprofile` install
-- older legacy `[mcp_servers.anarchy-ai]` blocks remain cleanup evidence rather than the intended ready lane
+- no `[mcp_servers.anarchy-ai]` block was present after the successful `userprofile` install
+- older legacy `[mcp_servers.anarchy-ai-herringms]` blocks remain cleanup evidence rather than the intended ready lane
 
 ### 6. `resources/list` and `resources/templates/list` are not valid Anarchy presence checks
 
@@ -135,6 +135,20 @@ Test-lane addition:
 
 - `direction_assist_test` is intentionally outside the five-core model and should be treated as experimental unless explicitly expected.
 
+### 9. Fresh-session plugin mention resolution now works for the user-profile install
+
+Proven by a fresh Codex session on `2026-04-15` after the rebuilt no-BOM home-local reinstall:
+
+- user mention:
+  - `[@anarchy-ai](plugin://anarchy-ai@anarchy-ai-user-profile)`
+- observed effect:
+  - Codex resolved the user-profile plugin reference and exposed Anarchy-AI plugin-associated capabilities in-session
+- what this proves:
+  - the current personal marketplace entry and home-local plugin manifest are loadable enough for Codex to resolve the plugin in a fresh session boundary
+- what this does not yet prove:
+  - Codex-managed cache materialization under `~/.codex/plugins/cache/...`
+  - persistent plugin enable-state entries in `~/.codex/config.toml`
+
 ## Inferred (Not Yet Fully Proven)
 
 ### A. Codex may materialize an installed-copy cache under `~/.codex/plugins/cache/...`
@@ -151,18 +165,20 @@ Promotion test:
 2. observe whether a cache or installed-copy lane appears
 3. capture the resulting path and repeat the observation
 
-### B. Codex tool-surface indexing may stay stale under a stable server identity
+### B. Codex install-state materialization may still differ from the documented cache/config model
 
 Why this remains inferred:
 
-- earlier sessions showed disagreement between expected and visible tool counts
-- the new Codex-native home install was validated by setup output and on-disk surfaces, but a full fresh-session tool-surface verification has not yet been captured in this matrix
+- OpenAI Codex docs say local plugins install into `~/.codex/plugins/cache/$MARKETPLACE_NAME/$PLUGIN_NAME/local/` and store on/off state in `~/.codex/config.toml`
+- the current Anarchy-AI home-local install now resolves in a fresh session, but no Anarchy-specific cache directory has been observed locally
+- the current `~/.codex/config.toml` still shows only the curated plugin enable-state entries, not an Anarchy-specific plugin state entry
 
 Promotion test:
 
 1. restart Codex from the current installed state
-2. verify Anarchy tools in a fresh session
-3. repeat after a no-op assess or reinstall if needed
+2. install or enable Anarchy-AI through the Codex Plugins UI if prompted
+3. observe whether Codex materializes the documented cache path or config entry
+4. repeat after a no-op reinstall if needed
 
 ## Portability Posture
 
@@ -245,7 +261,7 @@ Treat the environment as three cooperating planes:
    - repo-authored schema family, contracts, docs, disclaimers, and install assertions
 2. Codex plugin-marketplace install plane
    - `~/.agents/plugins/marketplace.json`
-   - `~/.codex/plugins/anarchy-ai-herringms`
+   - `~/.codex/plugins/anarchy-ai`
 3. runtime and tool plane
    - bundled `AnarchyAi.Mcp.Server.exe` and contract surfaces
 
@@ -254,3 +270,4 @@ Optional fallback or debug plane:
 - `~/.codex/config.toml` custom MCP registration when explicitly used
 
 A deployment is considered coherent when the canonical authoring plane, published install surfaces, and observed destination behavior agree on the same lane.
+

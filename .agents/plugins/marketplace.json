@@ -1,11 +1,11 @@
-﻿{
-    "name":  "anarchy-ai-herringms-local-ai-links",
+{
+    "name":  "anarchy-ai-local-ai-links",
     "interface":  {
                       "displayName":  "Anarchy-AI Local (AI-Links)"
                   },
     "plugins":  [
                     {
-                        "name":  "anarchy-ai-herringms",
+                        "name":  "anarchy-ai",
                         "source":  {
                                        "source":  "local",
                                        "path":  "./plugins/anarchy-ai"
