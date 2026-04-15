@@ -1,5 +1,6 @@
 ﻿# Changelog - AI-Links
 
+
 ## 2026-04-14
 
 ### Namespaced Codex identity ownership
@@ -903,3 +904,13 @@ Validation:
 
 
 - Added a Scratchpad #2 note preserving the bounded-incarnation/shared-substrate framing as a mental model for weak persistence across sessions without overclaiming individuality, hive-mind continuity, or literal consciousness.
+## 2026-04-15
+
+### Documentation truth loop completion
+
+- Reconciled the active install and runtime docs with the current `anarchy-ai-herringms` implementation truth instead of leaving stale `anarchy-ai` or `~/.codex/plugins/anarchy-ai` claims in current-tense specs.
+- Completed inline operational documentation on the remaining wrapper surfaces:
+  - `harness/setup/scripts/publish-anarchy-ai-setup.ps1`
+  - `plugins/anarchy-ai/scripts/start-anarchy-ai.cmd`
+- Added a repeatable documentation-truth audit so active specs and READMEs now fail validation when they drift from the current namespaced identity or Codex home-install model.
+- Tightened the documentation-discovered bug register so “documentation complete” now means audited repo state, not a conversational claim.

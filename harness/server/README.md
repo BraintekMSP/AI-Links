@@ -24,13 +24,13 @@ The server remains separate so the harness keeps a clean boundary between:
 For the packaged local delivery surface, the expected MCP shape is:
 
 - Name:
-  - `anarchy-ai`
+  - `anarchy-ai-herringms`
 - Command to launch:
   - `.\runtime\win-x64\AnarchyAi.Mcp.Server.exe`
 - Arguments:
   - none
 - Working directory:
-  - `.../AI-Links/plugins/anarchy-ai`
+  - the installed plugin root (`.` inside the bundled `.mcp.json` contract)
 
 `start-anarchy-ai.cmd` is now a repo-local development helper and fallback path. It should not be taught as the primary packaged launch path.
 

@@ -98,7 +98,7 @@ Current environment evidence discipline:
 - keep inferred host behavior separate from proven architecture facts
 - maintain explicit separation between:
   - host-neutral marketplace plane (`.agents`)
-  - Codex plugin-marketplace install plane (`~/.agents/plugins/marketplace.json` -> `~/.codex/plugins/anarchy-ai`)
+  - Codex plugin-marketplace install plane (`~/.agents/plugins/marketplace.json` -> `~/.codex/plugins/anarchy-ai-herringms`)
   - optional Codex custom-MCP fallback/debug plane (`~/.codex/config.toml`)
   - runtime/tool plane (bundled `AnarchyAi.Mcp.Server.exe`)
 

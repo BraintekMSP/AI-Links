@@ -2,7 +2,7 @@
 .SYNOPSIS
 Builds and republishes the self-contained Anarchy-AI setup executable from repo-authored sources.
 .DESCRIPTION
-Regenerates branding and path-canon artifacts, refreshes generated published surfaces, validates path compliance,
+Regenerates branding and path-canon artifacts, refreshes generated published surfaces, validates path and documentation-truth compliance,
 publishes the setup project, and refreshes the repo-local handoff EXE.
 .PARAMETER Configuration
 Build configuration passed to dotnet publish.
@@ -13,7 +13,7 @@ Skips copying the published EXE back into the repo-local plugins folder.
 .OUTPUTS
 JSON build status describing generated surfaces, publish outputs, and validation results.
 .NOTES
-Critical dependencies: the branding/path-canon generators, dotnet SDK availability, generated README/.mcp/manifest flows, and the path audit script.
+Critical dependencies: the branding/path-canon generators, dotnet SDK availability, generated README/.mcp/manifest flows, and the path/documentation audit scripts.
 #>
 param(
   [ValidateSet('Release', 'Debug')]
@@ -565,6 +565,7 @@ $projectPath = Join-Path $setupRoot 'dotnet\AnarchyAi.Setup.csproj'
 $pluginsRoot = Join-Path $repoRoot 'plugins'
 $targetExePath = Join-Path $pluginsRoot 'AnarchyAi.Setup.exe'
 $pathAuditScriptPath = Join-Path $repoRoot 'harness\pathing\scripts\test-path-canon-compliance.ps1'
+$documentationAuditScriptPath = Join-Path $repoRoot 'docs\scripts\test-documentation-truth-compliance.ps1'
 
 $tempRoot = Join-Path $env:LOCALAPPDATA 'Temp\ai-links-setup-build'
 $objRoot = Join-Path $tempRoot 'obj'
@@ -608,6 +609,7 @@ $pluginReadmeGenerated = $false
 $pluginMcpDeclarationGenerated = $false
 $pluginManifestGenerated = $false
 $pathAuditValidated = $false
+$documentationTruthAuditValidated = $false
 $publishedHelpContractValidated = $false
 $targetHelpContractValidated = $false
 
@@ -634,6 +636,14 @@ try {
     throw "Path audit script failed with exit code $LASTEXITCODE"
   }
   $pathAuditValidated = $true
+  if (-not (Test-Path $documentationAuditScriptPath)) {
+    throw "Documentation truth audit script not found: $documentationAuditScriptPath"
+  }
+  & powershell -ExecutionPolicy Bypass -File $documentationAuditScriptPath -RepoRoot $repoRoot
+  if ($LASTEXITCODE -ne 0) {
+    throw "Documentation truth audit script failed with exit code $LASTEXITCODE"
+  }
+  $documentationTruthAuditValidated = $true
 
   if (Test-Path $publishRoot) {
     Remove-Item $publishRoot -Recurse -Force
@@ -684,6 +694,7 @@ try {
         plugin_manifest_generated = $pluginManifestGenerated
         schema_manifest_synced = $schemaManifestSynced
         path_audit_validated = $pathAuditValidated
+        documentation_truth_audit_validated = $documentationTruthAuditValidated
         published_help_contract_validated = $publishedHelpContractValidated
         target_help_contract_validated = $targetHelpContractValidated
         copy_to_plugins_requested = $true
@@ -724,6 +735,7 @@ try {
     plugin_manifest_generated = $pluginManifestGenerated
     schema_manifest_synced = $schemaManifestSynced
     path_audit_validated = $pathAuditValidated
+    documentation_truth_audit_validated = $documentationTruthAuditValidated
     published_help_contract_validated = $publishedHelpContractValidated
     target_help_contract_validated = if ($SkipCopyToPlugins) { $false } else { $targetHelpContractValidated }
     copy_to_plugins_requested = (-not $SkipCopyToPlugins)
@@ -748,6 +760,7 @@ catch {
     plugin_manifest_generated = $pluginManifestGenerated
     schema_manifest_synced = $schemaManifestSynced
     path_audit_validated = $pathAuditValidated
+    documentation_truth_audit_validated = $documentationTruthAuditValidated
     published_help_contract_validated = $publishedHelpContractValidated
     target_help_contract_validated = $targetHelpContractValidated
     copy_to_plugins_requested = (-not $SkipCopyToPlugins)

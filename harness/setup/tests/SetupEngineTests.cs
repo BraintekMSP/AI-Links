@@ -224,6 +224,33 @@ public sealed class SetupEngineTests
     }
 
     /// <summary>
+    /// Runs the repo-wide documentation-truth audit to catch stale active-doc claims and missing wrapper documentation.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts successful script exit.</returns>
+    /// <remarks>Critical dependencies: the PowerShell audit script, local PowerShell availability, repo root discovery, and the current Anarchy-AI identity canon.</remarks>
+    [Fact]
+    public void DocumentationTruthAuditScript_Passes()
+    {
+        var repoRoot = FindRepoRoot();
+        var scriptPath = Path.Combine(repoRoot, "docs", "scripts", "test-documentation-truth-compliance.ps1");
+        var process = Process.Start(new ProcessStartInfo
+        {
+            FileName = "powershell",
+            Arguments = $"-ExecutionPolicy Bypass -File \"{scriptPath}\" -RepoRoot \"{repoRoot}\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        })!;
+
+        process.WaitForExit();
+        var standardOutput = process.StandardOutput.ReadToEnd();
+        var standardError = process.StandardError.ReadToEnd();
+
+        Assert.True(process.ExitCode == 0, $"Documentation-truth audit failed.{Environment.NewLine}STDOUT:{Environment.NewLine}{standardOutput}{Environment.NewLine}STDERR:{Environment.NewLine}{standardError}");
+    }
+
+    /// <summary>
     /// Walks upward from the test binary directory until the repo root is found.
     /// </summary>
     /// <returns>The absolute repo root path containing <c>AGENTS.md</c>.</returns>

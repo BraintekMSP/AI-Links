@@ -66,8 +66,8 @@ Marketplace identity rule:
 - each repo-local install uses its own repo-scoped marketplace root identity
 - setup generates a repo-scoped marketplace `name` while keeping the human-facing display name recognizable
 - this reduces collisions with Codex host-side install and uninstall state
-- setup keeps the installed plugin identity repo-scoped for repo-local installs, while keeping the callable MCP server key stable as `anarchy-ai`
-- this preserves predictable tool syntax like `mcp__anarchy_ai__...` while avoiding plugin install and uninstall collisions at the plugin identity layer
+- setup keeps the installed plugin identity repo-scoped for repo-local installs, while keeping the plugin-local MCP server key stable as `anarchy-ai-herringms`
+- this preserves predictable tool syntax like `mcp__anarchy_ai_herringms__...` while avoiding plugin install and uninstall collisions at the plugin identity layer
 
 ### `AnarchyAi.Mcp.Server.exe`
 
@@ -96,10 +96,10 @@ The preferred v1 delivery model is:
 Current lanes:
 
 - `repo-local`
-  - plugin bundle under `./plugins/`
+  - plugin bundle under `./plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
   - marketplace under `./.agents/plugins/marketplace.json`
 - `user-profile`
-  - plugin bundle under `~/.codex/plugins/anarchy-ai`
+  - plugin bundle under `~/.codex/plugins/anarchy-ai-herringms`
   - marketplace under `~/.agents/plugins/marketplace.json`
 
 The generated marketplace root should be repo-scoped for repo-local installs, not globally reused.
@@ -110,7 +110,7 @@ Current repo-local shape:
 - `name = anarchy-ai-herringms-local-<repo-slug>`
 - `interface.displayName = Anarchy-AI Local (<RepoName>)`
 - `plugins.<entry>.name = anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
-- `plugins.<entry>.source.path = ./plugins/anarchy-ai-<repo-slug>-<stable-path-hash>`
+- `plugins.<entry>.source.path = ./plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
 - `.codex-plugin/plugin.json -> name = anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
 - `.mcp.json -> mcpServers -> anarchy-ai-herringms`
 
@@ -118,7 +118,7 @@ Current user-profile shape:
 
 - `name = anarchy-ai-herringms-user-profile`
 - `interface.displayName = Anarchy-AI User Profile`
-- `plugins.<entry>.name = anarchy-ai`
+- `plugins.<entry>.name = anarchy-ai-herringms`
 - `plugins.<entry>.source.path = ./.codex/plugins/anarchy-ai-herringms`
 - `.codex-plugin/plugin.json -> name = anarchy-ai-herringms`
 - `.mcp.json -> mcpServers -> anarchy-ai-herringms`
@@ -369,7 +369,7 @@ Current proven environment fact for the user-profile lane:
 - user-profile install is considered ready when:
   - `~/.agents/plugins/marketplace.json` contains the Anarchy-AI user-profile entry
   - `plugins.<entry>.source.path = ./.codex/plugins/anarchy-ai-herringms`
-  - `~/.codex/plugins/anarchy-ai` contains the bundled plugin and runtime surfaces
+  - `~/.codex/plugins/anarchy-ai-herringms` contains the bundled plugin and runtime surfaces
   - setup result reports `registration_mode = plugin_marketplace`
 - a custom `[mcp_servers.anarchy-ai-herringms]` entry is optional fallback or debug evidence only and is not required for readiness
 - older legacy `[mcp_servers.anarchy-ai]` entries are cleanup evidence only
@@ -408,6 +408,7 @@ Its current responsibilities are:
 - resolve a usable SDK path, preferring the user-scoped install when needed
 - sync `plugins/anarchy-ai/schemas/schema-bundle.manifest.json` hashes from current source schema files before publish
 - generate `plugins/anarchy-ai/README.md` from `docs/ANARCHY_AI_PLUGIN_README_SOURCE.md` using destination-relative install facts
+- run both the path-canon audit and the documentation-truth audit before publish succeeds
 - publish the setup project with temp `obj/bin/publish` lanes under `AppData\Local\Temp`
 - refresh the local generated `plugins/AnarchyAi.Setup.exe`
 

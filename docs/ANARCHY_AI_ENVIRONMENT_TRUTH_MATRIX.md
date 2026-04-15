@@ -56,7 +56,7 @@ Proven by local file presence and current install output:
 - user-profile marketplace path: `C:\Users\mherring\.agents\plugins\marketplace.json`
 - repo-local marketplace path: `<repo>\.agents\plugins\marketplace.json`
 
-### 2. Codex user-profile plugin root for this install is `~/.codex/plugins/anarchy-ai`
+### 2. Codex user-profile plugin root for this install is `~/.codex/plugins/anarchy-ai-herringms`
 
 Proven by controlled local install on `2026-04-13`:
 
@@ -245,7 +245,7 @@ Treat the environment as three cooperating planes:
    - repo-authored schema family, contracts, docs, disclaimers, and install assertions
 2. Codex plugin-marketplace install plane
    - `~/.agents/plugins/marketplace.json`
-   - `~/.codex/plugins/anarchy-ai`
+   - `~/.codex/plugins/anarchy-ai-herringms`
 3. runtime and tool plane
    - bundled `AnarchyAi.Mcp.Server.exe` and contract surfaces
 

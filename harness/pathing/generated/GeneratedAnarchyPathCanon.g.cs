@@ -51,6 +51,7 @@ internal static class GeneratedAnarchyPathCanon
         "docs/ANARCHY_AI_BUG_REPORTS.md",
         "docs/CHANGELOG_ai_links.md",
         "docs/ANARCHY_AI_ENVIRONMENT_TRUTH_MATRIX.md",
+        "docs/scripts/test-documentation-truth-compliance.ps1",
         "branding/**",
         "harness/branding/**",
         "harness/pathing/**",

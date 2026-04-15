@@ -12,6 +12,13 @@ Rule:
 - mark whether each entry is a proven fact, a code-level assumption, or an environment-level assumption
 - do not silently collapse these findings into comments alone
 
+Documentation completeness closure rule:
+
+- do not call a change documentation-complete unless every non-generated executable surface is documented inline
+- active requirements and dependency docs must match current code, manifest, and install-lane truth
+- historical docs may retain retired identities and paths only when they are explicitly framed as historical or cleanup evidence
+- the documentation-truth audit must pass in the same repo state being described as complete
+
 ## 2026-04-14
 
 ### AA-DOCBUG-001: Home-local recovery lane does not carry the setup executable
@@ -77,3 +84,21 @@ Rule:
   - safe retirement should remove only Anarchy-AI entries while leaving non-Anarchy entries and the live registry surface intact
 - Investigation target:
   - keep validating that rewrite-in-place plus quarantined backup remains the correct ownership model for repo-local and user-profile marketplaces as Codex plugin behavior evolves
+
+### AA-DOCBUG-005: Documentation completeness was claimed before active docs and wrappers were fully reconciled
+
+- Status: patched local
+- Discovery type: proven fact
+- Surface:
+  - `docs/ANARCHY_AI_SETUP_EXE_SPEC.md`
+  - `docs/ANARCHY_AI_REPO_INSTALL_PROCESS.md`
+  - `docs/ANARCHY_AI_HARNESS_ARCHITECTURE.md`
+  - `harness/server/README.md`
+  - `harness/setup/scripts/publish-anarchy-ai-setup.ps1`
+  - `plugins/anarchy-ai/scripts/start-anarchy-ai.cmd`
+- What documentation exposed:
+  - the core code paths had received inline comments, but several active docs and wrapper surfaces still described stale plugin identities, stale user-profile paths, or lacked inline operational documentation
+- Why it matters:
+  - a completion claim can outrun repo truth if it is not backed by a repo-wide audit over active docs and non-generated executable surfaces
+- Investigation target:
+  - keep the documentation-truth audit in the build and test loop and treat its passing state as part of any future completeness claim

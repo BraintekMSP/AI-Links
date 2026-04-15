@@ -82,9 +82,10 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 - `./ANARCHY_AI_BUG_REPORTS.md` - active bug tickets for setup, mounting, divergence semantics, and proof-lane reliability
 - `./ANARCHY_AI_DOC_DISCOVERY_BUG_REGISTER.md` - bugs and hidden assumptions exposed specifically by the code documentation pass
 - `./ANARCHY_AI_PLUGIN_README_SOURCE.md` - repo-authored source for the installed plugin README; the build helper publishes this into `plugins/anarchy-ai/README.md` with destination-relative install paths
+- `./scripts/test-documentation-truth-compliance.ps1` - documentation-truth audit that fails when active specs and READMEs drift from the current Anarchy-AI identity and install model
 - `../harness/README.md` - local runtime harness boundary and capability notes
 - `../harness/setup/dotnet/AnarchyAi.Setup.csproj` - Windows-first setup/installer project that embeds the current plugin bundle and exposes GUI/CLI bootstrap behavior
-- `../harness/setup/scripts/build-self-contained-exe.ps1` - one-command helper that syncs schema-bundle hashes, builds the self-contained setup executable with temp build lanes, and refreshes the local generated `plugins/AnarchyAi.Setup.exe`
+- `../harness/setup/scripts/build-self-contained-exe.ps1` - one-command helper that syncs schema-bundle hashes, runs the path and documentation-truth audits, builds the self-contained setup executable with temp build lanes, and refreshes the local generated `plugins/AnarchyAi.Setup.exe`
 - `../harness/contracts/preflight-session.contract.json` - session preflight contract for meaningful governed work
 - `../harness/contracts/schema-reality.contract.json` - first harness contract for `is_schema_real_or_shadow_copied`
 - `../harness/contracts/harness-gap-state.contract.json` - environment gap-assessment contract for install/runtime/schema/adoption state

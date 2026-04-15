@@ -37,8 +37,8 @@ powershell -ExecutionPolicy Bypass -File .\harness\setup\scripts\build-self-cont
 That file now handles:
 
 - plugin bundle materialization into either:
-  - a repo-scoped `plugins/anarchy-ai-<repo-slug>-<stable-path-hash>/`
-  - or a Codex user-profile `~/.codex/plugins/anarchy-ai/`
+  - a repo-scoped `plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>/`
+  - or a Codex user-profile `~/.codex/plugins/anarchy-ai-herringms/`
 - matching marketplace registration in either:
   - `./.agents/plugins/marketplace.json`
   - or `~/.agents/plugins/marketplace.json`
@@ -66,9 +66,9 @@ Important targeting rule:
 The setup executable materializes one of these plugin roots:
 
 - repo-local:
-  - `plugins/anarchy-ai-<repo-slug>-<stable-path-hash>/`
+  - `plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>/`
 - user-profile:
-  - `~/.codex/plugins/anarchy-ai/`
+  - `~/.codex/plugins/anarchy-ai-herringms/`
 
 That bundle contains:
 
@@ -97,7 +97,7 @@ The plugin identity rule is now split on purpose:
 
 - repo-local installs use repo-scoped plugin identity — one repo-local uninstall action in Codex keeps its effect contained to that repo instead of colliding with sibling repo installs
 - user-profile installs use one stable user-profile plugin identity because the install root is intentionally shared for that user
-- both lanes keep the callable MCP server key stable as `anarchy-ai`
+- both lanes keep the plugin-local MCP server key stable as `anarchy-ai-herringms`
 
 Current repo-local shape:
 
@@ -111,7 +111,7 @@ Current user-profile shape:
 
 - `name = anarchy-ai-herringms-user-profile`
 - `interface.displayName = Anarchy-AI User Profile`
-- `plugins.<entry>.name = anarchy-ai`
+- `plugins.<entry>.name = anarchy-ai-herringms`
 - `plugins.<entry>.source.path = ./.codex/plugins/anarchy-ai-herringms`
 - `.codex-plugin/plugin.json -> name = anarchy-ai-herringms`
 - `.mcp.json -> mcpServers -> anarchy-ai-herringms`
@@ -128,10 +128,10 @@ It enforces this plugin entry shape:
 
 ```json
 {
-  "name": "anarchy-ai-<repo-slug>-<stable-path-hash>",
+  "name": "anarchy-ai-herringms-<repo-slug>-<stable-path-hash>",
   "source": {
     "source": "local",
-    "path": "./plugins/anarchy-ai-<repo-slug>-<stable-path-hash>"
+    "path": "./plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>"
   },
   "policy": {
     "installation": "INSTALLED_BY_DEFAULT",
@@ -201,13 +201,13 @@ Then use the simple installer UI.
 Result required:
 
 - repo-local:
-  - `./plugins/anarchy-ai-<repo-slug>-<stable-path-hash>/.codex-plugin/plugin.json` exists
-  - `./plugins/anarchy-ai-<repo-slug>-<stable-path-hash>/.mcp.json` exists
+  - `./plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>/.codex-plugin/plugin.json` exists
+  - `./plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>/.mcp.json` exists
   - `./.agents/plugins/marketplace.json` contains the repo-scoped Anarchy-AI plugin entry
 - user-profile:
-  - `~/.codex/plugins/anarchy-ai/.codex-plugin/plugin.json` exists
-  - `~/.codex/plugins/anarchy-ai/.mcp.json` exists
-  - `~/.agents/plugins/marketplace.json` contains the `anarchy-ai` plugin entry
+  - `~/.codex/plugins/anarchy-ai-herringms/.codex-plugin/plugin.json` exists
+  - `~/.codex/plugins/anarchy-ai-herringms/.mcp.json` exists
+  - `~/.agents/plugins/marketplace.json` contains the `anarchy-ai-herringms` plugin entry
 - both lanes:
   - the bundled runtime exists
   - `contracts/` contains all current contract files
@@ -293,8 +293,8 @@ Refresh the plugin bundle and root portable schema family together:
 Current update behavior:
 
 - refreshes the selected plugin bundle surfaces in either:
-  - repo-local `./plugins/anarchy-ai-<repo-slug>-<stable-path-hash>/`
-  - user-profile `~/.codex/plugins/anarchy-ai/`
+  - repo-local `./plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>/`
+  - user-profile `~/.codex/plugins/anarchy-ai-herringms/`
 - seeds missing portable root schema files during install by default
 - force-refreshes the root portable schema family only when `/refreshschemas` is passed
 - returns bounded update state in the JSON result
@@ -349,7 +349,7 @@ powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\stop-an
 Where `<installed-plugin-root>` is one of:
 
 - repo-local:
-  - `.\plugins\anarchy-ai-<repo-slug>-<stable-path-hash>`
+  - `.\plugins\anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
 - user-profile:
   - `~\.codex\plugins\anarchy-ai-herringms`
 
@@ -394,7 +394,7 @@ powershell -ExecutionPolicy Bypass -File <repo-local-plugin-root>\scripts\bootst
 
 Where `<repo-local-plugin-root>` is:
 
-- `.\plugins\anarchy-ai-<repo-slug>-<stable-path-hash>`
+- `.\plugins\anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
 
 ## How to make the system accessible
 
@@ -404,14 +404,14 @@ For the current Codex-first path, accessibility requires all of the following:
 
 - `plugins/AnarchyAi.Setup.exe` or the already materialized plugin bundle is present
 - plugin bundle exists in either:
-  - `./plugins/anarchy-ai-<repo-slug>-<stable-path-hash>`
-  - `~/.codex/plugins/anarchy-ai`
+  - `./plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
+  - `~/.codex/plugins/anarchy-ai-herringms`
 - marketplace entry exists in either:
   - `./.agents/plugins/marketplace.json`
   - `~/.agents/plugins/marketplace.json`
 - when using user-profile lane with Codex:
   - `~/.agents/plugins/marketplace.json` points at `./.codex/plugins/anarchy-ai-herringms`
-  - `~/.codex/plugins/anarchy-ai` contains the bundled runtime and plugin surfaces
+  - `~/.codex/plugins/anarchy-ai-herringms` contains the bundled runtime and plugin surfaces
   - `~/.codex/config.toml` custom MCP registration is optional fallback/debug only and is not required for `ready`
 - policy is `INSTALLED_BY_DEFAULT`
 - bundled runtime exists
@@ -524,8 +524,8 @@ A target repo should only be considered fully adopted when all of the following 
 
 - `plugins/AnarchyAi.Setup.exe` has been used or the equivalent plugin bundle has already been materialized
 - either:
-  - `plugins/anarchy-ai-<repo-slug>-<stable-path-hash>/` is present
-  - or `~/.codex/plugins/anarchy-ai/` is present
+  - `plugins/anarchy-ai-herringms-<repo-slug>-<stable-path-hash>/` is present
+  - or `~/.codex/plugins/anarchy-ai-herringms/` is present
 - either:
   - `.agents/plugins/marketplace.json` contains the Anarchy-AI entry for the repo
   - or `~/.agents/plugins/marketplace.json` contains the Anarchy-AI entry for the current user

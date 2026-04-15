@@ -1,3 +1,7 @@
+REM Purpose: development helper and fallback launcher for the Anarchy-AI runtime when working from the repo or an already materialized plugin bundle.
+REM Expected input: current plugin bundle layout, optional bundled runtime presence, and optionally a local dotnet SDK plus repo-local harness build outputs.
+REM Expected output: launches the bundled or locally published AnarchyAi.Mcp.Server.exe process and exits with that process result code.
+REM Critical dependencies: bundled runtime path, repo-local publish outputs, dotnet SDK discovery, and correct pushd/popd scope before launching any executable.
 @echo off
 setlocal
 
