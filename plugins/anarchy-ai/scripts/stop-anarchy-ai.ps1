@@ -1,3 +1,20 @@
+<#
+.SYNOPSIS
+Assesses or releases the runtime lock held by the bundled Anarchy-AI MCP server process.
+.DESCRIPTION
+Provides a bounded recovery lane for detecting the installed runtime process, attempting a safe stop,
+and optionally retrying with UAC elevation when a forced stop hits access-denied conditions.
+.PARAMETER Mode
+Selects whether the script only inspects the lock, performs a safe stop, or performs a forced stop with optional elevation.
+.PARAMETER PluginRoot
+Overrides the plugin root whose bundled runtime should be inspected.
+.PARAMETER ElevatedRetry
+Marks the invocation as the elevated retry path so the script does not loop on RunAs.
+.OUTPUTS
+JSON describing runtime presence, matching processes, actions taken, stop errors, nested paths, and runtime lock state.
+.NOTES
+Critical dependencies: the generated path canon psd1, the bundled runtime executable path, Windows process inspection, and Stop-Process.
+#>
 param(
   [ValidateSet('AssessRuntimeLock','SafeReleaseRuntimeLock','ForceReleaseRuntimeLock')]
   [string]$Mode = 'AssessRuntimeLock',
@@ -15,11 +32,54 @@ else {
   $PluginRoot = [System.IO.Path]::GetFullPath($PluginRoot)
 }
 
-$runtimePath = Join-Path $PluginRoot 'runtime\win-x64\AnarchyAi.Mcp.Server.exe'
+$pathCanonPath = Join-Path $PluginRoot 'pathing\anarchy-path-canon.generated.psd1'
+if (-not (Test-Path $pathCanonPath)) {
+  throw "Path canon artifact not found: $pathCanonPath"
+}
+
+$pathCanon = Import-PowerShellDataFile -Path $pathCanonPath
+
+<#
+.SYNOPSIS
+Resolves a canon-relative path against a supplied root.
+.DESCRIPTION
+Normalizes slash direction and returns an absolute path for bundle-relative surfaces.
+.PARAMETER RootPath
+Absolute root path used as the base for resolution.
+.PARAMETER RelativePath
+Canon-relative path fragment to resolve beneath the root.
+.OUTPUTS
+System.String. Absolute filesystem path.
+.NOTES
+Critical dependencies: the generated path canon convention and Join-Path/GetFullPath.
+#>
+function Resolve-CanonRelativePath {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$RootPath,
+    [Parameter(Mandatory = $true)]
+    [string]$RelativePath
+  )
+
+  $normalizedRelativePath = $RelativePath.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+  return [System.IO.Path]::GetFullPath((Join-Path $RootPath $normalizedRelativePath))
+}
+
+$runtimePath = Resolve-CanonRelativePath -RootPath $PluginRoot -RelativePath $pathCanon.relative_paths.bundle_runtime_executable_file_relative_path
 $matchingProcesses = @()
 $actionsTaken = New-Object System.Collections.Generic.List[string]
 $stopErrors = New-Object System.Collections.Generic.List[string]
 
+<#
+.SYNOPSIS
+Reports whether the current process token has administrator rights.
+.DESCRIPTION
+Checks the current Windows identity and principal so force-stop logic knows whether a UAC retry is needed.
+.OUTPUTS
+System.Boolean. True when the current token is an administrator role token.
+.NOTES
+Critical dependencies: WindowsIdentity, WindowsPrincipal, and the local Windows security model.
+#>
 function Test-IsAdministrator {
   try {
     $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -31,6 +91,18 @@ function Test-IsAdministrator {
   }
 }
 
+<#
+.SYNOPSIS
+Finds running Anarchy-AI runtime processes that match the expected bundled executable path.
+.DESCRIPTION
+Enumerates candidate processes by name, filters them to the installed runtime path, and returns bounded metadata.
+.PARAMETER ExpectedRuntimePath
+Absolute runtime executable path that should be considered in-scope for this install.
+.OUTPUTS
+System.Object[]. Matching process records with id, name, executable path, and optional command line.
+.NOTES
+Critical dependencies: Get-Process, process.Path availability, and the bundled runtime path resolved from the path canon.
+#>
 function Get-MatchingRuntimeProcesses {
   param(
     [Parameter(Mandatory = $true)]
@@ -66,6 +138,18 @@ function Get-MatchingRuntimeProcesses {
   return @($results)
 }
 
+<#
+.SYNOPSIS
+Attempts to stop the supplied runtime processes.
+.DESCRIPTION
+Calls Stop-Process for each matching process, recording successful stops and failure messages for later reporting.
+.PARAMETER ProcessesToStop
+Process records previously returned by Get-MatchingRuntimeProcesses.
+.OUTPUTS
+No direct return value. Mutates the script-scoped action and error collections.
+.NOTES
+Critical dependencies: Stop-Process and the script-scoped actionsTaken and stopErrors collections.
+#>
 function Invoke-StopRuntimeProcesses {
   param(
     [Parameter(Mandatory = $true)]
@@ -122,8 +206,6 @@ if (($Mode -eq 'SafeReleaseRuntimeLock' -or $Mode -eq 'ForceReleaseRuntimeLock')
 
 $result = [ordered]@{
   mode = $Mode
-  plugin_root = $PluginRoot
-  runtime_path = $runtimePath
   runtime_present = Test-Path $runtimePath
   matching_process_count = $matchingProcesses.Count
   matching_processes = @(
@@ -138,6 +220,17 @@ $result = [ordered]@{
   )
   actions_taken = @($actionsTaken)
   stop_errors = @($stopErrors)
+  paths = [ordered]@{
+    source = [ordered]@{
+      root_path = $PluginRoot
+      files = [ordered]@{
+        runtime_executable_file_path = $runtimePath
+      }
+      relative = [ordered]@{
+        runtime_executable_file_relative_path = [string]$pathCanon.relative_paths.bundle_runtime_executable_file_relative_path
+      }
+    }
+  }
   runtime_lock_state = if ($Mode -eq 'AssessRuntimeLock') {
     if ($matchingProcesses.Count -gt 0) { 'running' } else { 'not_running' }
   }

@@ -63,7 +63,7 @@ Proven by controlled local install on `2026-04-13`:
 - command:
   - `.\plugins\AnarchyAi.Setup.exe /install /userprofile /silent /json`
 - resulting bundle root:
-  - `C:\Users\mherring\.codex\plugins\anarchy-ai`
+  - `C:\Users\mherring\.codex\plugins\anarchy-ai-herringms`
 - resulting plugin surfaces observed on disk:
   - `.codex-plugin\plugin.json`
   - `.mcp.json`
@@ -77,8 +77,8 @@ Proven by the controlled local install output and resulting marketplace file:
 
 - file: `C:\Users\mherring\.agents\plugins\marketplace.json`
 - observed Anarchy user-profile entry:
-  - `name = "anarchy-ai"`
-  - `source.path = "./.codex/plugins/anarchy-ai"`
+  - `name = "anarchy-ai-herringms"`
+  - `source.path = "./.codex/plugins/anarchy-ai-herringms"`
   - `policy.installation = "INSTALLED_BY_DEFAULT"`
 
 ### 4. Codex home readiness is plugin-marketplace-first
@@ -88,17 +88,18 @@ Proven by current setup behavior and assess output:
 - command:
   - `.\plugins\AnarchyAi.Setup.exe /assess /userprofile /silent /json`
 - observed behavior:
-  - `plugin_root = "C:\\Users\\mherring\\.codex\\plugins\\anarchy-ai"`
+  - `paths.destination.directories.plugin_root_directory_path = "C:\\Users\\mherring\\.codex\\plugins\\anarchy-ai-herringms"`
   - `registration_mode = "plugin_marketplace"`
 - readiness model in current local setup build does not require a custom MCP config block to describe the intended ready lane
 
-### 5. Successful user-profile install did not require or write `[mcp_servers.anarchy-ai]`
+### 5. Successful user-profile install did not require or write `[mcp_servers.anarchy-ai-herringms]`
 
 Proven by direct file inspection after controlled install:
 
 - file: `C:\Users\mherring\.codex\config.toml`
 - observed contents remained limited to existing app settings such as model, windows, and playwright configuration
-- no `[mcp_servers.anarchy-ai]` block was present after the successful `userprofile` install
+- no `[mcp_servers.anarchy-ai-herringms]` block was present after the successful `userprofile` install
+- older legacy `[mcp_servers.anarchy-ai]` blocks remain cleanup evidence rather than the intended ready lane
 
 ### 6. `resources/list` and `resources/templates/list` are not valid Anarchy presence checks
 
@@ -118,6 +119,7 @@ Proven by current local source and build behavior:
 - current build helper:
   - `harness/setup/scripts/build-self-contained-exe.ps1`
 - the build helper renders destination-relative install facts into the published README and rejects stale source-layout-relative hops such as `../../../`
+- setup/bootstrap/health outputs now use one nested `paths.origin|source|destination` model instead of mixing flat `workspace_root` / `repo_root` / `plugin_root` fields
 
 ### 8. Current Anarchy runtime binary and source surface still expose the five harness tools
 

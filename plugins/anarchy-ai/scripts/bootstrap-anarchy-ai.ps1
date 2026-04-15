@@ -1,3 +1,26 @@
+<#
+.SYNOPSIS
+Installs, assesses, or refreshes the repo-local Anarchy-AI bundle after the bundle already exists.
+.DESCRIPTION
+Provides a bounded repo-local compatibility lane for marketplace registration, bundle refresh, schema refresh,
+and nested path reporting using the generated path canon.
+.PARAMETER Mode
+Selects Assess or Install behavior for the repo-local bundle.
+.PARAMETER HostContext
+Carries the host label whose optional surfaces should be considered during assessment.
+.PARAMETER Update
+Requests a bundle refresh from a source path or source URL before the final assessment is returned.
+.PARAMETER RefreshPortableSchemaFamily
+Requests refresh of the portable schema family into the repo root during update.
+.PARAMETER UpdateSourceZipUrl
+Zip URL used when refreshing from a remote source.
+.PARAMETER UpdateSourcePath
+Optional local repo or zip path used instead of the remote source.
+.OUTPUTS
+JSON describing bootstrap state, actions, missing components, repairs, and nested origin/source/destination paths.
+.NOTES
+Critical dependencies: the generated path canon psd1, repo-local plugin bundle structure, marketplace.json, and local filesystem write access.
+#>
 param(
   [ValidateSet('Assess','Install')]
   [string]$Mode = 'Assess',
@@ -5,7 +28,7 @@ param(
   [string]$HostContext = 'codex',
   [switch]$Update,
   [switch]$RefreshPortableSchemaFamily,
-  [string]$UpdateSourceZipUrl = 'https://github.com/BraintekMSP/AI-Links/archive/refs/heads/main.zip',
+  [string]$UpdateSourceZipUrl = '',
   [string]$UpdateSourcePath = ''
 )
 
@@ -13,23 +36,212 @@ $ErrorActionPreference = 'Stop'
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $pluginRoot = [System.IO.Path]::GetFullPath((Join-Path $scriptDir '..'))
+$pathCanonPath = Join-Path $pluginRoot 'pathing\anarchy-path-canon.generated.psd1'
+if (-not (Test-Path $pathCanonPath)) {
+  throw "Path canon artifact not found: $pathCanonPath"
+}
+
+$pathCanon = Import-PowerShellDataFile -Path $pathCanonPath
+$brandingPath = Join-Path $pluginRoot 'branding\anarchy-branding.generated.psd1'
+if (-not (Test-Path $brandingPath)) {
+  throw "Branding artifact not found: $brandingPath"
+}
+
+$branding = Import-PowerShellDataFile -Path $brandingPath
+if ([string]::IsNullOrWhiteSpace($UpdateSourceZipUrl)) {
+  $UpdateSourceZipUrl = [string]$branding.metadata.default_update_source_zip_url
+}
+
+<#
+.SYNOPSIS
+Resolves a canon-relative path against a supplied root.
+.DESCRIPTION
+Normalizes slash direction and returns an absolute path for bundle and repo surfaces.
+.PARAMETER RootPath
+Absolute root path used as the base for resolution.
+.PARAMETER RelativePath
+Canon-relative path fragment to resolve beneath the root.
+.OUTPUTS
+System.String. Absolute filesystem path.
+.NOTES
+Critical dependencies: the generated path canon and Join-Path/GetFullPath.
+#>
+function Resolve-CanonRelativePath {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$RootPath,
+    [Parameter(Mandatory = $true)]
+    [string]$RelativePath
+  )
+
+  $normalizedRelativePath = $RelativePath.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+  return [System.IO.Path]::GetFullPath((Join-Path $RootPath $normalizedRelativePath))
+}
+
+<#
+.SYNOPSIS
+Resolves a bundle-relative path beneath the current plugin root.
+.DESCRIPTION
+Convenience wrapper over Resolve-CanonRelativePath for plugin-local surfaces.
+.PARAMETER RelativePath
+Bundle-relative canon path to resolve.
+.OUTPUTS
+System.String. Absolute plugin-local path.
+.NOTES
+Critical dependencies: $pluginRoot and Resolve-CanonRelativePath.
+#>
+function Resolve-BundlePath {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$RelativePath
+  )
+
+  return Resolve-CanonRelativePath -RootPath $pluginRoot -RelativePath $RelativePath
+}
+
+<#
+.SYNOPSIS
+Normalizes a target file's attributes and writes text content in one guarded step.
+.DESCRIPTION
+Ensures repo-local bootstrap can rewrite synced JSON files without relying on ambient filesystem attributes or editor state.
+.PARAMETER Path
+Absolute file path to create or overwrite.
+.PARAMETER Content
+Serialized text content to write.
+.OUTPUTS
+No direct return value. Creates or overwrites the target file.
+.NOTES
+Critical dependencies: filesystem write access, Set-ItemProperty-compatible attributes, and Set-Content -Force.
+#>
+function Write-TextFile {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path,
+    [Parameter(Mandatory = $true)]
+    [string]$Content
+  )
+
+  $directory = Split-Path -Parent $Path
+  if (-not (Test-Path $directory)) {
+    New-Item -ItemType Directory -Path $directory -Force | Out-Null
+  }
+
+  if (Test-Path $Path) {
+    try {
+      (Get-Item $Path -Force).Attributes = 'Normal'
+    }
+    catch {
+    }
+  }
+
+  Set-Content -Path $Path -Value $Content -Encoding UTF8 -Force
+}
+
+<#
+.SYNOPSIS
+Expands a generated canon naming template with supplied token values.
+.DESCRIPTION
+Replaces `<token>` placeholders in one template string without introducing ad hoc naming literals.
+.PARAMETER Template
+Canon template string that may contain placeholder tokens.
+.PARAMETER Replacements
+Hashtable of token values keyed without angle brackets.
+.OUTPUTS
+System.String. Expanded template text.
+.NOTES
+Critical dependencies: the generated path canon naming templates and exact placeholder replacement.
+#>
+function Expand-CanonTemplate {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Template,
+    [Parameter(Mandatory = $true)]
+    [hashtable]$Replacements
+  )
+
+  $expanded = $Template
+  foreach ($key in $Replacements.Keys) {
+    $expanded = $expanded.Replace("<$key>", [string]$Replacements[$key])
+  }
+
+  return $expanded
+}
+
+<#
+.SYNOPSIS
+Checks whether a value matches one of the canon-owned exact names or prefixes.
+.DESCRIPTION
+Provides one shared ownership check so repo-local bootstrap does not rely on broad ad hoc prefix matching.
+.PARAMETER Value
+Candidate string to classify.
+.PARAMETER Exact
+Exact owned values supplied by the generated path canon.
+.PARAMETER Prefixes
+Owned prefixes supplied by the generated path canon.
+.OUTPUTS
+System.Boolean. True when the value belongs to the owned identity set.
+.NOTES
+Critical dependencies: the generated path canon identity arrays and ordinal-ignore-case comparison.
+#>
+function Test-MatchesCanonIdentity {
+  param(
+    [string]$Value,
+    [string[]]$Exact = @(),
+    [string[]]$Prefixes = @()
+  )
+
+  if ([string]::IsNullOrWhiteSpace($Value)) {
+    return $false
+  }
+
+  foreach ($candidate in @($Exact | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) {
+    if ([string]::Equals($Value, [string]$candidate, [System.StringComparison]::OrdinalIgnoreCase)) {
+      return $true
+    }
+  }
+
+  foreach ($candidate in @($Prefixes | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) {
+    if ($Value.StartsWith([string]$candidate, [System.StringComparison]::OrdinalIgnoreCase)) {
+      return $true
+    }
+  }
+
+  return $false
+}
+
+<#
+.SYNOPSIS
+Checks whether a plugin name belongs to the current or legacy owned Anarchy-AI identities.
+.DESCRIPTION
+Uses the generated canon arrays so bootstrap and removal stay aligned on owned plugin names.
+.PARAMETER PluginName
+Plugin name to classify.
+.OUTPUTS
+System.Boolean. True when the plugin name is owned by this repo.
+.NOTES
+Critical dependencies: path canon owned plugin-name arrays and Test-MatchesCanonIdentity.
+#>
+function Test-IsOwnedPluginName {
+  param(
+    [string]$PluginName
+  )
+
+  return Test-MatchesCanonIdentity `
+    -Value $PluginName `
+    -Exact @($pathCanon.arrays.owned_plugin_name_exact) `
+    -Prefixes @($pathCanon.arrays.owned_plugin_name_prefixes)
+}
+
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $pluginRoot '..\..'))
-$marketplacePath = Join-Path $repoRoot '.agents\plugins\marketplace.json'
-$expectedPluginName = Split-Path $pluginRoot -Leaf
-$expectedPluginRelativePath = "./plugins/$expectedPluginName"
-$runtimePath = Join-Path $pluginRoot 'runtime\win-x64\AnarchyAi.Mcp.Server.exe'
-$pluginManifestPath = Join-Path $pluginRoot '.codex-plugin\plugin.json'
-$mcpPath = Join-Path $pluginRoot '.mcp.json'
-$skillPath = Join-Path $pluginRoot 'skills\anarchy-ai-harness\SKILL.md'
-$schemaManifestPath = Join-Path $pluginRoot 'schemas\schema-bundle.manifest.json'
-$portableSchemaFiles = @(
-  'AGENTS-schema-governance.json',
-  'AGENTS-schema-1project.json',
-  'AGENTS-schema-narrative.json',
-  'AGENTS-schema-gov2gov-migration.json',
-  'AGENTS-schema-triage.md',
-  'Getting-Started-For-Humans.txt'
-)
+$marketplacePath = Resolve-CanonRelativePath -RootPath $repoRoot -RelativePath $pathCanon.relative_paths.repo_local_marketplace_file_relative_path
+$expectedPluginName = [string]$pathCanon.names.default_plugin_name
+$expectedPluginRelativePath = "./$([string]$pathCanon.relative_paths.repo_source_plugin_directory_relative_path)"
+$runtimePath = Resolve-BundlePath -RelativePath $pathCanon.relative_paths.bundle_runtime_executable_file_relative_path
+$pluginManifestPath = Resolve-BundlePath -RelativePath $pathCanon.relative_paths.bundle_plugin_manifest_file_relative_path
+$mcpPath = Resolve-BundlePath -RelativePath $pathCanon.relative_paths.bundle_mcp_file_relative_path
+$skillPath = Resolve-BundlePath -RelativePath $pathCanon.relative_paths.bundle_skill_file_relative_path
+$schemaManifestPath = Resolve-BundlePath -RelativePath $pathCanon.relative_paths.bundle_schema_manifest_file_relative_path
+$portableSchemaFiles = @($pathCanon.arrays.portable_schema_files)
 $contractFiles = @(
   'active-work-state.contract.json',
   'schema-reality.contract.json',
@@ -44,7 +256,20 @@ $safeRepairs = New-Object System.Collections.Generic.List[string]
 $updateState = 'not_requested'
 $updateRuntimeLocked = $false
 $updateNotes = New-Object System.Collections.Generic.List[string]
+$effectiveSourceRoot = $pluginRoot
 
+<#
+.SYNOPSIS
+Normalizes a repo name into a marketplace-safe slug.
+.DESCRIPTION
+Lowercases the value, collapses non-alphanumeric characters to dashes, and falls back to `repo` when empty.
+.PARAMETER Value
+Repo name or other label to normalize.
+.OUTPUTS
+System.String. Marketplace-safe slug.
+.NOTES
+Critical dependencies: repo-scoped identity generation and current slugging rules.
+#>
 function Get-NormalizedMarketplaceSlug {
   param(
     [Parameter(Mandatory = $true)]
@@ -61,6 +286,18 @@ function Get-NormalizedMarketplaceSlug {
   return $normalized
 }
 
+<#
+.SYNOPSIS
+Builds the repo-scoped marketplace name and display name for the current repo root.
+.DESCRIPTION
+Uses the normalized repo name to create a stable repo-local marketplace identity without a path hash suffix.
+.PARAMETER ResolvedRepoRoot
+Absolute repo root used for naming.
+.OUTPUTS
+PSCustomObject with `name` and `display_name`.
+.NOTES
+Critical dependencies: Get-NormalizedMarketplaceSlug and the current repo-local marketplace naming contract.
+#>
 function Get-RepoScopedMarketplaceIdentity {
   param(
     [Parameter(Mandatory = $true)]
@@ -69,34 +306,55 @@ function Get-RepoScopedMarketplaceIdentity {
 
   $repoName = Split-Path $ResolvedRepoRoot -Leaf
   $slug = Get-NormalizedMarketplaceSlug -Value $repoName
-  $pathBytes = [System.Text.Encoding]::UTF8.GetBytes($ResolvedRepoRoot.ToLowerInvariant())
-  $sha256 = [System.Security.Cryptography.SHA256]::Create()
-  try {
-    $hashBytes = $sha256.ComputeHash($pathBytes)
-  }
-  finally {
-    $sha256.Dispose()
-  }
-  $hashSuffix = -join ($hashBytes[0..3] | ForEach-Object { $_.ToString('x2') })
 
   return [pscustomobject]@{
-    name = "anarchy-local-$slug-$hashSuffix"
-    display_name = if ([string]::IsNullOrWhiteSpace($repoName)) { 'Anarchy-AI Local (Repo)' } else { "Anarchy-AI Local ($repoName)" }
+    name = Expand-CanonTemplate `
+      -Template ([string]$pathCanon.names.repo_scoped_marketplace_name_template) `
+      -Replacements @{ 'repo-slug' = $slug }
+    display_name = if ([string]::IsNullOrWhiteSpace($repoName)) {
+      ([string]$branding.names.repo_local_marketplace_display_name_template).Replace('<RepoName>', 'Repo')
+    } else {
+      ([string]$branding.names.repo_local_marketplace_display_name_template).Replace('<RepoName>', $repoName)
+    }
   }
 }
 
+<#
+.SYNOPSIS
+Returns the repo-local MCP server name expected inside the plugin-local .mcp.json file.
+.DESCRIPTION
+Currently returns the stable Anarchy-AI server name without repo scoping.
+.PARAMETER ResolvedRepoRoot
+Absolute repo root retained for future host- or repo-specific naming decisions.
+.OUTPUTS
+System.String. MCP server name.
+.NOTES
+Critical dependencies: the current repo-local MCP naming contract.
+#>
 function Get-RepoScopedMcpServerName {
   param(
     [Parameter(Mandatory = $true)]
     [string]$ResolvedRepoRoot
   )
 
-  return 'anarchy-ai'
+  return [string]$pathCanon.names.default_plugin_name
 }
 
 $expectedMarketplaceIdentity = Get-RepoScopedMarketplaceIdentity -ResolvedRepoRoot $repoRoot
 $expectedMcpServerName = Get-RepoScopedMcpServerName -ResolvedRepoRoot $repoRoot
 
+<#
+.SYNOPSIS
+Detects whether a marketplace entry represents Anarchy-AI.
+.DESCRIPTION
+Matches either the plugin name prefix or a supported repo-local or user-profile source path.
+.PARAMETER Plugin
+Marketplace plugin entry object to inspect.
+.OUTPUTS
+System.Boolean. True when the entry represents Anarchy-AI.
+.NOTES
+Critical dependencies: path-canon marketplace prefixes and the current plugin naming contract.
+#>
 function Test-IsAnarchyPluginEntry {
   param(
     [Parameter(Mandatory = $true)]
@@ -108,7 +366,7 @@ function Test-IsAnarchyPluginEntry {
     $pluginName = [string]$Plugin.name
   }
 
-  if ($pluginName.StartsWith('anarchy-ai')) {
+  if (Test-IsOwnedPluginName -PluginName $pluginName) {
     return $true
   }
 
@@ -117,9 +375,32 @@ function Test-IsAnarchyPluginEntry {
     $pluginPath = [string]$Plugin.source.path
   }
 
-  return $pluginPath.StartsWith('./plugins/anarchy-ai')
+  if (
+    -not $pluginPath.StartsWith([string]$pathCanon.relative_references.repo_local_marketplace_plugin_source_prefix, [System.StringComparison]::OrdinalIgnoreCase) `
+    -and -not $pluginPath.StartsWith([string]$pathCanon.relative_references.user_profile_marketplace_plugin_source_prefix, [System.StringComparison]::OrdinalIgnoreCase)
+  ) {
+    return $false
+  }
+
+  $normalizedPluginPath = $pluginPath.Replace('\', '/').TrimStart('./')
+  $pluginLeaf = Split-Path -Leaf $normalizedPluginPath
+  return Test-IsOwnedPluginName -PluginName $pluginLeaf
 }
 
+<#
+.SYNOPSIS
+Realigns the plugin-local .mcp.json declaration to the expected repo-scoped identity.
+.DESCRIPTION
+Loads or rebuilds the declaration, ensures only the expected server remains, and writes the canonical runtime command block.
+.PARAMETER McpConfigPath
+Plugin-local .mcp.json path to update.
+.PARAMETER ExpectedServerName
+Server name that should remain in the final declaration.
+.OUTPUTS
+No direct return value. Mutates the plugin-local .mcp.json file and action log when needed.
+.NOTES
+Critical dependencies: the generated path canon, JSON parsing, and the script-scoped actionsTaken list.
+#>
 function Set-RepoScopedMcpConfiguration {
   param(
     [Parameter(Mandatory = $true)]
@@ -176,10 +457,10 @@ function Set-RepoScopedMcpConfiguration {
     $currentServer = [pscustomobject]@{}
   }
 
-  if ($currentServer.command -ne '.\runtime\win-x64\AnarchyAi.Mcp.Server.exe') {
+  if ($currentServer.command -ne [string]$pathCanon.relative_references.bundle_runtime_windows_command_relative_path) {
     $configChanged = $true
   }
-  if ($currentServer.cwd -ne '.') {
+  if ($currentServer.cwd -ne [string]$pathCanon.relative_references.bundle_runtime_working_directory_relative_path) {
     $configChanged = $true
   }
   if ($null -eq $currentServer.args -or @($currentServer.args).Count -ne 0) {
@@ -190,18 +471,32 @@ function Set-RepoScopedMcpConfiguration {
     $rootObject = [ordered]@{
       mcpServers = [ordered]@{
         $ExpectedServerName = [ordered]@{
-          command = '.\runtime\win-x64\AnarchyAi.Mcp.Server.exe'
+          command = [string]$pathCanon.relative_references.bundle_runtime_windows_command_relative_path
           args = @()
-          cwd = '.'
+          cwd = [string]$pathCanon.relative_references.bundle_runtime_working_directory_relative_path
         }
       }
     }
 
-    $rootObject | ConvertTo-Json -Depth 10 | Set-Content $McpConfigPath
+    Write-TextFile -Path $McpConfigPath -Content ($rootObject | ConvertTo-Json -Depth 10)
     $actionsTaken.Add('updated_repo_mcp_server_identity')
   }
 }
 
+<#
+.SYNOPSIS
+Realigns the plugin manifest name to the expected repo-local identity.
+.DESCRIPTION
+Loads or rebuilds the manifest and updates the `name` property when it is missing or stale.
+.PARAMETER PluginManifestPath
+Plugin manifest path to update.
+.PARAMETER ExpectedPluginName
+Repo-scoped plugin name that should be written.
+.OUTPUTS
+No direct return value. Mutates the plugin manifest file and action log when needed.
+.NOTES
+Critical dependencies: JSON parsing and the script-scoped actionsTaken list.
+#>
 function Set-RepoScopedPluginManifest {
   param(
     [Parameter(Mandatory = $true)]
@@ -231,11 +526,25 @@ function Set-RepoScopedPluginManifest {
       $manifestObject | Add-Member -NotePropertyName name -NotePropertyValue $ExpectedPluginName -Force
     }
 
-    $manifestObject | ConvertTo-Json -Depth 10 | Set-Content $PluginManifestPath
+    Write-TextFile -Path $PluginManifestPath -Content ($manifestObject | ConvertTo-Json -Depth 10)
     $actionsTaken.Add('updated_repo_plugin_identity')
   }
 }
 
+<#
+.SYNOPSIS
+Removes an existing file or directory only when it is still inside the expected root.
+.DESCRIPTION
+Normalizes attributes first so stale readonly or synced files can be removed safely.
+.PARAMETER PathToRemove
+Target file or directory path to remove.
+.PARAMETER ExpectedRoot
+Absolute root path that the target must remain beneath.
+.OUTPUTS
+No direct return value. Removes the target when present.
+.NOTES
+Critical dependencies: same-scope root validation and Remove-Item.
+#>
 function Remove-CanonicalTarget {
   param(
     [Parameter(Mandatory = $true)]
@@ -281,6 +590,22 @@ function Remove-CanonicalTarget {
   Remove-Item $resolvedTarget -Recurse -Force
 }
 
+<#
+.SYNOPSIS
+Copies one canonical bundle or schema surface into the expected destination root.
+.DESCRIPTION
+Creates missing parent directories and supports both file and directory copy behavior.
+.PARAMETER SourcePath
+Canonical source file or directory to copy.
+.PARAMETER TargetPath
+Destination file or directory path.
+.PARAMETER ExpectedRoot
+Expected destination root retained for caller-side safety reasoning.
+.OUTPUTS
+No direct return value. Copies the requested surface.
+.NOTES
+Critical dependencies: caller-provided source validation, filesystem write access, and Copy-Item.
+#>
 function Copy-CanonicalSurface {
   param(
     [Parameter(Mandatory = $true)]
@@ -315,6 +640,16 @@ function Copy-CanonicalSurface {
   Copy-Item $SourcePath $TargetPath -Force
 }
 
+<#
+.SYNOPSIS
+Refreshes script-scoped existence flags and missing-component findings for the current bundle.
+.DESCRIPTION
+Inspects the core plugin surfaces and expected contract files after assess, install, or update work.
+.OUTPUTS
+No direct return value. Mutates script-scoped existence flags and the missingComponents collection.
+.NOTES
+Critical dependencies: resolved bundle paths, contract file list, and the script-scoped collections.
+#>
 function Refresh-BundlePresenceState {
   $script:pluginManifestExists = Test-Path $pluginManifestPath
   $script:mcpExists = Test-Path $mcpPath
@@ -335,6 +670,20 @@ function Refresh-BundlePresenceState {
   }
 }
 
+<#
+.SYNOPSIS
+Downloads the update archive from the configured source URL.
+.DESCRIPTION
+Uses Invoke-WebRequest first and falls back to curl.exe when the PowerShell download path fails.
+.PARAMETER Uri
+Source archive URL.
+.PARAMETER OutFile
+Destination file path for the downloaded archive.
+.OUTPUTS
+System.String. Download method identifier.
+.NOTES
+Critical dependencies: outbound network access, TLS 1.2 support, and optional curl.exe availability.
+#>
 function Get-UpdateArchive {
   param(
     [Parameter(Mandatory = $true)]
@@ -364,6 +713,20 @@ function Get-UpdateArchive {
   }
 }
 
+<#
+.SYNOPSIS
+Resolves a local update source into an extracted repo root.
+.DESCRIPTION
+Accepts either a directory or zip file and returns the repo root that should be used for canonical refresh.
+.PARAMETER SourcePath
+Local repo directory or zip file path.
+.PARAMETER TempRoot
+Temporary root used when a zip must be extracted.
+.OUTPUTS
+FileSystemInfo representing the resolved source root.
+.NOTES
+Critical dependencies: local filesystem access and Expand-Archive for zip inputs.
+#>
 function Resolve-LocalUpdateSourceRoot {
   param(
     [Parameter(Mandatory = $true)]
@@ -432,24 +795,13 @@ if ($Update) {
       }
     }
 
-    $sourcePluginRoot = Join-Path $sourceRoot.FullName 'plugins\\anarchy-ai'
+    $effectiveSourceRoot = $sourceRoot.FullName
+    $sourcePluginRoot = Resolve-CanonRelativePath -RootPath $effectiveSourceRoot -RelativePath $pathCanon.relative_paths.repo_source_plugin_directory_relative_path
     if (-not (Test-Path $sourcePluginRoot)) {
-      throw 'Update archive did not contain plugins\\anarchy-ai.'
+      throw "Update archive did not contain $($pathCanon.relative_paths.repo_source_plugin_directory_relative_path)."
     }
 
-    $pluginSurfaces = @(
-      '.codex-plugin',
-      'assets',
-      'contracts',
-      'runtime',
-      'schemas',
-      'scripts',
-      'skills',
-      '.mcp.json',
-      'README.md',
-      'PRIVACY.md',
-      'TERMS.md'
-    )
+    $pluginSurfaces = @($pathCanon.arrays.plugin_surfaces)
 
     foreach ($surface in $pluginSurfaces) {
       Copy-CanonicalSurface `
@@ -715,7 +1067,7 @@ if ($Mode -eq 'Install') {
   Set-RepoScopedPluginManifest -PluginManifestPath $pluginManifestPath -ExpectedPluginName $expectedPluginName
   Set-RepoScopedMcpConfiguration -McpConfigPath $mcpPath -ExpectedServerName $expectedMcpServerName
 
-  $marketplaceObject | ConvertTo-Json -Depth 10 | Set-Content $marketplacePath
+  Write-TextFile -Path $marketplacePath -Content ($marketplaceObject | ConvertTo-Json -Depth 10)
   $marketplaceExists = $true
   $marketplaceHasEntry = $true
   $installedByDefault = $true
@@ -766,16 +1118,186 @@ $nextAction = switch ($bootstrapState) {
   default { 'restore_runtime_or_complete_bundle' }
 }
 
+<#
+.SYNOPSIS
+Builds a hashtable that omits null and blank values.
+.DESCRIPTION
+Used to keep nested path-role output compact and free of placeholder entries.
+.PARAMETER Values
+Hashtable of candidate values.
+.OUTPUTS
+Ordered hashtable or null when every value was omitted.
+.NOTES
+Critical dependencies: the nested path-report contract and caller-provided keyed values.
+#>
+function New-OptionalMap {
+  param(
+    [Parameter(Mandatory = $true)]
+    [hashtable]$Values
+  )
+
+  $result = [ordered]@{}
+  foreach ($key in $Values.Keys) {
+    $value = $Values[$key]
+    if ($null -eq $value) {
+      continue
+    }
+
+    if ($value -is [string] -and [string]::IsNullOrWhiteSpace($value)) {
+      continue
+    }
+
+    $result[$key] = $value
+  }
+
+  if ($result.Count -eq 0) {
+    return $null
+  }
+
+  return $result
+}
+
+<#
+.SYNOPSIS
+Builds one nested path-role report for origin, source, or destination output.
+.DESCRIPTION
+Adds root, directories, files, and relative sections only when they contain meaningful values.
+.PARAMETER RootPath
+Optional absolute root path for the role.
+.PARAMETER Directories
+Optional keyed directory paths.
+.PARAMETER Files
+Optional keyed file paths.
+.PARAMETER Relative
+Optional keyed relative-path values.
+.OUTPUTS
+Ordered hashtable or null when the role has no populated members.
+.NOTES
+Critical dependencies: New-OptionalMap and the nested path-report contract.
+#>
+function New-PathRoleReport {
+  param(
+    [string]$RootPath,
+    [hashtable]$Directories,
+    [hashtable]$Files,
+    [hashtable]$Relative
+  )
+
+  $report = [ordered]@{}
+  if (-not [string]::IsNullOrWhiteSpace($RootPath)) {
+    $report.root_path = $RootPath
+  }
+
+  $directoryMap = if ($null -ne $Directories) { New-OptionalMap -Values $Directories } else { $null }
+  $fileMap = if ($null -ne $Files) { New-OptionalMap -Values $Files } else { $null }
+  $relativeMap = if ($null -ne $Relative) { New-OptionalMap -Values $Relative } else { $null }
+
+  if ($null -ne $directoryMap) {
+    $report.directories = $directoryMap
+  }
+  if ($null -ne $fileMap) {
+    $report.files = $fileMap
+  }
+  if ($null -ne $relativeMap) {
+    $report.relative = $relativeMap
+  }
+
+  if ($report.Count -eq 0) {
+    return $null
+  }
+
+  return $report
+}
+
+$originPaths = New-PathRoleReport `
+  -RootPath $repoRoot `
+  -Directories ([ordered]@{
+    plugin_source_directory_path = Resolve-CanonRelativePath -RootPath $repoRoot -RelativePath $pathCanon.relative_paths.repo_source_plugin_directory_relative_path
+  }) `
+  -Files ([ordered]@{
+    plugin_mcp_file_path = Resolve-CanonRelativePath -RootPath $repoRoot -RelativePath $pathCanon.relative_paths.repo_source_plugin_mcp_file_relative_path
+    setup_executable_file_path = Resolve-CanonRelativePath -RootPath $repoRoot -RelativePath $pathCanon.relative_paths.repo_source_setup_executable_file_relative_path
+  }) `
+  -Relative ([ordered]@{
+    plugin_source_directory_relative_path = [string]$pathCanon.relative_paths.repo_source_plugin_directory_relative_path
+    plugin_mcp_file_relative_path = [string]$pathCanon.relative_paths.repo_source_plugin_mcp_file_relative_path
+    setup_executable_file_relative_path = [string]$pathCanon.relative_paths.repo_source_setup_executable_file_relative_path
+  })
+
+$sourcePaths = if ([string]::Equals($effectiveSourceRoot, $pluginRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+  New-PathRoleReport `
+    -RootPath $pluginRoot `
+    -Directories ([ordered]@{
+      contracts_directory_path = Resolve-BundlePath -RelativePath $pathCanon.relative_paths.bundle_contracts_directory_relative_path
+      runtime_directory_path = Resolve-BundlePath -RelativePath $pathCanon.relative_paths.bundle_runtime_directory_relative_path
+      schemas_directory_path = Resolve-BundlePath -RelativePath $pathCanon.relative_paths.bundle_schemas_directory_relative_path
+      scripts_directory_path = Resolve-BundlePath -RelativePath $pathCanon.relative_paths.bundle_scripts_directory_relative_path
+      skill_directory_path = Resolve-BundlePath -RelativePath $pathCanon.relative_paths.bundle_skill_directory_relative_path
+    }) `
+    -Files ([ordered]@{
+      plugin_manifest_file_path = $pluginManifestPath
+      mcp_declaration_file_path = $mcpPath
+      runtime_executable_file_path = $runtimePath
+      schema_manifest_file_path = $schemaManifestPath
+      skill_file_path = $skillPath
+    }) `
+    -Relative ([ordered]@{
+      plugin_manifest_file_relative_path = [string]$pathCanon.relative_paths.bundle_plugin_manifest_file_relative_path
+      mcp_declaration_file_relative_path = [string]$pathCanon.relative_paths.bundle_mcp_file_relative_path
+      runtime_executable_file_relative_path = [string]$pathCanon.relative_paths.bundle_runtime_executable_file_relative_path
+      schema_manifest_file_relative_path = [string]$pathCanon.relative_paths.bundle_schema_manifest_file_relative_path
+      skill_file_relative_path = [string]$pathCanon.relative_paths.bundle_skill_file_relative_path
+    })
+}
+else {
+  New-PathRoleReport `
+    -RootPath $effectiveSourceRoot `
+    -Directories ([ordered]@{
+      plugin_source_directory_path = Resolve-CanonRelativePath -RootPath $effectiveSourceRoot -RelativePath $pathCanon.relative_paths.repo_source_plugin_directory_relative_path
+    }) `
+    -Files ([ordered]@{
+      plugin_mcp_file_path = Resolve-CanonRelativePath -RootPath $effectiveSourceRoot -RelativePath $pathCanon.relative_paths.repo_source_plugin_mcp_file_relative_path
+      setup_executable_file_path = Resolve-CanonRelativePath -RootPath $effectiveSourceRoot -RelativePath $pathCanon.relative_paths.repo_source_setup_executable_file_relative_path
+    }) `
+    -Relative ([ordered]@{
+      plugin_source_directory_relative_path = [string]$pathCanon.relative_paths.repo_source_plugin_directory_relative_path
+      plugin_mcp_file_relative_path = [string]$pathCanon.relative_paths.repo_source_plugin_mcp_file_relative_path
+      setup_executable_file_relative_path = [string]$pathCanon.relative_paths.repo_source_setup_executable_file_relative_path
+    })
+}
+
+$destinationPaths = New-PathRoleReport `
+  -RootPath $repoRoot `
+  -Directories ([ordered]@{
+    plugin_root_directory_path = $pluginRoot
+    marketplace_directory_path = Split-Path -Parent $marketplacePath
+    schema_target_root_directory_path = $repoRoot
+  }) `
+  -Files ([ordered]@{
+    marketplace_file_path = $marketplacePath
+    plugin_manifest_file_path = $pluginManifestPath
+    mcp_declaration_file_path = $mcpPath
+    runtime_executable_file_path = $runtimePath
+    schema_manifest_file_path = $schemaManifestPath
+    skill_file_path = $skillPath
+  }) `
+  -Relative ([ordered]@{
+    marketplace_file_relative_path = [string]$pathCanon.relative_paths.repo_local_marketplace_file_relative_path
+    plugin_source_relative_path = $expectedPluginRelativePath
+    plugin_manifest_file_relative_path = [string]$pathCanon.relative_paths.bundle_plugin_manifest_file_relative_path
+    mcp_declaration_file_relative_path = [string]$pathCanon.relative_paths.bundle_mcp_file_relative_path
+    runtime_executable_file_relative_path = [string]$pathCanon.relative_paths.bundle_runtime_executable_file_relative_path
+    schema_manifest_file_relative_path = [string]$pathCanon.relative_paths.bundle_schema_manifest_file_relative_path
+    skill_file_relative_path = [string]$pathCanon.relative_paths.bundle_skill_file_relative_path
+  })
+
 $result = [ordered]@{
   bootstrap_state = $bootstrapState
   host_context = $HostContext
   update_requested = [bool]$Update
   update_state = $updateState
   update_source_zip_url = $UpdateSourceZipUrl
-  update_source_path = $UpdateSourcePath
   update_notes = @($updateNotes | Select-Object -Unique)
-  repo_root = $repoRoot
-  plugin_root = $pluginRoot
   runtime_present = $runtimeExists
   marketplace_registered = $marketplaceHasEntry
   installed_by_default = $installedByDefault
@@ -783,6 +1305,11 @@ $result = [ordered]@{
   missing_components = @($missingComponents | Select-Object -Unique)
   safe_repairs = @($safeRepairs | Select-Object -Unique)
   next_action = $nextAction
+  paths = [ordered]@{
+    origin = $originPaths
+    source = $sourcePaths
+    destination = $destinationPaths
+  }
 }
 
 $result | ConvertTo-Json -Depth 10

@@ -1,3 +1,20 @@
+<#
+.SYNOPSIS
+Builds and republishes the self-contained Anarchy-AI setup executable from repo-authored sources.
+.DESCRIPTION
+Regenerates branding and path-canon artifacts, refreshes generated published surfaces, validates path compliance,
+publishes the setup project, and refreshes the repo-local handoff EXE.
+.PARAMETER Configuration
+Build configuration passed to dotnet publish.
+.PARAMETER DotnetPath
+Optional explicit path to dotnet.exe when SDK discovery should not use the default lookup order.
+.PARAMETER SkipCopyToPlugins
+Skips copying the published EXE back into the repo-local plugins folder.
+.OUTPUTS
+JSON build status describing generated surfaces, publish outputs, and validation results.
+.NOTES
+Critical dependencies: the branding/path-canon generators, dotnet SDK availability, generated README/.mcp/manifest flows, and the path audit script.
+#>
 param(
   [ValidateSet('Release', 'Debug')]
   [string]$Configuration = 'Release',
@@ -7,11 +24,128 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$setupRoot = [System.IO.Path]::GetFullPath((Join-Path $scriptRoot '..'))
+$repoRoot = [System.IO.Path]::GetFullPath((Join-Path $setupRoot '..\..'))
+$brandingGeneratorPath = Join-Path $repoRoot 'harness\branding\scripts\generate-branding-artifacts.ps1'
+$pathCanonGeneratorPath = Join-Path $repoRoot 'harness\pathing\scripts\generate-path-canon-artifacts.ps1'
+
+if (-not (Test-Path $brandingGeneratorPath)) {
+  throw "Branding generator script not found: $brandingGeneratorPath"
+}
+
+if (-not (Test-Path $pathCanonGeneratorPath)) {
+  throw "Path canon generator script not found: $pathCanonGeneratorPath"
+}
+
+& powershell -ExecutionPolicy Bypass -File $brandingGeneratorPath
+if ($LASTEXITCODE -ne 0) {
+  throw "Branding generator failed with exit code $LASTEXITCODE"
+}
+
+& powershell -ExecutionPolicy Bypass -File $pathCanonGeneratorPath
+if ($LASTEXITCODE -ne 0) {
+  throw "Path canon generator failed with exit code $LASTEXITCODE"
+}
+
+$brandingPath = Join-Path $repoRoot 'harness\branding\generated\anarchy-branding.generated.psd1'
+if (-not (Test-Path $brandingPath)) {
+  throw "Branding artifact not found: $brandingPath"
+}
+
+$branding = Import-PowerShellDataFile -Path $brandingPath
+
+$pathCanonPath = Join-Path $repoRoot 'harness\pathing\generated\anarchy-path-canon.generated.psd1'
+if (-not (Test-Path $pathCanonPath)) {
+  throw "Path canon artifact not found: $pathCanonPath"
+}
+
+$pathCanon = Import-PowerShellDataFile -Path $pathCanonPath
+
+<#
+.SYNOPSIS
+Resolves a canon-relative path beneath a supplied root.
+.DESCRIPTION
+Normalizes separators and returns the absolute path used by later build helpers.
+.PARAMETER RootPath
+Absolute root path for resolution.
+.PARAMETER RelativePath
+Canon-relative path fragment to resolve.
+.OUTPUTS
+System.String. Absolute filesystem path.
+.NOTES
+Critical dependencies: the generated path canon and Join-Path/GetFullPath.
+#>
+function Resolve-CanonRelativePath {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$RootPath,
+    [Parameter(Mandatory = $true)]
+    [string]$RelativePath
+  )
+
+  $normalizedRelativePath = $RelativePath.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+  return [System.IO.Path]::GetFullPath((Join-Path $RootPath $normalizedRelativePath))
+}
+
+<#
+.SYNOPSIS
+Builds a portable relative path from one absolute path to another.
+.DESCRIPTION
+Uses System.Uri so generated docs can carry destination-relative references without hard-coded source paths.
+.PARAMETER BasePath
+Absolute base path to relativize from.
+.PARAMETER TargetPath
+Absolute target path to relativize to.
+.OUTPUTS
+System.String. Relative path from the base path to the target path.
+.NOTES
+Critical dependencies: absolute path normalization and System.Uri relative-path behavior.
+#>
+function Get-PortableRelativePath {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$BasePath,
+    [Parameter(Mandatory = $true)]
+    [string]$TargetPath
+  )
+
+  $normalizedBasePath = [System.IO.Path]::GetFullPath($BasePath).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+  $normalizedTargetPath = [System.IO.Path]::GetFullPath($TargetPath)
+  $baseUri = New-Object System.Uri($normalizedBasePath)
+  $targetUri = New-Object System.Uri($normalizedTargetPath)
+  return [System.Uri]::UnescapeDataString($baseUri.MakeRelativeUri($targetUri).ToString())
+}
+
+<#
+.SYNOPSIS
+Finds a dotnet.exe that has an installed SDK.
+.DESCRIPTION
+Validates an explicit path when supplied, otherwise searches the common machine and user locations.
+.PARAMETER RequestedPath
+Optional explicit dotnet.exe path to test first.
+.OUTPUTS
+System.String. Resolved dotnet.exe path.
+.NOTES
+Critical dependencies: dotnet --list-sdks and access to the local .NET SDK installation.
+#>
 function Resolve-DotnetPath {
   param(
     [string]$RequestedPath
   )
 
+  <#
+  .SYNOPSIS
+  Tests whether a candidate dotnet.exe reports at least one installed SDK.
+  .DESCRIPTION
+  Used as the inner probe for Resolve-DotnetPath so runtime-only dotnet installs are rejected.
+  .PARAMETER CandidatePath
+  Candidate dotnet.exe path.
+  .OUTPUTS
+  System.Boolean. True when the candidate reports installed SDKs.
+  .NOTES
+  Critical dependencies: `dotnet --list-sdks` and process execution rights.
+  #>
   function Test-DotnetSdkAvailable {
     param(
       [string]$CandidatePath
@@ -54,6 +188,18 @@ function Resolve-DotnetPath {
   throw 'Could not resolve a dotnet.exe with an installed SDK. Install the .NET SDK or pass -DotnetPath explicitly.'
 }
 
+<#
+.SYNOPSIS
+Computes the lowercase SHA-256 hex digest for a file.
+.DESCRIPTION
+Reads the full file into memory and hashes it for manifest and publish integrity checks.
+.PARAMETER Path
+Absolute file path to hash.
+.OUTPUTS
+System.String. Lowercase SHA-256 hash.
+.NOTES
+Critical dependencies: System.Security.Cryptography.SHA256 and readable file access.
+#>
 function Get-FileSha256Hex {
   param(
     [Parameter(Mandatory = $true)]
@@ -71,22 +217,27 @@ function Get-FileSha256Hex {
   }
 }
 
+<#
+.SYNOPSIS
+Refreshes the bundled schema manifest hashes from the repo-authored schema files.
+.DESCRIPTION
+Computes current schema hashes, preserves stable manifest metadata when possible, and rewrites the manifest when content changed.
+.PARAMETER RepoRoot
+Repo root containing the canonical schema files and manifest target.
+.OUTPUTS
+System.Boolean. True when the manifest file was rewritten.
+.NOTES
+Critical dependencies: the path canon, Get-FileSha256Hex, and the canonical schema files remaining present in the repo.
+#>
 function Sync-SchemaBundleManifest {
   param(
     [Parameter(Mandatory = $true)]
     [string]$RepoRoot
   )
 
-  $schemaRoot = Join-Path $RepoRoot 'plugins\anarchy-ai\schemas'
-  $manifestPath = Join-Path $schemaRoot 'schema-bundle.manifest.json'
-  $schemaFiles = @(
-    'AGENTS-schema-1project.json',
-    'AGENTS-schema-gov2gov-migration.json',
-    'AGENTS-schema-governance.json',
-    'AGENTS-schema-narrative.json',
-    'AGENTS-schema-triage.md',
-    'Getting-Started-For-Humans.txt'
-  )
+  $schemaRoot = Resolve-CanonRelativePath -RootPath $RepoRoot -RelativePath ($pathCanon.relative_paths.repo_source_plugin_directory_relative_path + '/' + $pathCanon.relative_paths.bundle_schemas_directory_relative_path)
+  $manifestPath = Resolve-CanonRelativePath -RootPath $RepoRoot -RelativePath ($pathCanon.relative_paths.repo_source_plugin_directory_relative_path + '/' + $pathCanon.relative_paths.bundle_schema_manifest_file_relative_path)
+  $schemaFiles = @($pathCanon.arrays.portable_schema_files)
 
   if (-not (Test-Path $schemaRoot)) {
     throw "Schema directory not found: $schemaRoot"
@@ -188,26 +339,45 @@ function Sync-SchemaBundleManifest {
   return $false
 }
 
+<#
+.SYNOPSIS
+Generates the published plugin README from the repo-authored README source doc.
+.DESCRIPTION
+Replaces destination-relative tokens, validates that forbidden source-layout or legacy-home paths do not survive,
+and rewrites the published README when content changed.
+.PARAMETER RepoRoot
+Repo root containing the README source and target files.
+.OUTPUTS
+System.Boolean. True when the README file was rewritten.
+.NOTES
+Critical dependencies: the path canon, Get-PortableRelativePath, and docs/ANARCHY_AI_PLUGIN_README_SOURCE.md.
+#>
 function Update-GeneratedPluginReadme {
   param(
     [Parameter(Mandatory = $true)]
     [string]$RepoRoot
   )
 
-  $templatePath = Join-Path $RepoRoot 'docs\ANARCHY_AI_PLUGIN_README_SOURCE.md'
-  $readmePath = Join-Path $RepoRoot 'plugins\anarchy-ai\README.md'
+  $templatePath = Resolve-CanonRelativePath -RootPath $RepoRoot -RelativePath $pathCanon.relative_paths.repo_source_generated_plugin_readme_source_relative_path
+  $readmePath = Resolve-CanonRelativePath -RootPath $RepoRoot -RelativePath $pathCanon.relative_paths.repo_source_generated_plugin_readme_target_relative_path
 
   if (-not (Test-Path $templatePath)) {
     throw "Plugin README source doc not found: $templatePath"
   }
 
   $template = Get-Content $templatePath -Raw
+  $repoLocalPluginRootLabel = '.\' + (($pathCanon.relative_paths.repo_local_plugin_parent_directory_relative_path + '/' + $pathCanon.names.repo_scoped_plugin_name_template).Replace('/', '\'))
+  $userProfilePluginRootLabel = '~\' + (($pathCanon.relative_paths.user_profile_plugin_parent_directory_relative_path + '/' + $pathCanon.names.default_plugin_name).Replace('/', '\'))
+  $userProfileMarketplacePathLabel = '~\' + ($pathCanon.relative_paths.user_profile_marketplace_file_relative_path.Replace('/', '\'))
+  $setupExeRelativePath = (Get-PortableRelativePath `
+    -BasePath (Resolve-CanonRelativePath -RootPath $RepoRoot -RelativePath $pathCanon.relative_paths.repo_source_plugin_directory_relative_path) `
+    -TargetPath (Resolve-CanonRelativePath -RootPath $RepoRoot -RelativePath $pathCanon.relative_paths.repo_source_setup_executable_file_relative_path)).Replace('\', '/')
   $tokens = [ordered]@{
-    '{{REPO_LOCAL_PLUGIN_ROOT}}' = '.\plugins\anarchy-ai-<repo-slug>-<stable-path-hash>'
-    '{{USER_PROFILE_PLUGIN_ROOT}}' = '~\.codex\plugins\anarchy-ai'
-    '{{USER_PROFILE_MARKETPLACE_PATH}}' = '~\.agents\plugins\marketplace.json'
-    '{{USER_PROFILE_MARKETPLACE_SOURCE_PATH}}' = './.codex/plugins/anarchy-ai'
-    '{{SETUP_EXE_PATH}}' = '../AnarchyAi.Setup.exe'
+    '{{REPO_LOCAL_PLUGIN_ROOT}}' = $repoLocalPluginRootLabel
+    '{{USER_PROFILE_PLUGIN_ROOT}}' = $userProfilePluginRootLabel
+    '{{USER_PROFILE_MARKETPLACE_PATH}}' = $userProfileMarketplacePathLabel
+    '{{USER_PROFILE_MARKETPLACE_SOURCE_PATH}}' = "$($pathCanon.relative_references.user_profile_marketplace_plugin_source_prefix)$($pathCanon.names.default_plugin_name)"
+    '{{SETUP_EXE_PATH}}' = $setupExeRelativePath
   }
 
   $rendered = $template
@@ -235,6 +405,131 @@ function Update-GeneratedPluginReadme {
   return $false
 }
 
+<#
+.SYNOPSIS
+Regenerates the plugin-local .mcp.json declaration from canon-backed runtime references.
+.DESCRIPTION
+Writes the expected server command, cwd, and empty args array when the declaration is missing or stale.
+.PARAMETER RepoRoot
+Repo root containing the source plugin bundle.
+.OUTPUTS
+System.Boolean. True when the .mcp.json file was rewritten.
+.NOTES
+Critical dependencies: the path canon and the repo-authored plugin bundle layout.
+#>
+function Update-GeneratedPluginMcpDeclaration {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$RepoRoot
+  )
+
+  $mcpPath = Resolve-CanonRelativePath -RootPath $RepoRoot -RelativePath $pathCanon.relative_paths.repo_source_plugin_mcp_file_relative_path
+  $expectedMcp = [ordered]@{
+    mcpServers = [ordered]@{
+      $pathCanon.names.default_plugin_name = [ordered]@{
+        command = [string]$pathCanon.relative_references.bundle_runtime_windows_command_relative_path
+        args = @()
+        cwd = [string]$pathCanon.relative_references.bundle_runtime_working_directory_relative_path
+      }
+    }
+  } | ConvertTo-Json -Depth 10
+
+  $existing = if (Test-Path $mcpPath) { Get-Content $mcpPath -Raw } else { '' }
+  if (-not [string]::Equals($existing.Trim(), $expectedMcp.Trim(), [System.StringComparison]::Ordinal)) {
+    Set-Content -Path $mcpPath -Value $expectedMcp -Encoding UTF8
+    return $true
+  }
+
+  return $false
+}
+
+<#
+.SYNOPSIS
+Regenerates the plugin manifest from the branding canon and current technical identity canon.
+.DESCRIPTION
+Writes the expected author, legal, visual, and install-surface metadata so future fork rebrands can change one repo-authored branding source instead of hand-editing the manifest.
+.PARAMETER RepoRoot
+Repo root containing the source plugin manifest.
+.OUTPUTS
+System.Boolean. True when the plugin manifest file was rewritten.
+.NOTES
+Critical dependencies: the branding canon, the path canon default plugin name, and the repo-authored plugin manifest location.
+#>
+function Update-GeneratedPluginManifest {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$RepoRoot
+  )
+
+  $manifestPath = Resolve-CanonRelativePath -RootPath $RepoRoot -RelativePath ($pathCanon.relative_paths.repo_source_plugin_directory_relative_path + '/' + $pathCanon.relative_paths.bundle_plugin_manifest_file_relative_path)
+  $manifestObject = [ordered]@{
+    name = [string]$pathCanon.names.default_plugin_name
+    version = '0.1.6'
+    description = 'Windows-first local delivery plugin for Anarchy-AI with repo-authored published truth, Codex-native home install, and bounded harness tools for preflight, gap assessment, active-work compilation, schema reality, and gov2gov reconciliation.'
+    author = [ordered]@{
+      name = [string]$branding.metadata.author_name
+      url = [string]$branding.metadata.author_url
+    }
+    homepage = [string]$branding.metadata.homepage_url
+    repository = [string]$branding.metadata.repository_url
+    license = 'Proprietary - see LICENSE'
+    keywords = @(
+      'mcp',
+      'schema',
+      'governance',
+      'harness',
+      'codex',
+      'preflight',
+      'bootstrap'
+    )
+    skills = './skills/'
+    mcpServers = './.mcp.json'
+    interface = [ordered]@{
+      displayName = [string]$branding.names.brand_display_name
+      shortDescription = 'Windows-first runtime harness for preflight, gap assessment, active-work compilation, schema reality, and gov2gov reconciliation'
+      longDescription = 'Installs Anarchy-AI, the runtime framework harness for the AGENTS Heuristic Underlay. The schema family remains the canonical layer, the underlay remains the operative layer built from it, and Anarchy-AI preflights meaningful governed work, assesses install and adoption gaps, compiles active work, evaluates schema reality, and runs non-destructive gov2gov reconciliation through a local MCP lane.'
+      developerName = [string]$branding.metadata.developer_name
+      category = 'Coding'
+      capabilities = @(
+        'Interactive',
+        'Write'
+      )
+      websiteURL = [string]$branding.metadata.homepage_url
+      privacyPolicyURL = [string]$branding.metadata.privacy_policy_url
+      termsOfServiceURL = [string]$branding.metadata.terms_of_service_url
+      defaultPrompt = @(
+        'Use Anarchy-AI as the runtime harness for the AGENTS Heuristic Underlay.',
+        'Run preflight_session before meaningful governed work.',
+        'Use assess_harness_gap_state when install, runtime, schema, or adoption state is unclear.'
+      )
+      brandColor = [string]$branding.metadata.brand_color
+      composerIcon = './' + ([string]$branding.relative_paths.bundle_plugin_composer_icon_relative_path)
+      logo = './' + ([string]$branding.relative_paths.bundle_plugin_logo_relative_path)
+      screenshots = @()
+    }
+  } | ConvertTo-Json -Depth 10
+
+  $existing = if (Test-Path $manifestPath) { Get-Content $manifestPath -Raw } else { '' }
+  if (-not [string]::Equals($existing.Trim(), $manifestObject.Trim(), [System.StringComparison]::Ordinal)) {
+    Set-Content -Path $manifestPath -Value $manifestObject -Encoding UTF8
+    return $true
+  }
+
+  return $false
+}
+
+<#
+.SYNOPSIS
+Validates that a setup executable still exposes the required CLI help contract.
+.DESCRIPTION
+Runs `/?` against the target EXE and fails when expected usage or tool-count lines disappear.
+.PARAMETER ExePath
+Absolute path to the setup executable under validation.
+.OUTPUTS
+No direct return value. Throws when the help contract is missing or the command fails.
+.NOTES
+Critical dependencies: the published CLI contract and local process execution of the EXE.
+#>
 function Assert-SetupCliHelpContract {
   param(
     [Parameter(Mandatory = $true)]
@@ -251,7 +546,7 @@ function Assert-SetupCliHelpContract {
   }
 
   $requiredSnippets = @(
-    'Anarchy-AI Setup',
+    [string]$branding.names.setup_display_name,
     '/silent',
     '/assess',
     '/install',
@@ -266,12 +561,10 @@ function Assert-SetupCliHelpContract {
   }
 }
 
-$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$setupRoot = [System.IO.Path]::GetFullPath((Join-Path $scriptRoot '..'))
-$repoRoot = [System.IO.Path]::GetFullPath((Join-Path $setupRoot '..\..'))
 $projectPath = Join-Path $setupRoot 'dotnet\AnarchyAi.Setup.csproj'
 $pluginsRoot = Join-Path $repoRoot 'plugins'
 $targetExePath = Join-Path $pluginsRoot 'AnarchyAi.Setup.exe'
+$pathAuditScriptPath = Join-Path $repoRoot 'harness\pathing\scripts\test-path-canon-compliance.ps1'
 
 $tempRoot = Join-Path $env:LOCALAPPDATA 'Temp\ai-links-setup-build'
 $objRoot = Join-Path $tempRoot 'obj'
@@ -281,6 +574,18 @@ $statusPath = Join-Path $tempRoot 'last-build-result.json'
 $objRootMsbuild = (($objRoot -replace '\\', '/') + '/')
 $binRootMsbuild = (($binRoot -replace '\\', '/') + '/')
 
+<#
+.SYNOPSIS
+Writes the machine-readable build result file and echoes it to stdout.
+.DESCRIPTION
+Creates the status directory when needed and persists the final build status for later troubleshooting.
+.PARAMETER Result
+Hashtable describing the build outcome.
+.OUTPUTS
+JSON text written to the status file and stdout.
+.NOTES
+Critical dependencies: the temp build status path and ConvertTo-Json.
+#>
 function Write-BuildResult {
   param(
     [hashtable]$Result
@@ -300,6 +605,9 @@ $resolvedDotnetPath = ''
 $publishedExePath = ''
 $schemaManifestSynced = $false
 $pluginReadmeGenerated = $false
+$pluginMcpDeclarationGenerated = $false
+$pluginManifestGenerated = $false
+$pathAuditValidated = $false
 $publishedHelpContractValidated = $false
 $targetHelpContractValidated = $false
 
@@ -315,7 +623,17 @@ try {
   }
 
   $pluginReadmeGenerated = Update-GeneratedPluginReadme -RepoRoot $repoRoot
+  $pluginMcpDeclarationGenerated = Update-GeneratedPluginMcpDeclaration -RepoRoot $repoRoot
+  $pluginManifestGenerated = Update-GeneratedPluginManifest -RepoRoot $repoRoot
   $schemaManifestSynced = Sync-SchemaBundleManifest -RepoRoot $repoRoot
+  if (-not (Test-Path $pathAuditScriptPath)) {
+    throw "Path audit script not found: $pathAuditScriptPath"
+  }
+  & powershell -ExecutionPolicy Bypass -File $pathAuditScriptPath -RepoRoot $repoRoot
+  if ($LASTEXITCODE -ne 0) {
+    throw "Path audit script failed with exit code $LASTEXITCODE"
+  }
+  $pathAuditValidated = $true
 
   if (Test-Path $publishRoot) {
     Remove-Item $publishRoot -Recurse -Force
@@ -362,7 +680,10 @@ try {
         publish_root = $publishRoot
         published_executable = $publishedExePath
         plugin_readme_generated = $pluginReadmeGenerated
+        plugin_mcp_declaration_generated = $pluginMcpDeclarationGenerated
+        plugin_manifest_generated = $pluginManifestGenerated
         schema_manifest_synced = $schemaManifestSynced
+        path_audit_validated = $pathAuditValidated
         published_help_contract_validated = $publishedHelpContractValidated
         target_help_contract_validated = $targetHelpContractValidated
         copy_to_plugins_requested = $true
@@ -399,7 +720,10 @@ try {
     publish_root = $publishRoot
     published_executable = $publishedExePath
     plugin_readme_generated = $pluginReadmeGenerated
+    plugin_mcp_declaration_generated = $pluginMcpDeclarationGenerated
+    plugin_manifest_generated = $pluginManifestGenerated
     schema_manifest_synced = $schemaManifestSynced
+    path_audit_validated = $pathAuditValidated
     published_help_contract_validated = $publishedHelpContractValidated
     target_help_contract_validated = if ($SkipCopyToPlugins) { $false } else { $targetHelpContractValidated }
     copy_to_plugins_requested = (-not $SkipCopyToPlugins)
@@ -420,7 +744,10 @@ catch {
     publish_root = $publishRoot
     published_executable = $publishedExePath
     plugin_readme_generated = $pluginReadmeGenerated
+    plugin_mcp_declaration_generated = $pluginMcpDeclarationGenerated
+    plugin_manifest_generated = $pluginManifestGenerated
     schema_manifest_synced = $schemaManifestSynced
+    path_audit_validated = $pathAuditValidated
     published_help_contract_validated = $publishedHelpContractValidated
     target_help_contract_validated = $targetHelpContractValidated
     copy_to_plugins_requested = (-not $SkipCopyToPlugins)

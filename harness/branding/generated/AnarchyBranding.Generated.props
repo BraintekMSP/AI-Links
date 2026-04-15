@@ -1,0 +1,28 @@
+﻿<Project>
+  <PropertyGroup>
+    <AnarchyBrandingVersion>0.1.0</AnarchyBrandingVersion>
+    <AnarchyBrandingBrandDisplayName>Anarchy-AI</AnarchyBrandingBrandDisplayName>
+    <AnarchyBrandingSetupDisplayName>Anarchy-AI Setup</AnarchyBrandingSetupDisplayName>
+    <AnarchyBrandingUserProfileMarketplaceDisplayName>Anarchy-AI User Profile</AnarchyBrandingUserProfileMarketplaceDisplayName>
+    <AnarchyBrandingRepoLocalMarketplaceDisplayNameTemplate>Anarchy-AI Local (&lt;RepoName&gt;)</AnarchyBrandingRepoLocalMarketplaceDisplayNameTemplate>
+    <AnarchyBrandingAuthorName>Matt Herring</AnarchyBrandingAuthorName>
+    <AnarchyBrandingAuthorUrl>https://github.com/BraintekMSP/AI-Links</AnarchyBrandingAuthorUrl>
+    <AnarchyBrandingHomepageUrl>https://github.com/BraintekMSP/AI-Links</AnarchyBrandingHomepageUrl>
+    <AnarchyBrandingRepositoryUrl>https://github.com/BraintekMSP/AI-Links</AnarchyBrandingRepositoryUrl>
+    <AnarchyBrandingDeveloperName>herringms</AnarchyBrandingDeveloperName>
+    <AnarchyBrandingPrivacyPolicyUrl>https://github.com/BraintekMSP/AI-Links/blob/main/plugins/anarchy-ai/PRIVACY.md</AnarchyBrandingPrivacyPolicyUrl>
+    <AnarchyBrandingTermsOfServiceUrl>https://github.com/BraintekMSP/AI-Links/blob/main/LICENSE</AnarchyBrandingTermsOfServiceUrl>
+    <AnarchyBrandingDefaultUpdateSourceZipUrl>https://github.com/BraintekMSP/AI-Links/archive/refs/heads/main.zip</AnarchyBrandingDefaultUpdateSourceZipUrl>
+    <AnarchyBrandingBrandColor>#203630</AnarchyBrandingBrandColor>
+    <AnarchyBrandingBrandingRootDirectoryRelativePath>branding</AnarchyBrandingBrandingRootDirectoryRelativePath>
+    <AnarchyBrandingBrandingAssetsDirectoryRelativePath>branding/assets</AnarchyBrandingBrandingAssetsDirectoryRelativePath>
+    <AnarchyBrandingBrandingPublishedMaterialsDirectoryRelativePath>branding/published-materials</AnarchyBrandingBrandingPublishedMaterialsDirectoryRelativePath>
+    <AnarchyBrandingBrandingInstructionAdditionsDirectoryRelativePath>branding/published-materials/instruction-additions</AnarchyBrandingBrandingInstructionAdditionsDirectoryRelativePath>
+    <AnarchyBrandingBundleBrandingDirectoryRelativePath>branding</AnarchyBrandingBundleBrandingDirectoryRelativePath>
+    <AnarchyBrandingBundleBrandingPsd1FileRelativePath>branding/anarchy-branding.generated.psd1</AnarchyBrandingBundleBrandingPsd1FileRelativePath>
+    <AnarchyBrandingBundleSetupHeaderImageRelativePath>assets/anarchy-ai.png</AnarchyBrandingBundleSetupHeaderImageRelativePath>
+    <AnarchyBrandingBundleSetupIconRelativePath>assets/anarchy-ai.ico</AnarchyBrandingBundleSetupIconRelativePath>
+    <AnarchyBrandingBundlePluginComposerIconRelativePath>assets/anarchy-ai.png</AnarchyBrandingBundlePluginComposerIconRelativePath>
+    <AnarchyBrandingBundlePluginLogoRelativePath>assets/anarchy_ai.svg</AnarchyBrandingBundlePluginLogoRelativePath>
+  </PropertyGroup>
+</Project>

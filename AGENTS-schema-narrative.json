@@ -1,14 +1,14 @@
 {
   "meta": {
     "context-ordering-rule": "past context CANNOT be reshaped by future context -- the direction of this relationship is critical",
-    "context-compression-warning": "acceptable context compression from your current context window in no way guarantees context fidelity in future context -- do not assume that what survives compression now will survive the next compression -- write durable state to files, not to context",
+    "context-compression-warning": "acceptable context compression from your current context window in no way guarantees context fidelity in future context -- context is always ephemeral -- write durable state to files",
     "version": "0.1.0",
     "role": "narrative protocol schema -- governs the structure of evolving narrative records for any entity with multiple parties and a story that changes over time",
     "intent": "combat tribal knowledge and human memory decay -- documentation and SOPs are not enough because they strip narrative out -- this schema preserves narrative structure while making it navigable by agents and humans alike",
-    "self-contained": "this schema is the sole context source for authoring and maintaining narrative records -- do not consult external operating procedures -- if something required is not declared here, ask the human rather than reaching outside this file",
-    "human-reported-issue-governance": "bug reports and feature requests are not governed by this schema -- they are owned by whatever system the project declares",
+    "self-contained": "this schema is the sole context source for authoring and maintaining narrative records -- consult only this schema for authoring -- if something required is missing, ask the human rather than reaching outside this file",
+    "human-reported-issue-governance": "bug reports and feature requests are owned by whatever system the project declares",
 
-    "narrative-bias-acknowledgment": "humans operate on narratives -- narrative bias may be the strongest bias humans trend toward -- this schema works with that tendency rather than against it -- stripping narrative out of communication records does not produce a cleaner record, it produces a wrong one -- the goal is structured narrative, not normalized data",
+    "narrative-bias-acknowledgment": "humans operate on narratives -- narrative bias may be the strongest bias humans trend toward -- this schema works with that tendency -- preserving narrative in communication records produces a more accurate record than stripping it -- the goal is structured narrative that stays human-readable",
 
     "output-format": "JSON data artifacts -- not human-editable markdown -- records are written and maintained by agents from human input -- direct human editing is discouraged because it is prone to inconsistency and context leakage between record sets -- humans provide input, agents write the record",
 
@@ -16,12 +16,12 @@
 
     "schema-family": "AGENTS-schema-narrative.json is a member of the AGENTS-schema-* family -- it produces JSON data artifacts, not markdown governance files -- AGENTS-schema-governance.json governs code and operations -- AGENTS-schema-1project.json governs single-goal session continuity -- AGENTS-schema-gov2gov-migration.json governs migrations from one governance system into another -- narrative records may reference sibling schema artifacts when work materializes from a narrative thread",
 
-    "sibling-isolation": "if another AGENTS-schema-*.json file is present in the context window, do not merge, inherit, or cross-reference fields between schemas unless an explicit pointer field (narrative-ref, project-ref) declares the relationship -- each schema governs its own artifact set independently -- shared field names across schemas are structurally similar but operationally independent -- do not assume one schema's field definitions apply to another",
+    "sibling-isolation": "if another AGENTS-schema-*.json file is present in the context window, treat each schema as operationally independent -- shared field names across schemas are structurally similar but operationally independent -- verify each field against its own schema only -- explicit pointer fields (narrative-ref, project-ref) are the only valid cross-schema references",
 
     "opening-prompt": "The workspace you are in, or the files you see, represents a tool or human workflow that has evolving and updating personal, company, and/or client data, and may be interacted with by nearly every stakeholder involved. We need to build a captured narrative around the experience. This schema describes the mechanisms by which you build that narrative. Implementation and view are up to you, but the mechanisms are not optional. This narrative exists to combat tribal knowledge and human memory decay over time, because documentation and SOPs are unreliable, stale, and have never been enough.",
 
     "entity-type-hints": {
-      "role": "entity types are not a closed list -- any entity with an evolving story and multiple parties who need to stay aligned on what happened is a valid subject -- the following are common patterns with notes on which optional fields become most relevant",
+      "role": "entity types are an open list -- any entity with an evolving story and multiple parties who need to stay aligned on what happened is a valid subject -- the following are common patterns with notes on which optional fields become most relevant",
       "client-account":    "definition-of-fixed and sentiment-and-tension are critical -- these records reveal whether the relationship is healthy",
       "vendor-account":    "technical-limitations, budgetary-limitations, and awaiting-external are critical -- these records reveal dependency risk",
       "employee-workflow": "open-threads and tribal flags are critical -- these records reveal training gaps and process friction",
@@ -32,10 +32,10 @@
   },
 
   "cadence": {
-    "role": "recommended update rhythm per record set -- not mandatory -- set per record at authoring time -- consume system may enforce or ignore",
+    "role": "recommended update rhythm per record set -- advisory, set per record at authoring time -- consuming system may enforce or adapt",
     "monthly": {
       "scope": "set-level -- all records in a set reviewed",
-      "mode": "iterative -- append new entries, update open threads, flag stale items -- compress not permitted"
+      "mode": "iterative -- append new entries, update open threads, flag stale items -- compress reserved for quarterly only"
     },
     "quarterly": {
       "scope": "set-level -- full review",
@@ -43,7 +43,7 @@
     },
     "transient": {
       "scope": "single record -- one-off situation or complaint that cannot wait for the monthly or quarterly cycle",
-      "mode": "append and update only -- record is closed when the situation resolves -- archived not deleted -- transient records feed into the next quarterly review as input"
+      "mode": "append and update only -- record is closed when the situation resolves -- archived on closure, preserved for quarterly review input"
     }
   },
 
@@ -63,7 +63,7 @@
   },
 
   "record-structure": {
-    "role": "shape of a single narrative record -- every record regardless of entity type shares this structure -- optional fields are omitted when not applicable, never left empty",
+    "role": "shape of a single narrative record -- every record regardless of entity type shares this structure -- omit fields that are inapplicable, populate every field that is present",
 
     "header": {
       "role": "identity and state of this record",
@@ -88,17 +88,17 @@
     },
 
     "entries": {
-      "role": "ordered log of events, exchanges, and decisions -- append-only except for status updates on existing entries -- entries are never deleted, only archived",
+      "role": "ordered log of events, exchanges, and decisions -- append-only except for status updates on existing entries -- entries are preserved through archival",
       "entry-fields": {
 
         "id":        { "type": "string", "required": true,  "role": "unique entry identifier within this record -- used for cross-references and superseded-by links" },
         "date":      { "type": "string", "required": true,  "role": "ISO 8601 date this entry was recorded" },
         "type":      { "type": "string", "required": true,  "role": "event, decision, thread-open, thread-close, beat, correction" },
-        "summary":   { "type": "string", "required": true,  "role": "what happened -- preserve the human language, do not normalize or compress -- this is the narrative" },
+        "summary":   { "type": "string", "required": true,  "role": "what happened -- preserve the human language as-is -- this is the narrative" },
         "tribal":    { "type": "bool",   "role": "true when this information exists only in one person's account with no corroborating record -- tribal entries are highest criticality regardless of apparent significance" },
 
         "cast": {
-          "role": "who was involved in this entry -- omit roles that do not apply",
+          "role": "who was involved in this entry -- include only roles relevant to this entry",
           "owner":          { "type": "string", "role": "who owns this issue or thread" },
           "context-holder": { "type": "string", "role": "who has the most context -- may differ from owner" },
           "requested-by":   { "type": "string", "role": "who made the original request" },
@@ -118,14 +118,14 @@
 
         "constraints": {
           "role": "what shaped or limited the outcome -- omit if not applicable",
-          "technical-limitations":  { "type": "string", "role": "what was not possible and why" },
+          "technical-limitations":  { "type": "string", "role": "what the technology constrained and why" },
           "budgetary-limitations":  { "type": "string", "role": "what was descoped or deferred due to cost" },
           "awaiting-external":      { "type": "string", "role": "blocked on a vendor, partner, or third party -- record who and why" }
         },
 
         "sentiment-and-tension": {
           "type": "string",
-          "role": "the emotional reality of this entry -- not a score -- a narrative note -- did the client feel heard, was there friction, did a relationship shift -- medium criticality by default, high when it predicts churn or disengagement"
+          "role": "the emotional reality of this entry -- a narrative note, captured in human terms -- did the client feel heard, was there friction, did a relationship shift -- medium criticality by default, high when it predicts churn or disengagement"
         },
 
         "beat": {
@@ -134,12 +134,12 @@
         },
 
         "status":       { "type": "string", "role": "open, resolved, archived, superseded -- omit if entry type does not have a lifecycle" },
-        "superseded-by":{ "type": "string", "role": "entry id or external reference that replaces this entry -- preserve original entry, do not delete" }
+        "superseded-by":{ "type": "string", "role": "entry id or external reference that replaces this entry -- preserve original entry as-is" }
       }
     },
 
     "open-threads": {
-      "role": "things raised but not resolved -- the feature request that never happened problem -- populated from entries with type thread-open and status open",
+      "role": "things raised and still awaiting resolution -- the feature request that was promised and forgotten problem -- populated from entries with type thread-open and status open",
       "entry-fields": {
         "id":           { "type": "string", "required": true,  "role": "matches entry id that opened this thread" },
         "summary":      { "type": "string", "required": true,  "role": "what is unresolved" },
@@ -185,7 +185,7 @@
 
     "handoff-note": {
       "type": "string",
-      "role": "what the next person needs to know that is not obvious from the entries -- required on any session that closes a thread or transfers ownership -- this is the tribal knowledge capture point"
+      "role": "what the next person needs to know beyond what the entries already show -- required on any session that closes a thread or transfers ownership -- this is the tribal knowledge capture point"
     }
   },
 
@@ -195,18 +195,18 @@
     "append": {
       "description": "new event, new thread, new decision -- additive only -- nothing prior changes",
       "permitted-on": ["entries", "open-threads", "known-decisions", "observed-patterns"],
-      "blocked": "do not modify existing entries in append mode"
+      "blocked": "existing entries stay as-is in append mode"
     },
     "update": {
-      "description": "existing entry changes state -- a thread closes, a decision reverses, a pattern resolves -- old state is preserved, not overwritten",
+      "description": "existing entry changes state -- a thread closes, a decision reverses, a pattern resolves -- old state is preserved as-is alongside the update",
       "permitted-on": ["entries.status", "open-threads.status", "open-threads.stale", "known-decisions.reversed"],
-      "preservation-rule": "add a new entry referencing the updated entry id -- do not overwrite the original"
+      "preservation-rule": "add a new entry referencing the updated entry id -- original entry stays as-is"
     },
     "compress": {
       "description": "multiple entries consolidate into a summary -- highest-risk mode -- governed by compression rules",
-      "permitted-when": "quarterly review only -- never during monthly or transient cycles",
+      "permitted-when": "quarterly review only -- monthly and transient cycles use append and update exclusively",
       "report-to-human": "human-confirms",
-      "lossy-artifact-warning": "compressed entries are lossy artifacts -- detail that was not promoted to a durable section (known-decisions, open-threads, observed-patterns, handoff-note) during authoring is lost after compression -- this is the accepted cost of compression and the incentive to author well -- do not treat compressed summaries as authoritative for detail-level questions",
+      "lossy-artifact-warning": "compressed entries are lossy artifacts -- detail that lived only in entries and was never promoted to a durable section (known-decisions, open-threads, observed-patterns, handoff-note) during authoring is lost after compression -- this is the accepted cost of compression and the incentive to author well -- treat compressed summaries as directional only, consult durable sections for detail",
       "compression-rules": {
         "never-drop": [
           "named decisions with their owners",
@@ -227,12 +227,12 @@
     "correct": {
       "description": "factual error fixed -- attribution required -- old value preserved alongside correction",
       "required-fields": ["corrected-by", "correction-date", "original-value", "corrected-value", "reason"],
-      "preservation-rule": "original entry is never deleted -- correction is appended as a new entry with type correction referencing the original entry id"
+      "preservation-rule": "original entry is preserved as-is -- correction is appended as a new entry with type correction referencing the original entry id"
     }
   },
 
   "criticality": {
-    "role": "what makes an entry load-bearing vs background noise -- agents use this to prioritize what to front-load in a session and what cannot be dropped in a compress",
+    "role": "what makes an entry load-bearing vs background noise -- agents use this to prioritize what to front-load in a session and what must survive a compress",
     "highest": "any entry with tribal: true -- regardless of apparent significance",
     "high":    "named decisions with named owners -- definition-of-fixed divergences -- narrative beats -- handoff notes",
     "medium":  "sentiment-and-tension entries -- open threads with no stale flag -- bad patterns marked resolved",
@@ -242,12 +242,12 @@
 
   "signal-cues": {
     "role": "canonical classes of signal that indicate something worth recording is happening -- used by capture-workflows to detect narrative-relevant events passively",
-    "false-positive-tracking": "signal cues will misfire -- agents cannot reliably distinguish casual language from meaningful signal in all cases -- when an agent flags a cue and the human determines it was not meaningful, record the false positive as a not-working entry in the review session -- if a specific cue class consistently misfires in a specific workflow, note it in that workflow's observed patterns and reduce confidence -- do not disable cues, reduce trust in them",
+    "false-positive-tracking": "signal cues will misfire -- distinguishing casual language from meaningful signal is approximate -- when an agent flags a cue and the human determines it was noise, record the false positive as a working/pattern entry in the review session -- when a specific cue class consistently misfires in a specific workflow, note it in that workflow's observed patterns and reduce confidence -- keep cues active but adjust trust",
 
     "context-truncation": {
       "description": "system shows a fragment but the full story exists upstream",
       "examples": ["truncated email body in a ticket", "ticket note that references an attachment not included", "summary field that says see attached with no attachment present"],
-      "action": "flag as incomplete context -- record what is visible -- note that upstream source was not captured -- do not treat the fragment as the complete record"
+      "action": "flag as incomplete context -- record what is visible -- note that upstream source was captured elsewhere -- treat the fragment as partial, seek the full source"
     },
     "cross-domain-reference": {
       "description": "a record points outside itself to context it does not contain",
@@ -276,7 +276,7 @@
     "definition-divergence": {
       "description": "language suggesting the parties are not using the same success criteria",
       "examples": ["we consider this closed", "the issue has been resolved", "this was fixed in the last update -- with no confirmation from the other party"],
-      "action": "flag as potential divergence -- record both definitions if available -- populate definition-of-fixed block -- do not mark resolved until both parties confirm"
+      "action": "flag as potential divergence -- record both definitions if available -- populate definition-of-fixed block -- mark resolved only when both parties confirm"
     },
     "tribal-flag": {
       "description": "information that exists only in one person's account with no corroborating record",
@@ -286,7 +286,7 @@
   },
 
   "capture-workflows": {
-    "role": "named workflow patterns describing where narrative-relevant signals appear and what cues to watch for -- not an exhaustive list -- add workflows as patterns are discovered",
+    "role": "named workflow patterns describing where narrative-relevant signals appear and what cues to watch for -- an open list, add workflows as patterns are discovered",
 
     "technician-mailbox": {
       "description": "inbound communications to a technician or support role -- high signal density for context truncation and cross-domain references",
@@ -316,7 +316,7 @@
     "review-session": {
       "description": "monthly or quarterly review of a record set -- compress-eligible sessions only at quarterly",
       "watch-for": ["stale-open-thread", "definition-divergence", "tribal-flag"],
-      "notes": "review sessions must check every open thread for stale status before closing -- compress is not permitted during monthly review"
+      "notes": "review sessions must check every open thread for stale status before closing -- compress is reserved for quarterly review only"
     }
   },
 
@@ -334,9 +334,9 @@
       "reconstruct known-decisions from fragments -- flag attribution gaps where owner cannot be determined",
       "reconstruct open-threads from fragments -- mark stale where applicable",
       "record observed-patterns from fragments if any are identifiable",
-      "write handoff-note summarizing what was reconstructed and what could not be recovered",
+      "write handoff-note summarizing what was reconstructed and what remains unrecoverable from available fragments",
       "register the record in the register file",
-      "declare cold-start complete -- do not compress on first authoring"
+      "declare cold-start complete -- first authoring produces only append entries, compress is reserved for later quarterly review"
     ],
     "update": [
       "read the existing record header and record-state-at-review-open-and-close.close from the last session before writing anything",
@@ -354,7 +354,7 @@
   },
 
   "templates": {
-    "role": "starting-point shapes for new records -- replace placeholder values -- do not add fields not declared in this schema -- output is JSON not markdown",
+    "role": "starting-point shapes for new records -- replace placeholder values -- only fields declared in this schema are valid -- output is JSON",
 
     "record": {
       "header": {

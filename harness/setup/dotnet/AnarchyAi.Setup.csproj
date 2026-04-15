@@ -1,4 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\..\branding\generated\AnarchyBranding.Generated.props"
+          Condition="Exists('..\..\branding\generated\AnarchyBranding.Generated.props')" />
+  <Import Project="..\..\pathing\generated\AnarchyPathCanon.Generated.props"
+          Condition="Exists('..\..\pathing\generated\AnarchyPathCanon.Generated.props')" />
+
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -13,26 +18,30 @@
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <ApplicationIcon>..\..\..\plugins\anarchy-ai\assets\anarchy-ai.ico</ApplicationIcon>
+    <ApplicationIcon>..\..\..\plugins\anarchy-ai\$(AnarchyBrandingBundleSetupIconRelativePath)</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\branding\Branding.Shared.cs" Link="Branding\Branding.Shared.cs" />
+    <Compile Include="..\..\branding\generated\GeneratedAnarchyBranding.g.cs" Link="Branding\GeneratedAnarchyBranding.g.cs" />
+    <Compile Include="..\..\pathing\AnarchyPathCanon.Shared.cs" Link="Pathing\AnarchyPathCanon.Shared.cs" />
+    <Compile Include="..\..\pathing\generated\GeneratedAnarchyPathCanon.g.cs" Link="Pathing\GeneratedAnarchyPathCanon.g.cs" />
     <Compile Remove="obj\**\*.cs" />
     <EmbeddedResource Remove="obj\**\*" />
     <None Remove="obj\**\*" />
     <EmbeddedResource Include="..\..\..\plugins\anarchy-ai\**\*"
-                      LogicalName="SetupPayload/plugins/anarchy-ai/%(RecursiveDir)%(Filename)%(Extension)" />
+                      LogicalName="$(AnarchyCanonPluginPayloadPrefix)%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\..\..\AGENTS-schema-governance.json"
-                      LogicalName="SetupPayload/portable-schema/AGENTS-schema-governance.json" />
+                      LogicalName="$(AnarchyCanonPortableSchemaPayloadPrefix)AGENTS-schema-governance.json" />
     <EmbeddedResource Include="..\..\..\AGENTS-schema-1project.json"
-                      LogicalName="SetupPayload/portable-schema/AGENTS-schema-1project.json" />
+                      LogicalName="$(AnarchyCanonPortableSchemaPayloadPrefix)AGENTS-schema-1project.json" />
     <EmbeddedResource Include="..\..\..\AGENTS-schema-narrative.json"
-                      LogicalName="SetupPayload/portable-schema/AGENTS-schema-narrative.json" />
+                      LogicalName="$(AnarchyCanonPortableSchemaPayloadPrefix)AGENTS-schema-narrative.json" />
     <EmbeddedResource Include="..\..\..\AGENTS-schema-gov2gov-migration.json"
-                      LogicalName="SetupPayload/portable-schema/AGENTS-schema-gov2gov-migration.json" />
+                      LogicalName="$(AnarchyCanonPortableSchemaPayloadPrefix)AGENTS-schema-gov2gov-migration.json" />
     <EmbeddedResource Include="..\..\..\AGENTS-schema-triage.md"
-                      LogicalName="SetupPayload/portable-schema/AGENTS-schema-triage.md" />
+                      LogicalName="$(AnarchyCanonPortableSchemaPayloadPrefix)AGENTS-schema-triage.md" />
     <EmbeddedResource Include="..\..\..\Getting-Started-For-Humans.txt"
-                      LogicalName="SetupPayload/portable-schema/Getting-Started-For-Humans.txt" />
+                      LogicalName="$(AnarchyCanonPortableSchemaPayloadPrefix)Getting-Started-For-Humans.txt" />
   </ItemGroup>
 </Project>

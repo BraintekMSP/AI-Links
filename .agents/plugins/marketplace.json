@@ -1,20 +1,20 @@
-{
-  "name": "anarchy-local-ai-links-bb85a60e",
-  "interface": {
-    "displayName": "Anarchy-AI Local (AI-Links)"
-  },
-  "plugins": [
-    {
-      "name": "anarchy-ai",
-      "source": {
-        "source": "local",
-        "path": "./plugins/anarchy-ai"
-      },
-      "policy": {
-        "installation": "INSTALLED_BY_DEFAULT",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Productivity"
-    }
-  ]
+﻿{
+    "name":  "anarchy-ai-herringms-local-ai-links",
+    "interface":  {
+                      "displayName":  "Anarchy-AI Local (AI-Links)"
+                  },
+    "plugins":  [
+                    {
+                        "name":  "anarchy-ai-herringms",
+                        "source":  {
+                                       "source":  "local",
+                                       "path":  "./plugins/anarchy-ai"
+                                   },
+                        "policy":  {
+                                       "installation":  "INSTALLED_BY_DEFAULT",
+                                       "authentication":  "ON_INSTALL"
+                                   },
+                        "category":  "Productivity"
+                    }
+                ]
 }

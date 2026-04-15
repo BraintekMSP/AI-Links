@@ -7,27 +7,40 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using AnarchyAi.Pathing;
 
 namespace AnarchyAi.Mcp.Server;
 
+// Purpose: Loads JSON contracts from the installed bundle or repo-local harness source.
+// Expected input: Contract file names requested by the MCP tool layer.
+// Expected output: Parsed JsonElement contract documents.
+// Critical dependencies: ResolveContractsDirectory, filesystem access, and the carried contract files.
 internal sealed class ContractLoader
 {
     private readonly string _contractsDir = ResolveContractsDirectory();
 
+    // Purpose: Loads one JSON contract document by file name.
+    // Expected input: Contract file name relative to the resolved contracts directory.
+    // Expected output: Parsed JsonElement contract content.
+    // Critical dependencies: _contractsDir, File.ReadAllText, and JsonSerializer.
     public JsonElement LoadContract(string contractFileName)
     {
         var contractPath = Path.Combine(_contractsDir, contractFileName);
         return JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(contractPath));
     }
 
+    // Purpose: Finds the first usable contracts directory across plugin-local and repo-local candidates.
+    // Expected input: Current process base directory and current working directory.
+    // Expected output: Absolute path to a directory containing the required harness contract files.
+    // Critical dependencies: AnarchyPathCanon bundle helpers and the expected contract file set.
     private static string ResolveContractsDirectory()
     {
         var candidates = new[]
         {
-            Path.Combine(Environment.CurrentDirectory, "contracts"),
-            Path.Combine(AppContext.BaseDirectory, "contracts"),
-            Path.Combine(AppContext.BaseDirectory, "..", "contracts"),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "contracts"),
+            AnarchyPathCanon.ResolveBundleFilePath(Environment.CurrentDirectory, AnarchyPathCanon.BundleContractsDirectoryRelativePath),
+            AnarchyPathCanon.ResolveBundleFilePath(AppContext.BaseDirectory, AnarchyPathCanon.BundleContractsDirectoryRelativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", AnarchyPathCanon.BundleContractsDirectoryRelativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", AnarchyPathCanon.BundleContractsDirectoryRelativePath),
             Path.Combine(Environment.CurrentDirectory, "harness", "contracts")
         }
         .Select(Path.GetFullPath);
@@ -49,6 +62,10 @@ internal sealed class ContractLoader
     }
 }
 
+// Purpose: Represents the canonical schema bundle carried by the plugin and provides integrity lookup helpers.
+// Expected input: Manifest and schema files discovered in plugin-local or repo-local bundle locations.
+// Expected output: Availability, manifest metadata, and canonical file-hash lookup data.
+// Critical dependencies: schema-bundle manifest JSON, HarnessInstallDiscovery, and local filesystem access.
 internal sealed class CanonicalSchemaBundle
 {
     public required bool IsAvailable { get; init; }
@@ -59,16 +76,20 @@ internal sealed class CanonicalSchemaBundle
     public IReadOnlyDictionary<string, string> FileHashes { get; init; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     public IEnumerable<string> CanonicalFileNames => FileHashes.Keys;
 
+    // Purpose: Attempts to load the canonical schema bundle from the first valid candidate location.
+    // Expected input: Current base directory, current working directory, installed plugin root, and repo-local plugin source candidates.
+    // Expected output: A populated CanonicalSchemaBundle when a valid manifest is present, otherwise an unavailable bundle object.
+    // Critical dependencies: schema-bundle manifest JSON, AnarchyPathCanon, and HarnessInstallDiscovery.TryResolveInstalledPluginRoot.
     public static CanonicalSchemaBundle TryLoad()
     {
         var candidateDirectories = new[]
         {
-            Path.Combine(Environment.CurrentDirectory, "schemas"),
-            Path.Combine(AppContext.BaseDirectory, "schemas"),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "schemas"),
-            Path.Combine(Environment.CurrentDirectory, "..", "..", "..", "plugins", "anarchy-ai", "schemas"),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "plugins", "anarchy-ai", "schemas"),
-            Path.Combine(HarnessInstallDiscovery.TryResolveInstalledPluginRoot() ?? string.Empty, "schemas")
+            AnarchyPathCanon.ResolveBundleFilePath(Environment.CurrentDirectory, AnarchyPathCanon.BundleSchemasDirectoryRelativePath),
+            AnarchyPathCanon.ResolveBundleFilePath(AppContext.BaseDirectory, AnarchyPathCanon.BundleSchemasDirectoryRelativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", AnarchyPathCanon.BundleSchemasDirectoryRelativePath),
+            Path.Combine(Environment.CurrentDirectory, "..", "..", "..", AnarchyPathCanon.RepoSourcePluginDirectoryRelativePath, AnarchyPathCanon.BundleSchemasDirectoryRelativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", AnarchyPathCanon.RepoSourcePluginDirectoryRelativePath, AnarchyPathCanon.BundleSchemasDirectoryRelativePath),
+            AnarchyPathCanon.ResolveBundleFilePath(HarnessInstallDiscovery.TryResolveInstalledPluginRoot() ?? string.Empty, AnarchyPathCanon.BundleSchemasDirectoryRelativePath)
         }
         .Where(static path => !string.IsNullOrWhiteSpace(path))
         .Select(Path.GetFullPath)
@@ -76,7 +97,7 @@ internal sealed class CanonicalSchemaBundle
 
         foreach (var candidateDirectory in candidateDirectories)
         {
-            var manifestPath = Path.Combine(candidateDirectory, "schema-bundle.manifest.json");
+            var manifestPath = Path.Combine(candidateDirectory, Path.GetFileName(AnarchyPathCanon.BundleSchemaManifestFileRelativePath));
             if (!File.Exists(manifestPath))
             {
                 continue;
@@ -105,6 +126,10 @@ internal sealed class CanonicalSchemaBundle
         return new CanonicalSchemaBundle { IsAvailable = false };
     }
 
+    // Purpose: Resolves the on-disk file path for one canonical schema file in the loaded bundle.
+    // Expected input: Canonical schema file name.
+    // Expected output: True with an absolute file path when the bundle is available and the file exists.
+    // Critical dependencies: SchemasDirectory and local filesystem access.
     public bool TryResolveFilePath(string fileName, out string filePath)
     {
         filePath = string.Empty;
@@ -123,6 +148,10 @@ internal sealed class CanonicalSchemaBundle
         return true;
     }
 
+    // Purpose: Matches the schema-bundle manifest JSON structure carried by the plugin bundle.
+    // Expected input: Deserialized schema-bundle manifest JSON.
+    // Expected output: Manifest metadata and file-hash entries for the canonical schema bundle.
+    // Critical dependencies: JsonPropertyName bindings and the schema-bundle manifest contract.
     private sealed class SchemaBundleManifest
     {
         [JsonPropertyName("bundle_name")]
@@ -135,6 +164,10 @@ internal sealed class CanonicalSchemaBundle
         public List<SchemaBundleFile>? Files { get; set; }
     }
 
+    // Purpose: Matches one file entry inside the schema-bundle manifest JSON.
+    // Expected input: Deserialized manifest file-entry JSON.
+    // Expected output: Canonical schema file name and expected SHA-256 hash.
+    // Critical dependencies: JsonPropertyName bindings and the schema-bundle manifest contract.
     private sealed class SchemaBundleFile
     {
         [JsonPropertyName("file_name")]
@@ -145,8 +178,16 @@ internal sealed class CanonicalSchemaBundle
     }
 }
 
+// Purpose: Discovers the plugin root that the runtime should inspect when reporting install and capability state.
+// Expected input: Current process base directory, current working directory, workspace marketplace state, and user-profile marketplace state.
+// Expected output: Absolute plugin-root paths or null when discovery fails.
+// Critical dependencies: marketplace.json, AnarchyPathCanon, and the expected plugin bundle shape.
 internal static class HarnessInstallDiscovery
 {
+    // Purpose: Detects whether the current process is already running from an installed plugin root.
+    // Expected input: Current working directory and base-directory ancestry.
+    // Expected output: Absolute plugin root or null when no installed plugin root is detected.
+    // Critical dependencies: LooksLikePluginRoot.
     public static string? TryResolveInstalledPluginRoot()
     {
         var candidates = new[]
@@ -169,6 +210,10 @@ internal static class HarnessInstallDiscovery
         return null;
     }
 
+    // Purpose: Resolves the plugin root that should govern a given workspace.
+    // Expected input: Workspace root plus repo-local and user-profile marketplace state.
+    // Expected output: Absolute plugin root selected from marketplace entries, repo-local bundle directories, or a fallback repo-local target.
+    // Critical dependencies: TryResolveMarketplacePluginRoot, LooksLikePluginRoot, and AnarchyPathCanon.
     public static string ResolveWorkspacePluginRoot(string workspaceRoot)
     {
         var marketplaceCandidate = TryResolveMarketplacePluginRoot(workspaceRoot);
@@ -187,7 +232,7 @@ internal static class HarnessInstallDiscovery
         if (Directory.Exists(pluginsRoot))
         {
             foreach (var candidate in Directory.GetDirectories(pluginsRoot)
-                         .Where(static path => Path.GetFileName(path).StartsWith("anarchy-ai", StringComparison.OrdinalIgnoreCase))
+                         .Where(static path => AnarchyPathCanon.IsOwnedPluginName(Path.GetFileName(path)))
                          .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
             {
                 if (LooksLikePluginRoot(candidate))
@@ -198,9 +243,13 @@ internal static class HarnessInstallDiscovery
         }
 
         return TryResolveInstalledPluginRoot()
-            ?? Path.Combine(workspaceRoot, "plugins", "anarchy-ai");
+            ?? AnarchyPathCanon.ResolveRepoLocalPluginRoot(workspaceRoot, GeneratedAnarchyPathCanon.DefaultPluginName);
     }
 
+    // Purpose: Resolves a plugin root from a marketplace file located beneath the supplied root.
+    // Expected input: Marketplace root such as a workspace root or user-profile root.
+    // Expected output: Absolute plugin root referenced by a valid supported marketplace entry, or null when none qualify.
+    // Critical dependencies: marketplace.json, TryGetPluginName, IsSupportedPluginSourcePath, and LooksLikePluginRoot.
     private static string? TryResolveMarketplacePluginRoot(string marketplaceRoot)
     {
         if (string.IsNullOrWhiteSpace(marketplaceRoot))
@@ -208,7 +257,7 @@ internal static class HarnessInstallDiscovery
             return null;
         }
 
-        var marketplacePath = Path.Combine(marketplaceRoot, ".agents", "plugins", "marketplace.json");
+        var marketplacePath = AnarchyPathCanon.ResolveRelativePath(marketplaceRoot, AnarchyPathCanon.RepoLocalMarketplaceFileRelativePath);
         if (!File.Exists(marketplacePath))
         {
             return null;
@@ -226,7 +275,7 @@ internal static class HarnessInstallDiscovery
             foreach (var pluginElement in pluginsElement.EnumerateArray())
             {
                 if (!TryGetPluginName(pluginElement, out var pluginName) ||
-                    !pluginName.StartsWith("anarchy-ai", StringComparison.OrdinalIgnoreCase))
+                    !AnarchyPathCanon.IsOwnedPluginName(pluginName))
                 {
                     continue;
                 }
@@ -259,17 +308,28 @@ internal static class HarnessInstallDiscovery
         return null;
     }
 
+    // Purpose: Checks whether a marketplace source.path uses a supported Anarchy-AI source prefix.
+    // Expected input: Marketplace source.path string.
+    // Expected output: True when the source path matches the shared path canon.
+    // Critical dependencies: AnarchyPathCanon.IsSupportedMarketplacePluginSourceRelativePath.
     internal static bool IsSupportedPluginSourcePath(string sourcePath)
     {
-        return sourcePath.StartsWith("./plugins/anarchy-ai", StringComparison.OrdinalIgnoreCase)
-               || sourcePath.StartsWith("./.codex/plugins/anarchy-ai", StringComparison.OrdinalIgnoreCase);
+        return AnarchyPathCanon.IsSupportedMarketplacePluginSourceRelativePath(sourcePath);
     }
 
+    // Purpose: Returns the current user-profile root used for home-local plugin discovery.
+    // Expected input: None.
+    // Expected output: Absolute user-profile path for the current process.
+    // Critical dependencies: Environment.SpecialFolder.UserProfile.
     private static string GetUserProfileRoot()
     {
         return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     }
 
+    // Purpose: Reads a plugin name from one marketplace plugin JSON element.
+    // Expected input: Marketplace plugin JsonElement.
+    // Expected output: True with a nonblank plugin name when the element exposes a valid name property.
+    // Critical dependencies: The marketplace JSON contract.
     public static bool TryGetPluginName(JsonElement pluginElement, out string pluginName)
     {
         pluginName = string.Empty;
@@ -283,14 +343,22 @@ internal static class HarnessInstallDiscovery
         return !string.IsNullOrWhiteSpace(pluginName);
     }
 
+    // Purpose: Determines whether a directory looks like an Anarchy-AI plugin root.
+    // Expected input: Candidate directory path.
+    // Expected output: True when the directory exists and carries the required plugin manifest and .mcp.json files.
+    // Critical dependencies: AnarchyPathCanon bundle file paths and local filesystem access.
     private static bool LooksLikePluginRoot(string path)
     {
         return Directory.Exists(path) &&
-               File.Exists(Path.Combine(path, ".codex-plugin", "plugin.json")) &&
-               File.Exists(Path.Combine(path, ".mcp.json"));
+               File.Exists(AnarchyPathCanon.ResolveBundleFilePath(path, AnarchyPathCanon.BundlePluginManifestFileRelativePath)) &&
+               File.Exists(AnarchyPathCanon.ResolveBundleFilePath(path, AnarchyPathCanon.BundleMcpFileRelativePath));
     }
 }
 
+// Purpose: Evaluates whether a workspace has materially real Anarchy schema surfaces or only partial/copied traces.
+// Expected input: Workspace root, expected schema-package label, and optional startup-surface list.
+// Expected output: An anonymous object describing schema reality, integrity, possession, reasons, repairs, and inspection facts.
+// Critical dependencies: CanonicalSchemaBundle, AGENTS/startup files, and workspace filesystem state.
 internal sealed class SchemaRealityInspector
 {
     private readonly CanonicalSchemaBundle _canonicalSchemaBundle = CanonicalSchemaBundle.TryLoad();
@@ -313,6 +381,10 @@ internal sealed class SchemaRealityInspector
         "AGENTS-Rules.md"
     ];
 
+    // Purpose: Evaluates schema reality, integrity, and possession state for one workspace.
+    // Expected input: Absolute workspace root, expected schema-package label, and optional startup-surface paths.
+    // Expected output: An anonymous object with state classification, reasons, repairs, and inspection details.
+    // Critical dependencies: CanonicalSchemaBundle, NormalizeStartupSurfaces, EvaluateIntegrity, and workspace file inspection.
     public object Evaluate(string workspaceRoot, string expectedSchemaPackage, string[]? startupSurfaces)
     {
         if (string.IsNullOrWhiteSpace(workspaceRoot) || !Path.IsPathRooted(workspaceRoot))
@@ -436,6 +508,10 @@ internal sealed class SchemaRealityInspector
         };
     }
 
+    // Purpose: Classifies the high-level schema reality state from the observed workspace surfaces.
+    // Expected input: Presence counts and alignment booleans derived from the workspace.
+    // Expected output: One of real, partial, copied_only, or fully_missing.
+    // Critical dependencies: FamilySchemaFiles and GovernedAuthorityFiles.
     private static string ClassifyState(
         bool agentsMdExists,
         int packageFilesPresentCount,
@@ -475,6 +551,10 @@ internal sealed class SchemaRealityInspector
         return packagePresent ? "copied_only" : "fully_missing";
     }
 
+    // Purpose: Builds the active reason codes that explain the current schema reality state.
+    // Expected input: Classified state and the underlying presence/alignment facts.
+    // Expected output: Distinct reason codes that justify the classification.
+    // Critical dependencies: The schema-reality reason vocabulary.
     private static string[] BuildReasons(
         string state,
         bool agentsMdExists,
@@ -557,6 +637,10 @@ internal sealed class SchemaRealityInspector
         return reasons.Distinct(StringComparer.Ordinal).ToArray();
     }
 
+    // Purpose: Builds the safe repair suggestions appropriate for the current schema reality and integrity state.
+    // Expected input: Schema reality state, startup-surface presence map, and integrity state.
+    // Expected output: Distinct safe-repair actions for the caller.
+    // Critical dependencies: MissingStartupSurfaceRepairs and the schema repair vocabulary.
     private static string[] BuildSafeRepairs(string state, IReadOnlyDictionary<string, bool> startupSurfaceExists, string integrityState)
     {
         var repairs = state switch
@@ -593,6 +677,10 @@ internal sealed class SchemaRealityInspector
         return repairs.Distinct(StringComparer.Ordinal).ToArray();
     }
 
+    // Purpose: Compares workspace schema files against the canonical schema bundle hashes.
+    // Expected input: Absolute workspace root.
+    // Expected output: IntegrityResult describing aligned, diverged, and missing canonical schema files.
+    // Critical dependencies: CanonicalSchemaBundle, ComputeSha256, and local filesystem access.
     private IntegrityResult EvaluateIntegrity(string workspaceRoot)
     {
         if (!_canonicalSchemaBundle.IsAvailable)
@@ -640,6 +728,10 @@ internal sealed class SchemaRealityInspector
             MissingFiles: missingFiles.ToArray());
     }
 
+    // Purpose: Derives possession state from schema reality and integrity.
+    // Expected input: Schema-reality state and integrity state.
+    // Expected output: unknown, not_applicable, possessed, or unpossessed.
+    // Critical dependencies: The current possession-state vocabulary.
     private static string BuildPossessionState(string schemaRealityState, string integrityState)
     {
         if (integrityState == "unknown")
@@ -655,6 +747,10 @@ internal sealed class SchemaRealityInspector
         return integrityState == "diverged" ? "possessed" : "unpossessed";
     }
 
+    // Purpose: Computes a lowercase SHA-256 hash for one file.
+    // Expected input: Absolute file path.
+    // Expected output: Lowercase SHA-256 hash string.
+    // Critical dependencies: SHA256 and readable file access.
     private static string ComputeSha256(string filePath)
     {
         using var stream = File.OpenRead(filePath);
@@ -662,6 +758,10 @@ internal sealed class SchemaRealityInspector
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
+    // Purpose: Builds startup-surface repair actions for any missing startup surfaces.
+    // Expected input: Map of startup-surface paths to existence booleans.
+    // Expected output: Repair action strings for each missing startup surface.
+    // Critical dependencies: Path.GetFileName and the startup-surface repair vocabulary.
     private static string[] MissingStartupSurfaceRepairs(IReadOnlyDictionary<string, bool> startupSurfaceExists)
     {
         return startupSurfaceExists
@@ -670,6 +770,10 @@ internal sealed class SchemaRealityInspector
             .ToArray();
     }
 
+    // Purpose: Normalizes startup-surface arguments into distinct absolute paths beneath the workspace when needed.
+    // Expected input: Workspace root and optional startup-surface paths.
+    // Expected output: Distinct absolute startup-surface paths.
+    // Critical dependencies: Path.GetFullPath and workspace-relative path resolution.
     private static string[] NormalizeStartupSurfaces(string workspaceRoot, string[]? startupSurfaces)
     {
         if (startupSurfaces is null || startupSurfaces.Length == 0)
@@ -685,6 +789,10 @@ internal sealed class SchemaRealityInspector
             .ToArray();
     }
 
+    // Purpose: Carries the result of canonical schema integrity comparison.
+    // Expected input: Integrity facts computed during EvaluateIntegrity.
+    // Expected output: Immutable integrity-state record for higher-level schema reporting.
+    // Critical dependencies: EvaluateIntegrity and the schema-integrity vocabulary.
     private sealed record IntegrityResult(
         string IntegrityState,
         string[] Findings,
@@ -693,10 +801,18 @@ internal sealed class SchemaRealityInspector
         string[] MissingFiles);
 }
 
+// Purpose: Plans or applies non-destructive schema reconciliation using the canonical schema bundle.
+// Expected input: Workspace root, precomputed schema-reality context, optional startup surfaces, and migration mode.
+// Expected output: An anonymous object describing planned actions, applied actions, audit pressure, and resulting state.
+// Critical dependencies: SchemaRealityInspector, CanonicalSchemaBundle, and workspace filesystem access.
 internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealityInspector)
 {
     private readonly CanonicalSchemaBundle _canonicalSchemaBundle = CanonicalSchemaBundle.TryLoad();
 
+    // Purpose: Runs the gov2gov migration planner or non-destructive apply flow.
+    // Expected input: Absolute workspace root, schema package label, schema-reality state, active reasons, optional startup surfaces, and migration mode.
+    // Expected output: An anonymous object describing migration planning, applied work, audit needs, and resulting state.
+    // Critical dependencies: SchemaRealityInspector.Evaluate, CanonicalSchemaBundle, and local file copy operations.
     public object Run(
         string workspaceRoot,
         string expectedSchemaPackage,
@@ -845,6 +961,10 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
         };
     }
 
+    // Purpose: Classifies the outcome of a gov2gov migration run.
+    // Expected input: Migration mode, planned actions, applied actions, audit needs, and resulting schema/integrity state.
+    // Expected output: A bounded migration-result-state string.
+    // Critical dependencies: The migration result-state vocabulary.
     private static string DetermineMigrationResultState(
         string migrationMode,
         List<string> plannedActions,
@@ -880,6 +1000,10 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
         return "manual_review_required";
     }
 
+    // Purpose: Computes a lowercase SHA-256 hash for one file during migration integrity checks.
+    // Expected input: Absolute file path.
+    // Expected output: Lowercase SHA-256 hash string.
+    // Critical dependencies: SHA256 and readable file access.
     private static string ComputeSha256(string filePath)
     {
         using var stream = File.OpenRead(filePath);
@@ -888,6 +1012,10 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
     }
 }
 
+// Purpose: Compiles bounded active-work state from the workspace, objective, working set, and residue.
+// Expected input: Workspace root, current objective, optional working set, blockers, residue, and preferred lane.
+// Expected output: An anonymous object describing active lane, status, blockers, remaining steps, and measurement basis.
+// Critical dependencies: workspace filesystem state, lane heuristics, and working-surface presence checks.
 internal sealed class ActiveWorkStateCompiler
 {
     private static readonly string[] KnownLanes =
@@ -899,6 +1027,10 @@ internal sealed class ActiveWorkStateCompiler
         "triage"
     ];
 
+    // Purpose: Compiles a bounded active-work packet for the current workspace and objective.
+    // Expected input: Absolute workspace root, current objective, optional working-set paths, blockers, residue, and preferred lane.
+    // Expected output: An anonymous object with active lane, status, remaining steps, stop point, and evidence basis.
+    // Critical dependencies: NormalizeArray, InferLane, DetermineCurrentStatus, and working-surface checks.
     public object Compile(
         string workspaceRoot,
         string currentObjective,
@@ -1004,6 +1136,10 @@ internal sealed class ActiveWorkStateCompiler
         };
     }
 
+    // Purpose: Normalizes optional string arrays by trimming blanks, normalizing whitespace, and de-duplicating values.
+    // Expected input: Optional string array.
+    // Expected output: Distinct normalized values.
+    // Critical dependencies: NormalizeWhitespace and ordinal distinctness.
     private static string[] NormalizeArray(string[]? values)
     {
         return values is null
@@ -1015,12 +1151,20 @@ internal sealed class ActiveWorkStateCompiler
                 .ToArray();
     }
 
+    // Purpose: Collapses repeated whitespace in a value into single spaces.
+    // Expected input: Raw string value.
+    // Expected output: Whitespace-normalized string.
+    // Critical dependencies: string.Split and current whitespace-normalization rules.
     private static string NormalizeWhitespace(string value)
     {
         return string.Join(" ", value
             .Split([' ', '\r', '\n', '\t'], StringSplitOptions.RemoveEmptyEntries));
     }
 
+    // Purpose: Normalizes the preferred-lane input while preserving unsupported labels for caller visibility.
+    // Expected input: Optional preferred-lane string.
+    // Expected output: Null for blank input or a normalized lowercase lane string.
+    // Critical dependencies: KnownLanes and NormalizeWhitespace.
     private static string? NormalizeLane(string? preferredLane)
     {
         if (string.IsNullOrWhiteSpace(preferredLane))
@@ -1032,6 +1176,10 @@ internal sealed class ActiveWorkStateCompiler
         return KnownLanes.Contains(normalized, StringComparer.Ordinal) ? normalized : normalized;
     }
 
+    // Purpose: Checks which declared working-set surfaces are actually present in the workspace.
+    // Expected input: Workspace root and normalized working-set entries.
+    // Expected output: Lists of present and missing path-like working surfaces.
+    // Critical dependencies: IsPathLike and local filesystem existence checks.
     private static (List<string> Present, List<string> Missing) EvaluateWorkingSurfacePresence(string workspaceRoot, string[] workingSet)
     {
         var present = new List<string>();
@@ -1061,6 +1209,10 @@ internal sealed class ActiveWorkStateCompiler
         return (present, missing);
     }
 
+    // Purpose: Heuristically decides whether a value looks like a file or directory reference.
+    // Expected input: One working-set value.
+    // Expected output: True when the value looks path-like.
+    // Critical dependencies: Path helpers and the current working-set heuristics.
     private static bool IsPathLike(string value)
     {
         if (Path.IsPathRooted(value))
@@ -1081,6 +1233,10 @@ internal sealed class ActiveWorkStateCompiler
         return !string.IsNullOrWhiteSpace(Path.GetExtension(value));
     }
 
+    // Purpose: Infers the most likely Anarchy lane from the objective, working set, residue, and optional preference.
+    // Expected input: Normalized objective, working-set values, residue, and optional preferred lane.
+    // Expected output: Active lane plus any tied candidate lanes.
+    // Critical dependencies: Score and the current keyword heuristics for each lane.
     private static LaneInference InferLane(
         string currentObjective,
         string[] workingSet,
@@ -1126,6 +1282,10 @@ internal sealed class ActiveWorkStateCompiler
         return new LaneInference(candidateLanes[0], candidateLanes);
     }
 
+    // Purpose: Scores how strongly a text corpus matches a set of lane keywords.
+    // Expected input: Lowercased text corpus and keyword list.
+    // Expected output: Integer keyword-hit count.
+    // Critical dependencies: Current keyword heuristics and ordinal string matching.
     private static int Score(string corpus, params string[] keywords)
     {
         var score = 0;
@@ -1140,6 +1300,10 @@ internal sealed class ActiveWorkStateCompiler
         return score;
     }
 
+    // Purpose: Classifies whether the current work is grounded, partial, or missing evidence.
+    // Expected input: Working-surface presence counts, residue count, and AGENTS.md presence.
+    // Expected output: grounded, partial, or none.
+    // Critical dependencies: The current evidence-status vocabulary.
     private static string DetermineEvidenceStatus(
         int presentWorkingSurfaceCount,
         int declaredWorkingSetCount,
@@ -1159,6 +1323,10 @@ internal sealed class ActiveWorkStateCompiler
         return "none";
     }
 
+    // Purpose: Classifies the current active-work status.
+    // Expected input: Objective text, blocker count, declared working-set count, residue count, and evidence status.
+    // Expected output: blocked, needs_clarification, in_progress, or ready.
+    // Critical dependencies: The current active-work status vocabulary.
     private static string DetermineCurrentStatus(
         string currentObjective,
         int blockerCount,
@@ -1185,6 +1353,10 @@ internal sealed class ActiveWorkStateCompiler
         return "ready";
     }
 
+    // Purpose: Builds degradation signals that explain why the current work packet may be weak or unstable.
+    // Expected input: Objective, working-set counts, blocker count, residue count, missing-surface count, candidate-lane count, evidence status, and current status.
+    // Expected output: Distinct degradation-signal codes.
+    // Critical dependencies: IsNegationHeavy and the degradation-signal vocabulary.
     private static string[] BuildDegradationSignals(
         string currentObjective,
         int declaredWorkingSetCount,
@@ -1240,6 +1412,10 @@ internal sealed class ActiveWorkStateCompiler
         return signals.Distinct(StringComparer.Ordinal).ToArray();
     }
 
+    // Purpose: Detects whether the objective text is dominated by negation cues.
+    // Expected input: Current objective text.
+    // Expected output: True when at least two negation tokens are present.
+    // Critical dependencies: The current negation-token list.
     private static bool IsNegationHeavy(string currentObjective)
     {
         var lowered = currentObjective.ToLowerInvariant();
@@ -1257,6 +1433,10 @@ internal sealed class ActiveWorkStateCompiler
         return tokens.Count(token => lowered.Contains(token, StringComparison.Ordinal)) >= 2;
     }
 
+    // Purpose: Determines the next bounded action the agent should take from the active-work state.
+    // Expected input: Active lane, current status, evidence status, and missing-working-surface count.
+    // Expected output: A next-required-action code.
+    // Critical dependencies: The active-work action vocabulary and lane semantics.
     private static string DetermineNextRequiredAction(
         string activeLane,
         string currentStatus,
@@ -1294,6 +1474,10 @@ internal sealed class ActiveWorkStateCompiler
         };
     }
 
+    // Purpose: Builds the ordered remaining-step list for the active-work packet.
+    // Expected input: Active lane, next required action, and current status.
+    // Expected output: Distinct ordered step identifiers.
+    // Critical dependencies: The active-work step vocabulary and lane-specific step ordering.
     private static string[] BuildOrderedRemainingSteps(string activeLane, string nextRequiredAction, string currentStatus)
     {
         var steps = new List<string> { nextRequiredAction };
@@ -1360,6 +1544,10 @@ internal sealed class ActiveWorkStateCompiler
         return steps.Distinct(StringComparer.Ordinal).ToArray();
     }
 
+    // Purpose: Builds a short stop-point string that tells a later session where to resume.
+    // Expected input: Known blockers, recent residue, missing working surfaces, and next required action.
+    // Expected output: A truncated stop-point string.
+    // Critical dependencies: Truncate and the current stop-point precedence rules.
     private static string BuildStopPoint(
         string[] knownBlockers,
         string[] recentResidue,
@@ -1384,6 +1572,10 @@ internal sealed class ActiveWorkStateCompiler
         return Truncate($"resume with {nextRequiredAction}");
     }
 
+    // Purpose: Lists the evidence inputs that supported the active-work packet.
+    // Expected input: Workspace root, working-set counts, blocker count, residue count, and optional preferred lane.
+    // Expected output: Ordered measurement-basis identifiers.
+    // Critical dependencies: AGENTS.md existence checks and the measurement-basis vocabulary.
     private static string[] BuildMeasurementBasis(
         string workspaceRoot,
         int declaredWorkingSetCount,
@@ -1431,14 +1623,26 @@ internal sealed class ActiveWorkStateCompiler
         return basis.ToArray();
     }
 
+    // Purpose: Keeps stop-point text within the bounded output limit.
+    // Expected input: Candidate stop-point string.
+    // Expected output: Original text when <=140 characters, otherwise a truncated ellipsis form.
+    // Critical dependencies: The current 140-character stop-point limit.
     private static string Truncate(string value)
     {
         return value.Length <= 140 ? value : $"{value[..137]}...";
     }
 
+    // Purpose: Carries the active lane and any tied candidate lanes inferred for active-work compilation.
+    // Expected input: Lane inference results from InferLane.
+    // Expected output: Immutable lane-inference record.
+    // Critical dependencies: InferLane.
     private sealed record LaneInference(string ActiveLane, string[] CandidateLanes);
 }
 
+// Purpose: Evaluates long or ambiguous user directions and records a bounded clarification packet for testing.
+// Expected input: Workspace root, free-form direction text, and optional selected choice.
+// Expected output: An anonymous object describing whether clarification was triggered, what findings were detected, and where the local register entry was written.
+// Critical dependencies: regex heuristics, local register writes under .agents/anarchy-ai, and current choice-option wording.
 internal sealed class DirectionAssistRunner
 {
     private const string ClarificationOption = "I need to ask clarification on a few things";
@@ -1491,6 +1695,10 @@ internal sealed class DirectionAssistRunner
         "whatever"
     ];
 
+    // Purpose: Evaluates a direction string and optionally records a clarification-support packet.
+    // Expected input: Absolute workspace root, free-form direction text, and optional selected choice.
+    // Expected output: An anonymous object with trigger metrics, choice options, findings, cleaned direction, and register path.
+    // Critical dependencies: CountWords, CountSentences, BuildFindings, BuildCleanedDirection, and local filesystem writes.
     public object Evaluate(string workspaceRoot, string directionText, string? selectedOption)
     {
         if (string.IsNullOrWhiteSpace(workspaceRoot) || !Path.IsPathRooted(workspaceRoot))
@@ -1579,11 +1787,19 @@ internal sealed class DirectionAssistRunner
         };
     }
 
+    // Purpose: Counts word-like tokens in a direction string.
+    // Expected input: Normalized direction text.
+    // Expected output: Integer word count.
+    // Critical dependencies: WordRegex.
     private static int CountWords(string text)
     {
         return WordRegex.Matches(text).Count;
     }
 
+    // Purpose: Counts sentence-like fragments in a direction string.
+    // Expected input: Normalized direction text.
+    // Expected output: Integer sentence count.
+    // Critical dependencies: SentenceRegex and current sentence-trimming rules.
     private static int CountSentences(string text)
     {
         var matches = SentenceRegex.Matches(text)
@@ -1594,6 +1810,10 @@ internal sealed class DirectionAssistRunner
         return matches.Length;
     }
 
+    // Purpose: Builds linguistic findings that explain why a direction may need clarification.
+    // Expected input: Direction text, word count, sentence count, and whether assistance was triggered.
+    // Expected output: List of direction findings.
+    // Critical dependencies: token lists, regex helpers, and current finding thresholds.
     private static List<DirectionFinding> BuildFindings(string text, int wordCount, int sentenceCount, bool assistTriggered)
     {
         var findings = new List<DirectionFinding>();
@@ -1640,6 +1860,10 @@ internal sealed class DirectionAssistRunner
         return findings;
     }
 
+    // Purpose: Produces a cleaned best-effort restatement of the direction by stripping negation and filler tokens.
+    // Expected input: Direction text.
+    // Expected output: Cleaned direction string ending in a sentence terminator when possible.
+    // Critical dependencies: SentenceRegex, ReplaceToken, NormalizeWhitespace, and current cleanup rules.
     private static string BuildCleanedDirection(string text)
     {
         var sentences = SentenceRegex.Matches(text)
@@ -1687,6 +1911,10 @@ internal sealed class DirectionAssistRunner
             .TrimEnd('.') + ".";
     }
 
+    // Purpose: Removes one token or phrase from a string using whole-word matching.
+    // Expected input: Source text, token to remove, and replacement text.
+    // Expected output: Updated string with matching tokens replaced.
+    // Critical dependencies: Regex whole-word replacement.
     private static string ReplaceToken(string text, string token, string replacement)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -1698,11 +1926,19 @@ internal sealed class DirectionAssistRunner
         return Regex.Replace(text, pattern, replacement, RegexOptions.IgnoreCase);
     }
 
+    // Purpose: Collapses repeated whitespace in a direction string.
+    // Expected input: Raw text value.
+    // Expected output: Trimmed single-space-normalized string.
+    // Critical dependencies: MultiWhitespaceRegex.
     private static string NormalizeWhitespace(string value)
     {
         return MultiWhitespaceRegex.Replace(value, " ").Trim();
     }
 
+    // Purpose: Normalizes a selected choice into one of the supported direction-assist options.
+    // Expected input: Optional selected choice text.
+    // Expected output: The canonical clarification or best-effort option, or null when unrecognized.
+    // Critical dependencies: NormalizeWhitespace and the fixed choice-option strings.
     private static string? NormalizeSelectedOption(string? selectedOption)
     {
         if (string.IsNullOrWhiteSpace(selectedOption))
@@ -1718,9 +1954,17 @@ internal sealed class DirectionAssistRunner
                 : null;
     }
 
+    // Purpose: Carries one linguistic finding reported by the direction-assist helper.
+    // Expected input: Finding code and human-readable detail.
+    // Expected output: Immutable finding record.
+    // Critical dependencies: BuildFindings and the direction-assist output contract.
     private sealed record DirectionFinding(string Code, string Detail);
 }
 
+// Purpose: Assesses install, runtime, schema, and adoption gaps for the current workspace and plugin discovery state.
+// Expected input: Workspace root, optional host context, and optional expected capability list.
+// Expected output: An anonymous object describing installation, runtime, schema, adoption, findings, repairs, and nested path facts.
+// Critical dependencies: HarnessInstallDiscovery, SchemaRealityInspector, marketplace inspection, and bundle-surface inspection.
 internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityInspector)
 {
     private static readonly string[] ExpectedContractFiles =
@@ -1735,6 +1979,10 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
     private const string DirectionAssistCapability = "direction_assist_test";
     private const string DirectionAssistContractFile = "direction-assist-test.contract.json";
 
+    // Purpose: Assesses the current workspace and discovered plugin root for install/runtime/adoption gaps.
+    // Expected input: Absolute workspace root, optional host context, and optional expected capability list.
+    // Expected output: An anonymous object with state classifications, missing components, safe repairs, inspection data, and nested path reports.
+    // Critical dependencies: HarnessInstallDiscovery, SchemaRealityInspector, InspectMarketplace, and BuildAssessmentPaths.
     public object Assess(string workspaceRoot, string? hostContext, string[]? expectedCapabilities)
     {
         if (string.IsNullOrWhiteSpace(workspaceRoot) || !Path.IsPathRooted(workspaceRoot))
@@ -1752,17 +2000,21 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         var normalizedExpectedCapabilities = NormalizeExpectedCapabilities(expectedCapabilities);
 
         var pluginRoot = HarnessInstallDiscovery.ResolveWorkspacePluginRoot(resolvedWorkspaceRoot);
-        var pluginManifestPath = Path.Combine(pluginRoot, ".codex-plugin", "plugin.json");
-        var mcpDeclarationPath = Path.Combine(pluginRoot, ".mcp.json");
-        var runtimePath = Path.Combine(pluginRoot, "runtime", "win-x64", "AnarchyAi.Mcp.Server.exe");
-        var skillPath = Path.Combine(pluginRoot, "skills", "anarchy-ai-harness", "SKILL.md");
-        var schemaManifestPath = Path.Combine(pluginRoot, "schemas", "schema-bundle.manifest.json");
+        var pluginManifestPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundlePluginManifestFileRelativePath);
+        var mcpDeclarationPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleMcpFileRelativePath);
+        var runtimePath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath);
+        var skillPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleSkillFileRelativePath);
+        var schemaManifestPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleSchemaManifestFileRelativePath);
 
         var contractPresence = ExpectedContractFiles.ToDictionary(
             fileName => fileName,
-            fileName => File.Exists(Path.Combine(pluginRoot, "contracts", fileName)),
+            fileName => File.Exists(AnarchyPathCanon.ResolveBundleFilePath(
+                pluginRoot,
+                AnarchyPathCanon.CombineCanonRelativePath(AnarchyPathCanon.BundleContractsDirectoryRelativePath, fileName))),
             StringComparer.OrdinalIgnoreCase);
-        var directionAssistContractPresent = File.Exists(Path.Combine(pluginRoot, "contracts", DirectionAssistContractFile));
+        var directionAssistContractPresent = File.Exists(AnarchyPathCanon.ResolveBundleFilePath(
+            pluginRoot,
+            AnarchyPathCanon.CombineCanonRelativePath(AnarchyPathCanon.BundleContractsDirectoryRelativePath, DirectionAssistContractFile)));
 
         var pluginManifestExists = File.Exists(pluginManifestPath);
         var mcpDeclarationExists = File.Exists(mcpDeclarationPath);
@@ -1926,6 +2178,15 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         agentActions.Add("run_preflight_session_before_meaningful_work");
         agentActions.Add("treat_schema_state_as_input_not_completion");
         safeRepairs.AddRange(schemaSafeRepairs);
+        var assessmentPaths = BuildAssessmentPaths(
+            resolvedWorkspaceRoot,
+            pluginRoot,
+            marketplaceInspection,
+            pluginManifestPath,
+            mcpDeclarationPath,
+            runtimePath,
+            skillPath,
+            schemaManifestPath);
 
         return new
         {
@@ -1953,12 +2214,11 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
                 "schema_reality_inspection",
                 $"host_context:{normalizedHostContext}"
             },
+            paths = assessmentPaths,
             inspection = new
             {
-                workspace_root = resolvedWorkspaceRoot,
                 host_context = normalizedHostContext,
                 expected_capabilities = normalizedExpectedCapabilities,
-                plugin_root = pluginRoot,
                 plugin_manifest_exists = pluginManifestExists,
                 mcp_declaration_exists = mcpDeclarationExists,
                 runtime_exists = runtimeExists,
@@ -1969,7 +2229,6 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
                 {
                     direction_assist_test = directionAssistContractPresent
                 },
-                marketplace_path = marketplaceInspection.Path,
                 marketplace_exists = marketplaceInspection.Exists,
                 marketplace_entry_present = marketplaceInspection.HasAnarchyPluginEntry,
                 marketplace_installed_by_default = marketplaceInspection.InstalledByDefault
@@ -1977,6 +2236,10 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         };
     }
 
+    // Purpose: Classifies installation state from bundle presence, marketplace registration, and plugin-root placement.
+    // Expected input: Bundle-surface presence, host context, marketplace inspection, plugin root, and workspace root.
+    // Expected output: repo_bootstrapped, user_profile_bootstrapped, repo_bundle_present_unregistered, or external_runtime_only.
+    // Critical dependencies: IsUserProfilePluginRoot and the current installation-state vocabulary.
     private static string DetermineInstallationState(
         bool anyRepoBundleSurfacePresent,
         bool pluginManifestExists,
@@ -2006,13 +2269,23 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         return "external_runtime_only";
     }
 
+    // Purpose: Detects whether the discovered plugin root belongs to the user-profile lane instead of the workspace lane.
+    // Expected input: Plugin root and workspace root.
+    // Expected output: True when the plugin root is outside the workspace plugins directory.
+    // Critical dependencies: AnarchyPathCanon repo-local plugin parent path.
     private static bool IsUserProfilePluginRoot(string pluginRoot, string workspaceRoot)
     {
         var normalizedPluginRoot = Path.GetFullPath(pluginRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var normalizedWorkspacePlugins = Path.GetFullPath(Path.Combine(workspaceRoot, "plugins")).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var normalizedWorkspacePlugins = Path.GetFullPath(
+            AnarchyPathCanon.ResolveRelativePath(workspaceRoot, AnarchyPathCanon.RepoLocalPluginParentDirectoryRelativePath))
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         return !normalizedPluginRoot.StartsWith(normalizedWorkspacePlugins, StringComparison.OrdinalIgnoreCase);
     }
 
+    // Purpose: Classifies runtime state from runtime presence and bundle-surface presence.
+    // Expected input: Runtime existence and whether any repo bundle surface is present.
+    // Expected output: callable_and_repo_bundled, repo_runtime_missing, or callable_external.
+    // Critical dependencies: The current runtime-state vocabulary.
     private static string DetermineRuntimeState(bool runtimeExists, bool anyRepoBundleSurfacePresent)
     {
         if (runtimeExists)
@@ -2023,6 +2296,10 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         return anyRepoBundleSurfacePresent ? "repo_runtime_missing" : "callable_external";
     }
 
+    // Purpose: Classifies adoption state from install/schema health, host context, and missing-component pressure.
+    // Expected input: Installation state, schema reality, integrity, possession, host context, and missing components.
+    // Expected output: fully_adopted, partially_adopted, adapter_gap_present, or bootstrap_required.
+    // Critical dependencies: The current adoption-state vocabulary and host adapter policy.
     private static string DetermineAdoptionState(
         string installationState,
         string schemaRealityState,
@@ -2054,6 +2331,10 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         return "partially_adopted";
     }
 
+    // Purpose: Normalizes host-context input for gap assessment.
+    // Expected input: Optional host-context string.
+    // Expected output: One of codex, claude, cursor, or generic, defaulting to codex when blank.
+    // Critical dependencies: Current host-context vocabulary.
     private static string NormalizeHostContext(string? hostContext)
     {
         if (string.IsNullOrWhiteSpace(hostContext))
@@ -2071,6 +2352,10 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         };
     }
 
+    // Purpose: Normalizes the expected-capabilities list for comparison against bundle surfaces.
+    // Expected input: Optional capability list.
+    // Expected output: Distinct capability names, or the default core capability set when none were supplied.
+    // Critical dependencies: The current capability vocabulary.
     private static string[] NormalizeExpectedCapabilities(string[]? expectedCapabilities)
     {
         var normalized = expectedCapabilities?
@@ -2090,6 +2375,10 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
             ];
     }
 
+    // Purpose: Inspects marketplace state for the current workspace, falling back to the user-profile marketplace when needed.
+    // Expected input: Workspace root.
+    // Expected output: MarketplaceInspection summarizing entry presence, installation policy, and root/path facts.
+    // Critical dependencies: InspectMarketplaceAtRoot and current marketplace conventions.
     private static MarketplaceInspection InspectMarketplace(string workspaceRoot)
     {
         var repoInspection = InspectMarketplaceAtRoot(workspaceRoot);
@@ -2101,12 +2390,16 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         return InspectMarketplaceAtRoot(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
     }
 
+    // Purpose: Inspects marketplace state rooted at one filesystem root.
+    // Expected input: Marketplace root such as a workspace root or user-profile root.
+    // Expected output: MarketplaceInspection summarizing entry presence, policy, root path, and plugin source path.
+    // Critical dependencies: marketplace.json, HarnessInstallDiscovery.TryGetPluginName, and current source-path rules.
     private static MarketplaceInspection InspectMarketplaceAtRoot(string marketplaceRoot)
     {
-        var marketplacePath = Path.Combine(marketplaceRoot, ".agents", "plugins", "marketplace.json");
+        var marketplacePath = AnarchyPathCanon.ResolveRelativePath(marketplaceRoot, AnarchyPathCanon.RepoLocalMarketplaceFileRelativePath);
         if (!File.Exists(marketplacePath))
         {
-            return new MarketplaceInspection(marketplacePath, false, false, false, []);
+            return new MarketplaceInspection(marketplacePath, marketplaceRoot, false, false, false, []);
         }
 
         try
@@ -2117,6 +2410,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
             {
                 return new MarketplaceInspection(
                     marketplacePath,
+                    marketplaceRoot,
                     true,
                     false,
                     false,
@@ -2130,7 +2424,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
             foreach (var pluginElement in pluginsElement.EnumerateArray())
             {
                 if (!HarnessInstallDiscovery.TryGetPluginName(pluginElement, out var pluginName) ||
-                    !pluginName.StartsWith("anarchy-ai", StringComparison.OrdinalIgnoreCase))
+                    !AnarchyPathCanon.IsOwnedPluginName(pluginName))
                 {
                     continue;
                 }
@@ -2160,12 +2454,13 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
                 }
             }
 
-            return new MarketplaceInspection(marketplacePath, true, hasEntry, installedByDefault, findings.ToArray());
+            return new MarketplaceInspection(marketplacePath, marketplaceRoot, true, hasEntry, installedByDefault, findings.ToArray());
         }
         catch (JsonException)
         {
             return new MarketplaceInspection(
                 marketplacePath,
+                marketplaceRoot,
                 true,
                 false,
                 false,
@@ -2173,6 +2468,162 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         }
     }
 
+    // Purpose: Builds the nested origin/source/destination path report for gap assessment output.
+    // Expected input: Workspace root, discovered plugin root, marketplace inspection, and bundle surface paths.
+    // Expected output: PathRoleCollection aligned with the runtime health contract.
+    // Critical dependencies: BuildAssessmentOriginRoleReport, BuildAssessmentSourceRoleReport, BuildAssessmentDestinationRoleReport, and AnarchyPathCanon.
+    private static PathRoleCollection BuildAssessmentPaths(
+        string workspaceRoot,
+        string pluginRoot,
+        MarketplaceInspection marketplaceInspection,
+        string pluginManifestPath,
+        string mcpDeclarationPath,
+        string runtimePath,
+        string skillPath,
+        string schemaManifestPath)
+    {
+        var origin = BuildAssessmentOriginRoleReport(workspaceRoot);
+        var source = BuildAssessmentSourceRoleReport(pluginRoot);
+        var destination = BuildAssessmentDestinationRoleReport(
+            workspaceRoot,
+            pluginRoot,
+            marketplaceInspection,
+            pluginManifestPath,
+            mcpDeclarationPath,
+            runtimePath,
+            skillPath,
+            schemaManifestPath);
+
+        return AnarchyPathCanon.CreateRoleCollection(origin: origin, source: source, destination: destination);
+    }
+
+    // Purpose: Builds the origin role for gap assessment, pointing back to repo-authored source surfaces when they are discoverable.
+    // Expected input: Workspace root.
+    // Expected output: PathRoleReport for repo-authored source surfaces, or null when the source repo cannot be located.
+    // Critical dependencies: repo-root heuristics and AnarchyPathCanon source-path helpers.
+    private static PathRoleReport? BuildAssessmentOriginRoleReport(string workspaceRoot)
+    {
+        var sourcePluginDirectoryPath = AnarchyPathCanon.ResolveSourcePluginDirectory(workspaceRoot);
+        if (!Directory.Exists(sourcePluginDirectoryPath))
+        {
+            return null;
+        }
+
+        return AnarchyPathCanon.CreateRoleReport(
+            rootPath: workspaceRoot,
+            directories:
+            [
+                CreatePathEntry("plugin_source_directory_path", sourcePluginDirectoryPath)
+            ],
+            files:
+            [
+                CreatePathEntry("plugin_mcp_file_path", AnarchyPathCanon.ResolveRelativePath(workspaceRoot, AnarchyPathCanon.RepoSourcePluginMcpFileRelativePath)),
+                CreatePathEntry("setup_executable_file_path", AnarchyPathCanon.ResolveRelativePath(workspaceRoot, AnarchyPathCanon.RepoSourceSetupExecutableFileRelativePath)),
+                CreatePathEntry("plugin_readme_source_file_path", AnarchyPathCanon.ResolveRelativePath(workspaceRoot, AnarchyPathCanon.RepoSourceGeneratedPluginReadmeSourceRelativePath))
+            ],
+            relative:
+            [
+                CreatePathEntry("plugin_source_directory_relative_path", AnarchyPathCanon.RepoSourcePluginDirectoryRelativePath),
+                CreatePathEntry("plugin_mcp_file_relative_path", AnarchyPathCanon.RepoSourcePluginMcpFileRelativePath),
+                CreatePathEntry("setup_executable_file_relative_path", AnarchyPathCanon.RepoSourceSetupExecutableFileRelativePath),
+                CreatePathEntry("plugin_readme_source_file_relative_path", AnarchyPathCanon.RepoSourceGeneratedPluginReadmeSourceRelativePath)
+            ]);
+    }
+
+    // Purpose: Builds the source role for gap assessment from the discovered plugin bundle.
+    // Expected input: Discovered plugin root.
+    // Expected output: PathRoleReport describing bundle directories, files, and relative paths.
+    // Critical dependencies: AnarchyPathCanon bundle helpers.
+    private static PathRoleReport BuildAssessmentSourceRoleReport(string pluginRoot)
+    {
+        return AnarchyPathCanon.CreateRoleReport(
+            rootPath: pluginRoot,
+            directories:
+            [
+                CreatePathEntry("contracts_directory_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleContractsDirectoryRelativePath)),
+                CreatePathEntry("runtime_directory_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleRuntimeDirectoryRelativePath)),
+                CreatePathEntry("schemas_directory_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleSchemasDirectoryRelativePath)),
+                CreatePathEntry("scripts_directory_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleScriptsDirectoryRelativePath)),
+                CreatePathEntry("skill_directory_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleSkillDirectoryRelativePath))
+            ],
+            files:
+            [
+                CreatePathEntry("plugin_manifest_file_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundlePluginManifestFileRelativePath)),
+                CreatePathEntry("mcp_declaration_file_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleMcpFileRelativePath)),
+                CreatePathEntry("runtime_executable_file_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath)),
+                CreatePathEntry("schema_manifest_file_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleSchemaManifestFileRelativePath)),
+                CreatePathEntry("skill_file_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleSkillFileRelativePath))
+            ],
+            relative:
+            [
+                CreatePathEntry("plugin_manifest_file_relative_path", AnarchyPathCanon.BundlePluginManifestFileRelativePath),
+                CreatePathEntry("mcp_declaration_file_relative_path", AnarchyPathCanon.BundleMcpFileRelativePath),
+                CreatePathEntry("runtime_executable_file_relative_path", AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath),
+                CreatePathEntry("schema_manifest_file_relative_path", AnarchyPathCanon.BundleSchemaManifestFileRelativePath),
+                CreatePathEntry("skill_file_relative_path", AnarchyPathCanon.BundleSkillFileRelativePath)
+            ])!;
+    }
+
+    // Purpose: Builds the destination role for gap assessment using the workspace and marketplace targets under inspection.
+    // Expected input: Workspace root, discovered plugin root, marketplace inspection, and bundle surface paths.
+    // Expected output: PathRoleReport describing destination directories, files, and source references.
+    // Critical dependencies: AnarchyPathCanon, marketplace inspection, and workspace-root reporting rules.
+    private static PathRoleReport BuildAssessmentDestinationRoleReport(
+        string workspaceRoot,
+        string pluginRoot,
+        MarketplaceInspection marketplaceInspection,
+        string pluginManifestPath,
+        string mcpDeclarationPath,
+        string runtimePath,
+        string skillPath,
+        string schemaManifestPath)
+    {
+        return AnarchyPathCanon.CreateRoleReport(
+            rootPath: workspaceRoot,
+            directories:
+            [
+                CreatePathEntry("plugin_root_directory_path", pluginRoot),
+                CreatePathEntry("workspace_plugins_directory_path", AnarchyPathCanon.ResolveRelativePath(workspaceRoot, AnarchyPathCanon.RepoLocalPluginParentDirectoryRelativePath)),
+                CreatePathEntry("marketplace_root_directory_path", marketplaceInspection.RootPath)
+            ],
+            files:
+            [
+                CreatePathEntry("marketplace_file_path", marketplaceInspection.Path),
+                CreatePathEntry("plugin_manifest_file_path", pluginManifestPath),
+                CreatePathEntry("mcp_declaration_file_path", mcpDeclarationPath),
+                CreatePathEntry("runtime_executable_file_path", runtimePath),
+                CreatePathEntry("skill_file_path", skillPath),
+                CreatePathEntry("schema_manifest_file_path", schemaManifestPath)
+            ],
+            relative:
+            [
+                CreatePathEntry("workspace_marketplace_file_relative_path", AnarchyPathCanon.RepoLocalMarketplaceFileRelativePath),
+                CreatePathEntry(
+                    "marketplace_file_relative_path",
+                    string.Equals(marketplaceInspection.RootPath, workspaceRoot, StringComparison.OrdinalIgnoreCase)
+                        ? AnarchyPathCanon.RepoLocalMarketplaceFileRelativePath
+                        : AnarchyPathCanon.UserProfileMarketplaceFileRelativePath),
+                CreatePathEntry("plugin_manifest_file_relative_path", AnarchyPathCanon.BundlePluginManifestFileRelativePath),
+                CreatePathEntry("mcp_declaration_file_relative_path", AnarchyPathCanon.BundleMcpFileRelativePath),
+                CreatePathEntry("runtime_executable_file_relative_path", AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath),
+                CreatePathEntry("schema_manifest_file_relative_path", AnarchyPathCanon.BundleSchemaManifestFileRelativePath),
+                CreatePathEntry("skill_file_relative_path", AnarchyPathCanon.BundleSkillFileRelativePath)
+            ])!;
+    }
+
+    // Purpose: Creates a keyed path entry for assessment path reporting.
+    // Expected input: Path key and optional value.
+    // Expected output: A key/value pair consumed by AnarchyPathCanon.CreateRoleReport.
+    // Critical dependencies: The nested assessment-path key vocabulary.
+    private static KeyValuePair<string, string?> CreatePathEntry(string key, string? value)
+    {
+        return new KeyValuePair<string, string?>(key, value);
+    }
+
+    // Purpose: Reads a string property from a JsonElement and falls back to an empty string when absent.
+    // Expected input: JsonElement and property name.
+    // Expected output: Property string value or empty string.
+    // Critical dependencies: The current anonymous-object JSON shape used by assessment helpers.
     private static string GetString(JsonElement element, string propertyName)
     {
         return element.TryGetProperty(propertyName, out var propertyElement) &&
@@ -2181,6 +2632,10 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
             : string.Empty;
     }
 
+    // Purpose: Reads a string-array property from a JsonElement and drops blanks.
+    // Expected input: JsonElement and property name.
+    // Expected output: Array of nonblank strings, or an empty array when absent.
+    // Critical dependencies: The current anonymous-object JSON shape used by assessment helpers.
     private static string[] GetStringArray(JsonElement element, string propertyName)
     {
         if (!element.TryGetProperty(propertyName, out var propertyElement) ||
@@ -2194,22 +2649,35 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
             .Select(static item => item.GetString())
             .Where(static value => !string.IsNullOrWhiteSpace(value))
             .Cast<string>()
-            .ToArray();
+                .ToArray();
     }
 
+    // Purpose: Carries marketplace inspection facts for runtime gap assessment.
+    // Expected input: Marketplace discovery and JSON inspection data.
+    // Expected output: Immutable marketplace inspection record for assessment branching and path reporting.
+    // Critical dependencies: InspectMarketplaceAtRoot and BuildAssessmentDestinationRoleReport.
     private sealed record MarketplaceInspection(
         string Path,
+        string RootPath,
         bool Exists,
         bool HasAnarchyPluginEntry,
         bool InstalledByDefault,
         string[] Findings);
 }
 
+// Purpose: Runs preflight by combining active-work, harness-gap, and schema-reality assessment into one bounded readiness decision.
+// Expected input: Workspace root, current objective, optional host context, startup surfaces, and user-intent hint.
+// Expected output: An anonymous object describing preflight state, recommended path, active gaps, and required next action.
+// Critical dependencies: HarnessGapAssessor, SchemaRealityInspector, ActiveWorkStateCompiler, and their shared JSON contracts.
 internal sealed class PreflightSessionRunner(
     HarnessGapAssessor harnessGapAssessor,
     SchemaRealityInspector schemaRealityInspector,
     ActiveWorkStateCompiler activeWorkStateCompiler)
 {
+    // Purpose: Produces one bounded preflight decision for meaningful governed work.
+    // Expected input: Workspace root, current objective, optional host context, optional startup surfaces, and optional user intent.
+    // Expected output: An anonymous object describing readiness, gaps, required action, and schema state.
+    // Critical dependencies: ActiveWorkStateCompiler.Compile, HarnessGapAssessor.Assess, and SchemaRealityInspector.Evaluate.
     public object Run(
         string workspaceRoot,
         string currentObjective,
@@ -2338,6 +2806,10 @@ internal sealed class PreflightSessionRunner(
         };
     }
 
+    // Purpose: Reads a string property from a JsonElement and falls back to an empty string when absent.
+    // Expected input: JsonElement and property name.
+    // Expected output: Property string value or empty string.
+    // Critical dependencies: The current anonymous-object JSON shape used by preflight helpers.
     private static string GetString(JsonElement element, string propertyName)
     {
         return element.TryGetProperty(propertyName, out var propertyElement) &&
@@ -2346,6 +2818,10 @@ internal sealed class PreflightSessionRunner(
             : string.Empty;
     }
 
+    // Purpose: Reads a string-array property from a JsonElement and drops blanks.
+    // Expected input: JsonElement and property name.
+    // Expected output: Array of nonblank strings, or an empty array when absent.
+    // Critical dependencies: The current anonymous-object JSON shape used by preflight helpers.
     private static string[] GetStringArray(JsonElement element, string propertyName)
     {
         if (!element.TryGetProperty(propertyName, out var propertyElement) ||
@@ -2364,6 +2840,10 @@ internal sealed class PreflightSessionRunner(
 }
 
 [McpServerToolType]
+// Purpose: Exposes the Anarchy-AI MCP tools backed by the runtime harness services.
+// Expected input: Structured MCP tool arguments for preflight, schema reality, active-work compilation, gap assessment, gov2gov migration, and direction-assist testing.
+// Expected output: Tool-specific anonymous objects serialized by the MCP server transport.
+// Critical dependencies: the injected runner services, ModelContextProtocol attributes, and the current MCP tool contract.
 internal sealed class AnarchyAiHarnessTools(
     SchemaRealityInspector schemaRealityInspector,
     Gov2GovMigrationRunner gov2GovMigrationRunner,
@@ -2372,6 +2852,10 @@ internal sealed class AnarchyAiHarnessTools(
     PreflightSessionRunner preflightSessionRunner,
     DirectionAssistRunner directionAssistRunner)
 {
+    // Purpose: Runs the preflight_session MCP tool.
+    // Expected input: Absolute workspace root, current objective, and optional host/startup/user-intent context.
+    // Expected output: Preflight readiness packet for the current session.
+    // Critical dependencies: PreflightSessionRunner.
     [McpServerTool(
         Name = "preflight_session",
         Title = "Preflight Session",
@@ -2393,6 +2877,10 @@ internal sealed class AnarchyAiHarnessTools(
             user_intent);
     }
 
+    // Purpose: Runs the is_schema_real_or_shadow_copied MCP tool.
+    // Expected input: Absolute workspace root, expected schema-package label, and optional startup surfaces.
+    // Expected output: Schema reality and integrity packet for the workspace.
+    // Critical dependencies: SchemaRealityInspector.
     [McpServerTool(
         Name = "is_schema_real_or_shadow_copied",
         Title = "Is Schema Real Or Shadow Copied",
@@ -2407,6 +2895,10 @@ internal sealed class AnarchyAiHarnessTools(
         return schemaRealityInspector.Evaluate(workspace_root, expected_schema_package, startup_surfaces);
     }
 
+    // Purpose: Runs the compile_active_work_state MCP tool.
+    // Expected input: Absolute workspace root, current objective, and optional working-set, blocker, residue, and lane data.
+    // Expected output: Active-work state packet for the current objective.
+    // Critical dependencies: ActiveWorkStateCompiler.
     [McpServerTool(
         Name = "compile_active_work_state",
         Title = "Compile Active Work State",
@@ -2430,6 +2922,10 @@ internal sealed class AnarchyAiHarnessTools(
             preferred_lane);
     }
 
+    // Purpose: Runs the assess_harness_gap_state MCP tool.
+    // Expected input: Absolute workspace root and optional host/capability expectations.
+    // Expected output: Harness gap assessment packet for install/runtime/adoption state.
+    // Critical dependencies: HarnessGapAssessor.
     [McpServerTool(
         Name = "assess_harness_gap_state",
         Title = "Assess Harness Gap State",
@@ -2444,6 +2940,10 @@ internal sealed class AnarchyAiHarnessTools(
         return harnessGapAssessor.Assess(workspace_root, host_context, expected_capabilities);
     }
 
+    // Purpose: Runs the run_gov2gov_migration MCP tool.
+    // Expected input: Absolute workspace root, schema package label, current schema state, active reasons, optional startup surfaces, and migration mode.
+    // Expected output: Non-destructive gov2gov migration plan or apply result.
+    // Critical dependencies: Gov2GovMigrationRunner.
     [McpServerTool(
         Name = "run_gov2gov_migration",
         Title = "Run Gov2Gov Migration",
@@ -2469,6 +2969,10 @@ internal sealed class AnarchyAiHarnessTools(
             migration_mode);
     }
 
+    // Purpose: Runs the experimental direction_assist_test MCP tool.
+    // Expected input: Absolute workspace root, direction text, and optional selected choice.
+    // Expected output: Direction-assist findings, cleaned direction, and register metadata.
+    // Critical dependencies: DirectionAssistRunner.
     [McpServerTool(
         Name = "direction_assist_test",
         Title = "Direction Assist Test",
@@ -2486,8 +2990,16 @@ internal sealed class AnarchyAiHarnessTools(
     }
 }
 
+// Purpose: Boots the hosted MCP server and registers the Anarchy-AI tool surface over stdio.
+// Expected input: Process arguments passed to the runtime server.
+// Expected output: A running MCP host process until shutdown.
+// Critical dependencies: Microsoft.Extensions.Hosting, MCP stdio transport, and dependency-injection wiring for the harness services.
 internal static class Program
 {
+    // Purpose: Builds and runs the hosted MCP server process.
+    // Expected input: Process arguments for host configuration.
+    // Expected output: No direct return value; starts the MCP stdio server and blocks until shutdown.
+    // Critical dependencies: Host.CreateApplicationBuilder, dependency injection, and WithTools<AnarchyAiHarnessTools>.
     private static async Task Main(string[] args)
     {
         var builder = Host.CreateApplicationBuilder(args);

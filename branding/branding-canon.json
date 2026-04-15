@@ -1,0 +1,32 @@
+{
+  "version": "0.1.0",
+  "names": {
+    "brand_display_name": "Anarchy-AI",
+    "setup_display_name": "Anarchy-AI Setup",
+    "user_profile_marketplace_display_name": "Anarchy-AI User Profile",
+    "repo_local_marketplace_display_name_template": "Anarchy-AI Local (<RepoName>)"
+  },
+  "metadata": {
+    "author_name": "Matt Herring",
+    "author_url": "https://github.com/BraintekMSP/AI-Links",
+    "homepage_url": "https://github.com/BraintekMSP/AI-Links",
+    "repository_url": "https://github.com/BraintekMSP/AI-Links",
+    "developer_name": "herringms",
+    "privacy_policy_url": "https://github.com/BraintekMSP/AI-Links/blob/main/plugins/anarchy-ai/PRIVACY.md",
+    "terms_of_service_url": "https://github.com/BraintekMSP/AI-Links/blob/main/LICENSE",
+    "default_update_source_zip_url": "https://github.com/BraintekMSP/AI-Links/archive/refs/heads/main.zip",
+    "brand_color": "#203630"
+  },
+  "relative_paths": {
+    "branding_root_directory_relative_path": "branding",
+    "branding_assets_directory_relative_path": "branding/assets",
+    "branding_published_materials_directory_relative_path": "branding/published-materials",
+    "branding_instruction_additions_directory_relative_path": "branding/published-materials/instruction-additions",
+    "bundle_branding_directory_relative_path": "branding",
+    "bundle_branding_psd1_file_relative_path": "branding/anarchy-branding.generated.psd1",
+    "bundle_setup_header_image_relative_path": "assets/anarchy-ai.png",
+    "bundle_setup_icon_relative_path": "assets/anarchy-ai.ico",
+    "bundle_plugin_composer_icon_relative_path": "assets/anarchy-ai.png",
+    "bundle_plugin_logo_relative_path": "assets/anarchy_ai.svg"
+  }
+}

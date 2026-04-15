@@ -25,10 +25,10 @@ The standalone installer is a published carrier:
 
 The published plugin bundle therefore keeps destination-relative paths such as:
 
-- repo-local installed plugin root: `.\plugins\anarchy-ai-<repo-slug>-<stable-path-hash>`
-- user-profile installed plugin root: `~\.codex\plugins\anarchy-ai`
+- repo-local installed plugin root: `.\plugins\anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
+- user-profile installed plugin root: `~\.codex\plugins\anarchy-ai-herringms`
 - personal marketplace path: `~\.agents\plugins\marketplace.json`
-- personal marketplace `source.path`: `./.codex/plugins/anarchy-ai`
+- personal marketplace `source.path`: `./.codex/plugins/anarchy-ai-herringms`
 
 This README should never teach source-repo-relative install paths or up-level source checkout hops.
 
@@ -68,6 +68,7 @@ The plugin provides:
 - a skill that teaches when to use the five bounded core runtime tools and how to discover the experimental `direction_assist_test` module
 - a repo-bootstrap script at `./scripts/bootstrap-anarchy-ai.ps1` as a compatibility/fallback lane for repo-local install, assess, and bundle refresh after the bundle already exists
 - a runtime lock script at `./scripts/stop-anarchy-ai.ps1` for assessing, safely releasing, or forcibly releasing the bundled Anarchy-AI runtime lock
+- a safe retirement script at `./scripts/remove-anarchy-ai.ps1` for inventorying, quarantining, or fully removing repo-local, user-profile, and documented plugin-cache surfaces without treating repo-authored source truth as disposable
 
 The repo-local launcher script is retained only as a development helper during source work. It is not the intended packaged delivery path.
 
@@ -83,12 +84,12 @@ The setup executable help and disclosure surfaces are intentionally generated fr
 
 For Codex, the primary user-profile lane is the plugin marketplace lane:
 
-- plugin bundle under `~\.codex\plugins\anarchy-ai`
+- plugin bundle under `~\.codex\plugins\anarchy-ai-herringms`
 - personal marketplace at `~\.agents\plugins\marketplace.json`
-- personal marketplace `source.path` of `./.codex/plugins/anarchy-ai`
+- personal marketplace `source.path` of `./.codex/plugins/anarchy-ai-herringms`
 
-The older custom `mcp_servers.anarchy-ai` block is no longer the primary Codex home-install truth.
-Treat it as an optional fallback/debug surface only.
+The current optional custom `mcp_servers.anarchy-ai-herringms` block is no longer the primary Codex home-install truth.
+Older legacy `mcp_servers.anarchy-ai` entries are cleanup evidence only.
 
 ## Current Tool State
 
@@ -112,6 +113,7 @@ Treat it as an optional fallback/debug surface only.
   - schema state
   - adoption state
   - missing components and safe repairs
+  - nested `paths.origin|source|destination` evidence instead of flat path fields
 - `run_gov2gov_migration` is implemented for:
   - planning non-destructive gov2gov reconciliation
   - copying missing canonical schema bundle files into the workspace in `non_destructive_apply`
@@ -157,8 +159,8 @@ The dedicated runtime-lock commands are:
 
 `<installed-plugin-root>` is either:
 
-- `.\plugins\anarchy-ai-<repo-slug>-<stable-path-hash>`
-- `~\.codex\plugins\anarchy-ai`
+- `.\plugins\anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
+- `~\.codex\plugins\anarchy-ai-herringms`
 
 `SafeReleaseRuntimeLock` does not request UAC elevation.
 
@@ -169,6 +171,35 @@ The safe/force split is intentional for both humans and agents:
 - it gives the actor a bounded repair option before resorting to force behavior
 - it makes the cause legible when a live runtime lock is blocking update
 - it gives the agent stronger direction about the problem before it reaches for broader file or path manipulation
+
+## Safe Retirement
+
+The bundled retirement script is the preferred bounded lane when Anarchy-AI needs to be removed or reset without guessing at paths.
+
+The dedicated retirement commands are:
+
+- assess removable surfaces:
+  - `powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\remove-anarchy-ai.ps1 -Mode Assess`
+- quarantine repo-local, user-profile, and documented plugin-cache surfaces:
+  - `powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\remove-anarchy-ai.ps1 -Mode Quarantine -Targets repo_local,user_profile,device_app`
+- quarantine and then permanently delete the quarantined copies:
+  - `powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\remove-anarchy-ai.ps1 -Mode Remove -Targets repo_local,user_profile,device_app`
+
+The retirement script:
+
+- inventories first and reports every target before destructive work
+- preserves repo-authored source truth in the source repo instead of treating `plugins/anarchy-ai` as disposable
+- backs up live marketplace and config files before editing them in place
+- quarantines before delete so rollback remains possible unless `-Mode Remove` is explicitly chosen
+- clears owned optional custom-MCP fallback blocks such as `mcp_servers.anarchy-ai-herringms` and older legacy `mcp_servers.anarchy-ai` entries when present
+- retires documented plugin-cache roots when they exist, but does not guess at broader Codex app databases or private host state
+
+Marketplace files are treated as shared registries:
+
+- the live `marketplace.json` stays in place
+- the script removes only Anarchy-AI entries from the live `plugins` array
+- non-Anarchy plugin entries are preserved unchanged
+- if Anarchy-AI was the only plugin, the file remains a valid empty marketplace object after rewrite
 
 ## Current Boundaries
 

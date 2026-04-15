@@ -96,6 +96,38 @@ Working product sentence:
 
 ## Current Gaps
 
+### 0.5. Path-role drift created unsafe update semantics
+
+#### Gap
+
+Important operational surfaces had been rebuilding path meaning with local string literals instead of one shared canon. That drift showed up in:
+
+- setup result JSON
+- harness gap/health inspection JSON
+- repo-local bootstrap JSON
+- generated README and `.mcp.json` publish surfaces
+- marketplace writes and legacy-path detection
+
+The same few facts were being represented multiple different ways:
+
+- repo-authored origin
+- actual update source
+- destination target
+- plugin-relative versus marketplace-relative references
+
+#### Why it matters
+
+- safe updates depend on knowing exactly which path is the origin, which is the actual source, and which is the destination
+- flat fields like `workspace_root`, `repo_root`, and `plugin_root` were overloaded enough to hide that distinction
+- future installer, runtime, or doc edits would have kept reintroducing drift because there was no single audit-backed path canon
+
+#### Correction direction
+
+- keep one repo-authored path canon under `harness/pathing/`
+- generate code/script consumers from that canon
+- use nested `paths.origin|source|destination` in setup/bootstrap/health-style outputs
+- fail operational builds when forbidden hard-coded path literals reappear outside the allowlisted generated/evidence zones
+
 ### 0. Codex Home-Install Model Drift Polluted Setup Truth
 
 #### Gap
@@ -125,8 +157,9 @@ The stale model then bled into multiple places at once:
 
 - keep Codex home install plugin-marketplace-first:
   - `~/.agents/plugins/marketplace.json`
-  - `~/.codex/plugins/anarchy-ai`
-- treat custom `mcp_servers.anarchy-ai` as fallback/debug evidence only
+  - `~/.codex/plugins/anarchy-ai-herringms`
+- treat custom `mcp_servers.anarchy-ai-herringms` as fallback/debug evidence only
+- treat older legacy `mcp_servers.anarchy-ai` entries as cleanup evidence only
 - keep canonical docs and install assertions repo-authored, then publish/generate destination-relative install surfaces from those sources
 - detect failed legacy PoC home layouts honestly and repair them through inventory plus manual cleanup guidance rather than compatibility drift
 

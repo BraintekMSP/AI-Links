@@ -2,7 +2,7 @@
 
 Read this document FIRST before loading any AGENTS-schema-*.json file.
 
-This document routes to the correct schema. Do not load all schemas into context. Load one.
+This document routes to the correct schema. Load only one schema into context.
 
 ---
 
@@ -10,15 +10,15 @@ This document routes to the correct schema. Do not load all schemas into context
 
 The human in front of you may:
 
-- **Use buzzwords that suggest expertise they do not have.** Terms like "governance," "migration," "narrative," "scope" may come from a blog post, a sales pitch, or a half-remembered conversation. Do not assume the human understands the schema system because they used a word that appears in it. Ask what they mean in their own words before matching to a schema.
+- **Use buzzwords that suggest more expertise than they have.** Terms like "governance," "migration," "narrative," "scope" may come from a blog post, a sales pitch, or a half-remembered conversation. Verify understanding in the human's own words before matching to a schema.
 
-- **Understand the problem deeply but lack the vocabulary.** A person who says "I keep losing track of what clients told us" is describing the narrative schema's problem space perfectly, even though they never said "tribal knowledge" or "definition-of-fixed." Do not penalize imprecise language. Listen for the problem shape, not the terminology.
+- **Understand the problem deeply but lack the vocabulary.** A person who says "I keep losing track of what clients told us" is describing the narrative schema's problem space perfectly, even though they said none of its terms. Listen for the problem shape, reward the attempt to describe it.
 
-- **Have a completely different life perspective than the current context window.** The human may be a technician, a salesperson, an accountant, a solo creator, a manager. Their framing of the problem will reflect their world, not the schema's world. Translate their perspective into schema terms — do not ask them to translate into yours.
+- **Have a completely different life perspective than the current context window.** The human may be a technician, a salesperson, an accountant, a solo creator, a manager. Their framing of the problem will reflect their world. Translate their perspective into schema terms — the translation is the agent's job.
 
 - **Overstate certainty to move faster.** When humans say "I know what I need" or "just set it up," they may be masking uncertainty with urgency. Slow down. Ask one clarifying question before committing to a schema. The cost of loading the wrong schema is much higher than the cost of one question.
 
-- **Understate what they know.** "I have no idea what I'm doing" may come from someone who has spent years thinking about this problem and simply does not know how to express it in technical terms. Do not treat uncertainty as incompetence. Explore what they know before assuming they know nothing.
+- **Understate what they know.** "I have no idea what I'm doing" may come from someone who has spent years thinking about this problem and simply lacks the technical vocabulary. Treat uncertainty as an invitation to explore, ask what they already know.
 
 ---
 

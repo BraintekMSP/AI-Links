@@ -1,31 +1,31 @@
-{
-  "bundle_name": "anarchy-ai-canonical-schema-bundle",
-  "bundle_version": "0.1.0",
-  "generated_utc": "2026-04-13T14:20:00Z",
-  "files": [
-    {
-      "file_name": "AGENTS-schema-1project.json",
-      "sha256": "5a4c08c4a2d84507b7b59240ec0994dc8428331c850304edd800d676947407a0"
-    },
-    {
-      "file_name": "AGENTS-schema-gov2gov-migration.json",
-      "sha256": "f8cd419e33dad2ca01addf2f6ac61daa3fbeb28e5381967a8ceccacc8eaa1591"
-    },
-    {
-      "file_name": "AGENTS-schema-governance.json",
-      "sha256": "50c8481f1345d505db3a7c1ee5e6a142bda0735a01f57f6d61843f75b2c9fbcf"
-    },
-    {
-      "file_name": "AGENTS-schema-narrative.json",
-      "sha256": "2ca3e9e9e4e67f951834033d2311e9c78200b2b9a34a88db79673e676298c8d7"
-    },
-    {
-      "file_name": "AGENTS-schema-triage.md",
-      "sha256": "6bde3593b95f2ffdf6726cc690c96a544475339f7e43e56698c6f1c936981ef6"
-    },
-    {
-      "file_name": "Getting-Started-For-Humans.txt",
-      "sha256": "4ba65ce7c99d4c0ea0fef2fd69bd3beee995ebaff4f95c055e9c6cad660c0f53"
-    }
-  ]
+﻿{
+    "bundle_name":  "anarchy-ai-canonical-schema-bundle",
+    "bundle_version":  "0.1.0",
+    "generated_utc":  "2026-04-13T14:20:00Z",
+    "files":  [
+                  {
+                      "file_name":  "AGENTS-schema-governance.json",
+                      "sha256":  "50c8481f1345d505db3a7c1ee5e6a142bda0735a01f57f6d61843f75b2c9fbcf"
+                  },
+                  {
+                      "file_name":  "AGENTS-schema-1project.json",
+                      "sha256":  "5a4c08c4a2d84507b7b59240ec0994dc8428331c850304edd800d676947407a0"
+                  },
+                  {
+                      "file_name":  "AGENTS-schema-narrative.json",
+                      "sha256":  "2ca3e9e9e4e67f951834033d2311e9c78200b2b9a34a88db79673e676298c8d7"
+                  },
+                  {
+                      "file_name":  "AGENTS-schema-gov2gov-migration.json",
+                      "sha256":  "f8cd419e33dad2ca01addf2f6ac61daa3fbeb28e5381967a8ceccacc8eaa1591"
+                  },
+                  {
+                      "file_name":  "AGENTS-schema-triage.md",
+                      "sha256":  "6bde3593b95f2ffdf6726cc690c96a544475339f7e43e56698c6f1c936981ef6"
+                  },
+                  {
+                      "file_name":  "Getting-Started-For-Humans.txt",
+                      "sha256":  "4ba65ce7c99d4c0ea0fef2fd69bd3beee995ebaff4f95c055e9c6cad660c0f53"
+                  }
+              ]
 }

@@ -305,6 +305,32 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
   - Output is concise enough for agent decisioning and detailed enough for human validation.
   - Skill/setup docs reference it as the default “stop guessing” lane before destructive retries.
 
+### AA-BUG-015: Codex Plugins UI card title can drift from current marketplace and plugin metadata
+
+- Severity: Medium
+- Status: Patched repo metadata (pending Codex state refresh proof)
+- Component: Setup / Marketplace identity / Codex plugin catalog state
+- Repro:
+  - Open the new Codex Plugins view after a repo-local and user-profile Anarchy-AI marketplace are both present.
+  - Open the marketplace dropdown and compare the section titles to the visible plugin card title.
+- Expected:
+  - The marketplace dropdown shows branded marketplace titles.
+  - The plugin card title also stays branded and does not expose stale internal identifiers.
+- Actual:
+  - The marketplace dropdown can show the correct branded titles such as `Anarchy-AI Local (AI-Links)` and `Anarchy-AI User Profile`, while the plugin card still shows a stale hash-shaped identifier such as `anarchy-local-ai-links-dae7a4e7`.
+- Evidence:
+  - Official Codex plugin docs say marketplace `interface.displayName` is the marketplace title shown in Codex and plugin `interface.displayName` controls install-surface presentation.
+  - Live repo marketplace now uses `name = "anarchy-ai-herringms-local-ai-links"` with `displayName = "Anarchy-AI Local (AI-Links)"`.
+  - Live user-profile marketplace now uses `name = "anarchy-ai-herringms-user-profile"` with `displayName = "Anarchy-AI User Profile"`.
+  - Live repo-local and home-local plugin manifests both use stable plugin identity `name = "anarchy-ai-herringms"` and `interface.displayName = "Anarchy-AI"`.
+  - The stale `anarchy-local-ai-links-dae7a4e7` label was no longer present in the current marketplace files or live plugin manifests after the metadata patch.
+  - Official docs also say local plugins install into `~/.codex/plugins/cache/$MARKETPLACE_NAME/$PLUGIN_NAME/local/`, but no Anarchy-AI cache copy was observed on this machine during the same check.
+- Acceptance:
+  - Repo-local marketplace root uses a branded repo-slug identifier without a path-hash suffix.
+  - User-profile marketplace root also uses a branded stable identifier.
+  - After Codex restart or install-state refresh, plugin cards no longer show stale path-derived marketplace identifiers.
+  - If Codex is sourcing card titles from a separate cached catalog/install state, the truth matrix documents that surface explicitly instead of attributing it to current repo-authored manifests.
+
 ## Notes
 
 - These bug reports are about deployment and harness ergonomics, not about constraining repo expression in `AGENTS.md` or companion docs.

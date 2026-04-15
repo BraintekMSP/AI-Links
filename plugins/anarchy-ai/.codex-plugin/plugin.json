@@ -1,46 +1,48 @@
-{
-  "name": "anarchy-ai",
-  "version": "0.1.5",
-  "description": "Windows-first local delivery plugin for Anarchy-AI with repo-authored published truth, Codex-native home install, and bounded harness tools for preflight, gap assessment, active-work compilation, schema reality, and gov2gov reconciliation.",
-  "author": {
-    "name": "BraintekMSP",
-    "url": "https://github.com/BraintekMSP/AI-Links"
-  },
-  "homepage": "https://github.com/BraintekMSP/AI-Links",
-  "repository": "https://github.com/BraintekMSP/AI-Links",
-  "license": "Proprietary - see LICENSE",
-  "keywords": [
-    "mcp",
-    "schema",
-    "governance",
-    "harness",
-    "codex",
-    "preflight",
-    "bootstrap"
-  ],
-  "skills": "./skills/",
-  "mcpServers": "./.mcp.json",
-  "interface": {
-    "displayName": "Anarchy-AI",
-    "shortDescription": "Windows-first runtime harness for preflight, gap assessment, active-work compilation, schema reality, and gov2gov reconciliation",
-    "longDescription": "Installs Anarchy-AI, the runtime framework harness for the AGENTS Heuristic Underlay. The schema family remains the canonical layer, the underlay remains the operative layer built from it, and Anarchy-AI preflights meaningful governed work, assesses install and adoption gaps, compiles active work, evaluates schema reality, and runs non-destructive gov2gov reconciliation through a local MCP lane.",
-    "developerName": "BraintekMSP",
-    "category": "Coding",
-    "capabilities": [
-      "Interactive",
-      "Write"
-    ],
-    "websiteURL": "https://github.com/BraintekMSP/AI-Links",
-    "privacyPolicyURL": "https://github.com/BraintekMSP/AI-Links/blob/main/plugins/anarchy-ai/PRIVACY.md",
-    "termsOfServiceURL": "https://github.com/BraintekMSP/AI-Links/blob/main/plugins/anarchy-ai/TERMS.md",
-    "defaultPrompt": [
-      "Use Anarchy-AI as the runtime harness for the AGENTS Heuristic Underlay.",
-      "Run preflight_session before meaningful governed work.",
-      "Use assess_harness_gap_state when install, runtime, schema, or adoption state is unclear."
-    ],
-    "brandColor": "#203630",
-    "composerIcon": "./assets/anarchy-ai.png",
-    "logo": "./assets/anarchy_ai.svg",
-    "screenshots": []
-  }
+﻿{
+    "name":  "anarchy-ai-herringms",
+    "version":  "0.1.6",
+    "description":  "Windows-first local delivery plugin for Anarchy-AI with repo-authored published truth, Codex-native home install, and bounded harness tools for preflight, gap assessment, active-work compilation, schema reality, and gov2gov reconciliation.",
+    "author":  {
+                   "name":  "Matt Herring",
+                   "url":  "https://github.com/BraintekMSP/AI-Links"
+               },
+    "homepage":  "https://github.com/BraintekMSP/AI-Links",
+    "repository":  "https://github.com/BraintekMSP/AI-Links",
+    "license":  "Proprietary - see LICENSE",
+    "keywords":  [
+                     "mcp",
+                     "schema",
+                     "governance",
+                     "harness",
+                     "codex",
+                     "preflight",
+                     "bootstrap"
+                 ],
+    "skills":  "./skills/",
+    "mcpServers":  "./.mcp.json",
+    "interface":  {
+                      "displayName":  "Anarchy-AI",
+                      "shortDescription":  "Windows-first runtime harness for preflight, gap assessment, active-work compilation, schema reality, and gov2gov reconciliation",
+                      "longDescription":  "Installs Anarchy-AI, the runtime framework harness for the AGENTS Heuristic Underlay. The schema family remains the canonical layer, the underlay remains the operative layer built from it, and Anarchy-AI preflights meaningful governed work, assesses install and adoption gaps, compiles active work, evaluates schema reality, and runs non-destructive gov2gov reconciliation through a local MCP lane.",
+                      "developerName":  "herringms",
+                      "category":  "Coding",
+                      "capabilities":  [
+                                           "Interactive",
+                                           "Write"
+                                       ],
+                      "websiteURL":  "https://github.com/BraintekMSP/AI-Links",
+                      "privacyPolicyURL":  "https://github.com/BraintekMSP/AI-Links/blob/main/plugins/anarchy-ai/PRIVACY.md",
+                      "termsOfServiceURL":  "https://github.com/BraintekMSP/AI-Links/blob/main/LICENSE",
+                      "defaultPrompt":  [
+                                            "Use Anarchy-AI as the runtime harness for the AGENTS Heuristic Underlay.",
+                                            "Run preflight_session before meaningful governed work.",
+                                            "Use assess_harness_gap_state when install, runtime, schema, or adoption state is unclear."
+                                        ],
+                      "brandColor":  "#203630",
+                      "composerIcon":  "./assets/anarchy-ai.png",
+                      "logo":  "./assets/anarchy_ai.svg",
+                      "screenshots":  [
+
+                                      ]
+                  }
 }

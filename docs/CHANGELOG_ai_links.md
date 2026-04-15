@@ -1,5 +1,79 @@
 ﻿# Changelog - AI-Links
 
+## 2026-04-14
+
+### Namespaced Codex identity ownership
+
+- Namespaced the Anarchy-AI technical identity to `anarchy-ai-herringms` while keeping the branded display name `Anarchy-AI`.
+- Updated the canonical plugin manifest, plugin-local `.mcp.json`, setup/runtime discovery, repo-local bootstrap, and safe removal logic to use canon-backed owned-name matching rather than broad `anarchy*` prefix matching.
+- Updated current live docs so the user-profile marketplace now reads `anarchy-ai-herringms-user-profile`, the user-profile plugin root is `~/.codex/plugins/anarchy-ai-herringms`, and the optional current custom-MCP fallback key is `mcp_servers.anarchy-ai-herringms`.
+- Kept legacy `anarchy-ai` and `mcp_servers.anarchy-ai` detection as cleanup-only compatibility evidence so older installs can still be assessed and retired safely.
+
+### Safe retirement companion script
+
+- Added `plugins/anarchy-ai/scripts/remove-anarchy-ai.ps1` as the bounded retirement lane for Anarchy-AI across repo-local, user-profile, and documented plugin-cache surfaces.
+- The new script inventories first, quarantines before delete, preserves repo-authored source truth, backs up mutable files before rewrite, and removes the optional `mcp_servers.anarchy-ai` fallback block from Codex config when present.
+- Shared marketplace files are now treated as registries to rewrite after backup instead of disposable files to retire; non-Anarchy plugin entries stay live and Anarchy-only marketplace files are left as valid empty registries after rewrite.
+- Added the user-profile plugin-cache parent path to the repo-authored path canon so removal logic does not reintroduce hard-coded cache paths.
+- Updated repo-authored install/readme docs so the published bundle carries honest removal guidance instead of requiring ad hoc cleanup.
+
+### Codex plugin marketplace naming cleanup
+
+- Removed the path-hash suffix from marketplace root identities that Codex can leak into the new Plugins UI.
+- Repo-local marketplace roots now use `anarchy-ai-local-<repo-slug>` instead of `anarchy-local-<repo-slug>-<stable-path-hash>`.
+- User-profile marketplace roots now use `anarchy-ai-user-profile` instead of `anarchy-user-profile`.
+- Kept `interface.displayName` unchanged, but updated setup/bootstrap/docs to treat the top-level marketplace `name` as effectively user-facing because current Codex plugin surfaces can expose it directly.
+- Added `AA-BUG-015` to `docs/ANARCHY_AI_BUG_REPORTS.md` so the remaining cross-device UI verification stays visible.
+
+### Full source comment coverage and documentation-discovered bug register
+
+- Added purpose/input/output/dependency comments above every class, method, function, and test helper in the non-generated Anarchy-AI source surfaces:
+  - `harness/pathing/AnarchyPathCanon.Shared.cs`
+  - `harness/setup/dotnet/Program.cs`
+  - `harness/server/dotnet/Program.cs`
+  - `harness/setup/tests/SetupEngineTests.cs`
+  - `harness/server/tests/DirectionAssistRunnerTests.cs`
+  - `harness/server/tests/HarnessGapAssessorTests.cs`
+  - `plugins/anarchy-ai/scripts/bootstrap-anarchy-ai.ps1`
+  - `plugins/anarchy-ai/scripts/stop-anarchy-ai.ps1`
+  - `harness/setup/scripts/build-self-contained-exe.ps1`
+  - `harness/pathing/scripts/generate-path-canon-artifacts.ps1`
+  - `harness/pathing/scripts/test-path-canon-compliance.ps1`
+- Added `docs/ANARCHY_AI_DOC_DISCOVERY_BUG_REGISTER.md` to track bugs and hidden assumptions exposed by the documentation pass instead of burying them in comments.
+- Recorded initial documentation-discovered findings for:
+  - missing home-local setup-EXE recovery materialization
+  - runtime marketplace inspection assuming repo-local and user-profile marketplace paths stay identical
+  - legacy custom-MCP helper code still living in setup after readiness moved to plugin-marketplace-first
+- Linked the documentation-discovered bug register from `docs/README_ai_links.md`.
+
+### Path canon normalization and nested path-contract rollout
+
+- Added one repo-authored path canon in:
+  - `harness/pathing/anarchy-path-canon.json`
+- Added generated canon consumers for:
+  - C# (`harness/pathing/generated/GeneratedAnarchyPathCanon.g.cs`)
+  - PowerShell (`harness/pathing/generated/anarchy-path-canon.generated.psd1`)
+  - plugin-local PowerShell consumption (`plugins/anarchy-ai/pathing/anarchy-path-canon.generated.psd1`)
+- Wired the canon into:
+  - `harness/setup/dotnet/Program.cs`
+  - `harness/server/dotnet/Program.cs`
+  - `plugins/anarchy-ai/scripts/bootstrap-anarchy-ai.ps1`
+  - `plugins/anarchy-ai/scripts/stop-anarchy-ai.ps1`
+  - `harness/setup/scripts/build-self-contained-exe.ps1`
+- Broke setup/bootstrap/health-style path reporting on purpose:
+  - removed flat output fields such as `workspace_root`, `repo_root`, `plugin_root`, `update_source_path`, and `marketplace_path`
+  - replaced them with nested `paths.origin`, `paths.source`, and `paths.destination`
+- Made published install surfaces more canon-driven:
+  - generated plugin README tokens now come from the path canon
+  - repo plugin `.mcp.json` is now generated from the same runtime command/cwd canon
+- Added a repo-wide operational path audit in:
+  - `harness/pathing/scripts/test-path-canon-compliance.ps1`
+  - current build helper now runs that audit before publish completes
+- Added regression coverage for:
+  - setup nested `paths` contract
+  - repo path-audit pass/fail enforcement
+  - harness-gap nested `paths` contract
+
 ## 2026-04-13
 
 ### Setup lane hardening and shipped-EXE contract checks

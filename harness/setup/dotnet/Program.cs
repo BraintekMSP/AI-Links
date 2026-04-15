@@ -7,9 +7,15 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
+using AnarchyAi.Branding;
+using AnarchyAi.Pathing;
 
 namespace AnarchyAi.Setup;
 
+// Purpose: Declares the bounded operations supported by the setup executable.
+// Expected input: Selection from CLI switches or GUI button clicks.
+// Expected output: A stable enum value used to route assess, install, or update behavior.
+// Critical dependencies: CliParser, SetupForm, and SetupEngine branching logic.
 internal enum OperationMode
 {
     Assess,
@@ -17,12 +23,20 @@ internal enum OperationMode
     Update
 }
 
+// Purpose: Declares the two install lanes supported by the setup executable.
+// Expected input: Selection from CLI switches or GUI lane controls.
+// Expected output: A stable enum value for repo-local or user-profile installs.
+// Critical dependencies: SetupEngine path resolution and marketplace registration rules.
 internal enum InstallScope
 {
     RepoLocal,
     UserProfile
 }
 
+// Purpose: Carries normalized setup inputs from the CLI or GUI into the execution engine.
+// Expected input: Parsed mode, install lane, optional repo/source values, and output-mode flags.
+// Expected output: An immutable options object consumed by SetupEngine.
+// Critical dependencies: CliParser, SetupForm, and the current setup contract.
 internal sealed class SetupOptions
 {
     public OperationMode Mode { get; init; } = OperationMode.Assess;
@@ -31,25 +45,25 @@ internal sealed class SetupOptions
     public bool Silent { get; init; }
     public bool JsonOutput { get; init; }
     public bool RefreshPortableSchemaFamily { get; init; }
-    public string UpdateSourceZipUrl { get; init; } = "https://github.com/BraintekMSP/AI-Links/archive/refs/heads/main.zip";
+    public string UpdateSourceZipUrl { get; init; } = AnarchyBranding.DefaultUpdateSourceZipUrl;
     public string UpdateSourcePath { get; init; } = string.Empty;
     public string RepoPath { get; init; } = string.Empty;
 }
 
+// Purpose: Carries the bounded result of a setup assess, install, or update operation.
+// Expected input: Execution-state facts collected by SetupEngine after filesystem and registration work completes.
+// Expected output: A JSON-serializable result object for CLI, GUI, and recovery workflows.
+// Critical dependencies: SetupEngine, PathRoleCollection, and the published JSON contract.
 internal sealed class SetupResult
 {
     public required string bootstrap_state { get; init; }
     public required string registration_mode { get; init; }
     public required string host_context { get; init; }
     public required string install_scope { get; init; }
-    public required string workspace_root { get; init; }
     public required bool update_requested { get; init; }
     public required string update_state { get; init; }
     public required string update_source_zip_url { get; init; }
-    public required string update_source_path { get; init; }
     public required string[] update_notes { get; init; }
-    public required string repo_root { get; init; }
-    public required string plugin_root { get; init; }
     public required bool runtime_present { get; init; }
     public required bool marketplace_registered { get; init; }
     public required bool installed_by_default { get; init; }
@@ -57,8 +71,13 @@ internal sealed class SetupResult
     public required string[] missing_components { get; init; }
     public required string[] safe_repairs { get; init; }
     public required string next_action { get; init; }
+    public required PathRoleCollection paths { get; init; }
 }
 
+// Purpose: Centralizes JSON serialization settings for setup output.
+// Expected input: Anonymous objects or strongly typed setup result payloads.
+// Expected output: Stable indented JSON with relaxed escaping for human-readable CLI output.
+// Critical dependencies: System.Text.Json and every code path that prints setup JSON.
 internal static class ProgramJson
 {
     public static readonly JsonSerializerOptions Options = new()
@@ -68,8 +87,16 @@ internal static class ProgramJson
     };
 }
 
+// Purpose: Hosts the setup executable entrypoint and routes execution into help, GUI, or CLI operation.
+// Expected input: Raw process arguments from the setup executable invocation.
+// Expected output: Process exit code plus optional JSON/help text written to stdout.
+// Critical dependencies: CliParser, SetupForm, SetupEngine, ProgramJson, and Windows Forms initialization.
 internal static class Program
 {
+    // Purpose: Starts the setup executable in help, GUI, or CLI mode based on incoming arguments.
+    // Expected input: Raw command-line arguments from the current process.
+    // Expected output: Exit code 0 for success/help, 1 for non-ready setup results, or 2 for unhandled failures.
+    // Critical dependencies: CliParser, ConsoleWindow, Windows Forms, SetupEngine, and JSON serialization.
     [STAThread]
     private static int Main(string[] args)
     {
@@ -110,16 +137,32 @@ internal static class Program
     }
 }
 
+// Purpose: Hides the console window when the setup executable is launched in GUI mode.
+// Expected input: No caller-supplied data beyond the current process window state.
+// Expected output: No return value; the console is hidden when one exists.
+// Critical dependencies: Win32 GetConsoleWindow and ShowWindow APIs.
 internal static class ConsoleWindow
 {
     private const int SwHide = 0;
 
+    // Purpose: Retrieves the current process console window handle from Win32.
+    // Expected input: None.
+    // Expected output: A console window handle or IntPtr.Zero when none exists.
+    // Critical dependencies: kernel32.dll.
     [DllImport("kernel32.dll")]
     private static extern IntPtr GetConsoleWindow();
 
+    // Purpose: Applies a requested show or hide state to a native window handle.
+    // Expected input: A native window handle and a show-state constant.
+    // Expected output: True when the requested window-state change succeeds.
+    // Critical dependencies: user32.dll.
     [DllImport("user32.dll")]
     private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
+    // Purpose: Hides the console window so the GUI setup flow does not leave a shell window behind.
+    // Expected input: None; the method inspects the current process window state.
+    // Expected output: No return value.
+    // Critical dependencies: GetConsoleWindow and ShowWindow.
     public static void Hide()
     {
         var handle = GetConsoleWindow();
@@ -130,6 +173,10 @@ internal static class ConsoleWindow
     }
 }
 
+// Purpose: Provides the Windows Forms front end for bounded setup assess/install actions.
+// Expected input: User-selected install lane, optional repo path, and button-click actions.
+// Expected output: GUI state updates plus serialized setup results displayed to the user.
+// Critical dependencies: SetupEngine, ProgramJson, Windows Forms controls, and the shared path canon.
 internal sealed class SetupForm : Form
 {
     private readonly Label _introLabel;
@@ -149,9 +196,13 @@ internal sealed class SetupForm : Form
     private string _selectedRepoPath;
     private bool _updatingPathPresentation;
 
+    // Purpose: Builds the setup form and initializes the lane controls, path fields, and action buttons.
+    // Expected input: No direct caller input; uses current process resources and default install lane state.
+    // Expected output: A ready-to-show setup form instance.
+    // Critical dependencies: SetupWindowIcon, BuildHeaderPanel, BuildIntroLabel, and Windows Forms layout controls.
     public SetupForm()
     {
-        Text = "Anarchy-AI Setup";
+        Text = AnarchyBranding.SetupDisplayName;
         Width = 1200;
         Height = 720;
         MinimumSize = new System.Drawing.Size(1100, 660);
@@ -404,6 +455,10 @@ internal sealed class SetupForm : Form
         UpdateActionButtons();
     }
 
+    // Purpose: Builds the branded header section shown at the top of the setup window.
+    // Expected input: Current embedded branding assets and form-level subtitle label storage.
+    // Expected output: A populated header control ready to add to the form layout.
+    // Critical dependencies: BuildLogoPictureBox and Windows Forms layout controls.
     private Control BuildHeaderPanel()
     {
         var headerPanel = new TableLayoutPanel
@@ -436,7 +491,7 @@ internal sealed class SetupForm : Form
         var titleLabel = new Label
         {
             AutoSize = true,
-            Text = "Anarchy-AI Setup",
+            Text = AnarchyBranding.SetupDisplayName,
             Font = new System.Drawing.Font("Segoe UI Semibold", 21.0f),
             Margin = new Padding(0)
         };
@@ -457,9 +512,15 @@ internal sealed class SetupForm : Form
         return headerPanel;
     }
 
+    // Purpose: Loads the embedded Anarchy-AI logo image and wraps it in a picture box for the setup header.
+    // Expected input: No caller input; resolves the bundle asset through the embedded payload resource path.
+    // Expected output: A picture box when the image is available, otherwise null.
+    // Critical dependencies: ResourceImageLoader and the embedded plugin payload resources.
     private static PictureBox? BuildLogoPictureBox()
     {
-        var image = ResourceImageLoader.TryLoadPng("SetupPayload/plugins/anarchy-ai/assets/anarchy-ai.png");
+        var image = ResourceImageLoader.TryLoadPng(
+            AnarchyPathCanon.BuildPluginPayloadResourcePath(
+                AnarchyBranding.BundleSetupHeaderImageRelativePath));
         if (image is null)
         {
             return null;
@@ -475,6 +536,10 @@ internal sealed class SetupForm : Form
         };
     }
 
+    // Purpose: Creates a standard intro label used for high-level explanatory copy in the setup window.
+    // Expected input: Introductory text for the current lane or state.
+    // Expected output: A configured label control.
+    // Critical dependencies: Windows Forms label rendering.
     private static Label BuildIntroLabel(string text)
     {
         return new Label
@@ -487,6 +552,10 @@ internal sealed class SetupForm : Form
         };
     }
 
+    // Purpose: Opens repo selection only for the repo-local lane.
+    // Expected input: Standard WinForms click arguments plus the current repo-path textbox value.
+    // Expected output: No direct return value; updates the repo textbox when the user picks a folder.
+    // Critical dependencies: GetSelectedInstallScope and BrowseForRepoSelection.
     private void BrowseButton_Click(object? sender, EventArgs e)
     {
         if (GetSelectedInstallScope() == InstallScope.UserProfile)
@@ -497,11 +566,19 @@ internal sealed class SetupForm : Form
         BrowseForRepoSelection(_repoPathTextBox.Text, path => _repoPathTextBox.Text = path);
     }
 
+    // Purpose: Opens the secondary target-repo selector when that lane is shown.
+    // Expected input: Standard WinForms click arguments plus the target textbox value.
+    // Expected output: No direct return value; updates the target repo textbox after selection.
+    // Critical dependencies: BrowseForRepoSelection.
     private void TargetRepoBrowseButton_Click(object? sender, EventArgs e)
     {
         BrowseForRepoSelection(_targetRepoTextBox.Text, path => _targetRepoTextBox.Text = path);
     }
 
+    // Purpose: Shows a folder picker and writes the selected repo path back through a caller-provided callback.
+    // Expected input: Initial folder path and a callback that accepts the chosen repo path.
+    // Expected output: No direct return value; invokes the callback only when the user confirms a selection.
+    // Critical dependencies: FolderBrowserDialog and caller-managed textbox state.
     private void BrowseForRepoSelection(string initialPath, Action<string> onSelected)
     {
         using var dialog = new FolderBrowserDialog
@@ -520,6 +597,10 @@ internal sealed class SetupForm : Form
         }
     }
 
+    // Purpose: Keeps the repo-local selected path in sync with manual textbox edits.
+    // Expected input: Standard text-changed event arguments and the current textbox value.
+    // Expected output: No direct return value; updates the cached selected repo path.
+    // Critical dependencies: Current install-lane selection and path-presentation update guards.
     private void RepoPathTextBox_TextChanged(object? sender, EventArgs e)
     {
         if (_updatingPathPresentation || GetSelectedInstallScope() == InstallScope.UserProfile)
@@ -530,6 +611,10 @@ internal sealed class SetupForm : Form
         _selectedRepoPath = _repoPathTextBox.Text;
     }
 
+    // Purpose: Keeps the secondary target repo path in sync with manual edits when that control is visible.
+    // Expected input: Standard text-changed event arguments and the current textbox value.
+    // Expected output: No direct return value; updates the cached selected repo path.
+    // Critical dependencies: Path-presentation update guards.
     private void TargetRepoTextBox_TextChanged(object? sender, EventArgs e)
     {
         if (_updatingPathPresentation)
@@ -540,6 +625,10 @@ internal sealed class SetupForm : Form
         _selectedRepoPath = _targetRepoTextBox.Text;
     }
 
+    // Purpose: Runs an assess or install action from the GUI and displays the resulting JSON state.
+    // Expected input: The requested operation mode plus the current lane and repo-path selections.
+    // Expected output: No direct return value; updates status text and the result textbox.
+    // Critical dependencies: SetupEngine, InstallDisclosureForm, and ProgramJson serialization.
     private void Execute(OperationMode mode)
     {
         try
@@ -581,11 +670,19 @@ internal sealed class SetupForm : Form
         }
     }
 
+    // Purpose: Resolves the install scope selected by the radio-button group.
+    // Expected input: Current radio-button state.
+    // Expected output: RepoLocal or UserProfile.
+    // Critical dependencies: The setup form radio controls.
     private InstallScope GetSelectedInstallScope()
     {
         return _userProfileRadioButton.Checked ? InstallScope.UserProfile : InstallScope.RepoLocal;
     }
 
+    // Purpose: Refreshes action-button labels and lane-specific explanatory UI when the selected install lane changes.
+    // Expected input: Current lane selection in the radio buttons.
+    // Expected output: No direct return value; mutates button text and supporting UI copy.
+    // Critical dependencies: GetSelectedInstallScope, UpdateHeaderCopy, and UpdatePathPresentation.
     private void UpdateActionButtons()
     {
         var selectedScope = GetSelectedInstallScope();
@@ -599,19 +696,27 @@ internal sealed class SetupForm : Form
         UpdatePathPresentation(selectedScope);
     }
 
+    // Purpose: Updates the subtitle and introductory copy to match the active install lane.
+    // Expected input: The selected install scope.
+    // Expected output: No direct return value; updates form labels.
+    // Critical dependencies: The current wording contract for repo-local versus user-profile installs.
     private void UpdateHeaderCopy(InstallScope installScope)
     {
         if (installScope == InstallScope.UserProfile)
         {
             _subtitleLabel.Text = "User-profile harness install and assessment";
-            _introLabel.Text = "Install or assess Anarchy-AI through the current user profile. User-profile install keeps the harness under the current user profile instead of attaching it to one repo.";
+            _introLabel.Text = $"Install or assess {AnarchyBranding.BrandDisplayName} through the current user profile. User-profile install keeps the harness under the current user profile instead of attaching it to one repo.";
             return;
         }
 
         _subtitleLabel.Text = "Repo-local harness install and assessment";
-        _introLabel.Text = "Install or assess Anarchy-AI for a selected repo. Repo-local install keeps the harness inside that repo so the delivery surface travels with the workspace.";
+        _introLabel.Text = $"Install or assess {AnarchyBranding.BrandDisplayName} for a selected repo. Repo-local install keeps the harness inside that repo so the delivery surface travels with the workspace.";
     }
 
+    // Purpose: Switches the path UI between editable repo-local selection and fixed user-profile presentation.
+    // Expected input: The selected install scope.
+    // Expected output: No direct return value; updates path labels, textbox state, and browse-button visibility.
+    // Critical dependencies: AnarchyPathCanon, GeneratedAnarchyPathCanon, and the current Windows Forms controls.
     private void UpdatePathPresentation(InstallScope installScope)
     {
         _updatingPathPresentation = true;
@@ -620,10 +725,9 @@ internal sealed class SetupForm : Form
             if (installScope == InstallScope.UserProfile)
             {
                 _pathLabel.Text = "Install Root:";
-                _repoPathTextBox.Text = Path.Combine(
+                _repoPathTextBox.Text = AnarchyPathCanon.ResolveUserProfilePluginRoot(
                     Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    "plugins",
-                    "anarchy-ai");
+                    GeneratedAnarchyPathCanon.DefaultPluginName);
                 _repoPathTextBox.ReadOnly = true;
                 _repoPathTextBox.BackColor = System.Drawing.SystemColors.Control;
                 _browseButton.Visible = false;
@@ -646,6 +750,10 @@ internal sealed class SetupForm : Form
         }
     }
 
+    // Purpose: Returns the repo path the current GUI action should target.
+    // Expected input: The current install lane and cached repo selection.
+    // Expected output: Empty string for user-profile operations or the trimmed repo path for repo-local operations.
+    // Critical dependencies: GetSelectedInstallScope and the cached _selectedRepoPath value.
     private string GetEffectiveRepoPath()
     {
         if (GetSelectedInstallScope() == InstallScope.UserProfile)
@@ -657,8 +765,16 @@ internal sealed class SetupForm : Form
     }
 }
 
+// Purpose: Presents the install disclosure that the user must review before a GUI install proceeds.
+// Expected input: Repo path context, generated disclosure text, and the chosen install scope.
+// Expected output: A modal dialog with continue/back actions.
+// Critical dependencies: SetupEngine.BuildInstallDisclosure and Windows Forms controls.
 internal sealed class InstallDisclosureForm : Form
 {
+    // Purpose: Builds the modal disclosure dialog for a pending install action.
+    // Expected input: Repo-path context, disclosure text, and the chosen install scope.
+    // Expected output: A ready-to-show modal form instance.
+    // Critical dependencies: Generated disclosure text, SetupWindowIcon, and Windows Forms layout controls.
     public InstallDisclosureForm(string repoPath, string disclosureText, InstallScope installScope)
     {
         Text = "Install Disclosure";
@@ -759,14 +875,28 @@ internal sealed class InstallDisclosureForm : Form
     }
 }
 
+// Purpose: Resolves the window icon used by the setup GUI.
+// Expected input: Embedded icon resources carried by the published payload.
+// Expected output: An icon instance when one can be loaded, otherwise null.
+// Critical dependencies: ResourceIconLoader and the executable-associated icon fallback.
 internal static class SetupWindowIcon
 {
+    // Purpose: Creates the best available icon for the setup window.
+    // Expected input: No direct caller input; inspects embedded resources and the executable icon.
+    // Expected output: The embedded Anarchy-AI icon when present, otherwise an extracted executable icon, otherwise null.
+    // Critical dependencies: ResourceIconLoader, AnarchyPathCanon, and SafeExtractExecutableIcon.
     public static System.Drawing.Icon? Create()
     {
-        return ResourceIconLoader.TryLoadIcon("SetupPayload/plugins/anarchy-ai/assets/anarchy-ai.ico")
+        return ResourceIconLoader.TryLoadIcon(
+                AnarchyPathCanon.BuildPluginPayloadResourcePath(
+                    AnarchyBranding.BundleSetupIconRelativePath))
             ?? SafeExtractExecutableIcon();
     }
 
+    // Purpose: Falls back to the executable-associated icon when the embedded icon cannot be loaded.
+    // Expected input: No direct caller input.
+    // Expected output: An associated executable icon or null if extraction fails.
+    // Critical dependencies: System.Drawing.Icon and Application.ExecutablePath.
     private static System.Drawing.Icon? SafeExtractExecutableIcon()
     {
         try
@@ -780,8 +910,16 @@ internal static class SetupWindowIcon
     }
 }
 
+// Purpose: Loads embedded bitmap assets from the setup payload.
+// Expected input: Logical resource suffixes that identify bundle-relative image files.
+// Expected output: Decoded images ready for Windows Forms consumption or null when absent.
+// Critical dependencies: PayloadResources and System.Drawing image decoding.
 internal static class ResourceImageLoader
 {
+    // Purpose: Loads an embedded PNG asset from the plugin payload.
+    // Expected input: Bundle-relative logical suffix for the PNG resource.
+    // Expected output: A detached bitmap instance or null when the resource is missing.
+    // Critical dependencies: TryOpenResourceStream and System.Drawing.Image.
     public static System.Drawing.Image? TryLoadPng(string logicalSuffix)
     {
         using var stream = TryOpenResourceStream(logicalSuffix);
@@ -794,6 +932,10 @@ internal static class ResourceImageLoader
         return new System.Drawing.Bitmap(image);
     }
 
+    // Purpose: Resolves the manifest-resource stream for a bundle-relative image asset.
+    // Expected input: Bundle-relative logical suffix for the desired resource.
+    // Expected output: A readable resource stream or null when no matching resource exists.
+    // Critical dependencies: PayloadResources.GetPluginBundleResources and PayloadResources.OpenResource.
     private static Stream? TryOpenResourceStream(string logicalSuffix)
     {
         var normalizedSuffix = logicalSuffix.Replace('\\', '/');
@@ -805,14 +947,26 @@ internal static class ResourceImageLoader
     }
 }
 
+// Purpose: Loads embedded icon assets from the setup payload.
+// Expected input: Logical resource suffixes that identify bundle-relative icon files.
+// Expected output: Decoded icon instances or null when absent.
+// Critical dependencies: PayloadResources and System.Drawing.Icon.
 internal static class ResourceIconLoader
 {
+    // Purpose: Loads an embedded icon asset from the plugin payload.
+    // Expected input: Bundle-relative logical suffix for the icon resource.
+    // Expected output: An icon instance or null when the resource is missing.
+    // Critical dependencies: TryOpenResourceStream and System.Drawing.Icon.
     public static System.Drawing.Icon? TryLoadIcon(string logicalSuffix)
     {
         using var stream = TryOpenResourceStream(logicalSuffix);
         return stream is null ? null : new System.Drawing.Icon(stream);
     }
 
+    // Purpose: Resolves the manifest-resource stream for a bundle-relative icon asset.
+    // Expected input: Bundle-relative logical suffix for the desired resource.
+    // Expected output: A readable resource stream or null when no matching resource exists.
+    // Critical dependencies: PayloadResources.GetPluginBundleResources and PayloadResources.OpenResource.
     private static Stream? TryOpenResourceStream(string logicalSuffix)
     {
         var normalizedSuffix = logicalSuffix.Replace('\\', '/');
@@ -824,8 +978,16 @@ internal static class ResourceIconLoader
     }
 }
 
+// Purpose: Parses CLI switches into a bounded setup-options object.
+// Expected input: Raw command-line arguments from the setup executable.
+// Expected output: Normalized flags, lane selections, and optional repo/source values.
+// Critical dependencies: switch-normalization helpers and the published CLI contract.
 internal static class CliParser
 {
+    // Purpose: Detects whether the incoming CLI arguments request help text.
+    // Expected input: Raw command-line arguments.
+    // Expected output: True when any supported help alias is present.
+    // Critical dependencies: IsHelpAlias.
     public static bool RequestsHelp(string[] args)
     {
         foreach (var arg in args)
@@ -839,6 +1001,10 @@ internal static class CliParser
         return false;
     }
 
+    // Purpose: Extracts the repo-path argument without fully parsing the command line.
+    // Expected input: Raw command-line arguments.
+    // Expected output: The repo path following /repo when present; otherwise null.
+    // Critical dependencies: NormalizeSwitch and the current /repo switch contract.
     public static string? TryReadRepoPath(string[] args)
     {
         for (var i = 0; i < args.Length; i++)
@@ -859,6 +1025,10 @@ internal static class CliParser
         return null;
     }
 
+    // Purpose: Parses all supported CLI switches into a setup-options object.
+    // Expected input: Raw command-line arguments.
+    // Expected output: A populated SetupOptions instance or an ArgumentException for unsupported or malformed switches.
+    // Critical dependencies: NormalizeSwitch, ReadValue, and the current CLI switch vocabulary.
     public static SetupOptions Parse(string[] args)
     {
         var mode = OperationMode.Assess;
@@ -867,7 +1037,7 @@ internal static class CliParser
         var silent = false;
         var jsonOutput = false;
         var refreshPortableSchemaFamily = false;
-        var updateSourceZipUrl = "https://github.com/BraintekMSP/AI-Links/archive/refs/heads/main.zip";
+        var updateSourceZipUrl = AnarchyBranding.DefaultUpdateSourceZipUrl;
         var updateSourcePath = string.Empty;
         var repoPath = string.Empty;
 
@@ -933,12 +1103,20 @@ internal static class CliParser
         };
     }
 
+    // Purpose: Determines whether a single argument is one of the supported help aliases.
+    // Expected input: One raw argument token.
+    // Expected output: True when the token maps to ?, h, or help.
+    // Critical dependencies: NormalizeSwitch.
     private static bool IsHelpAlias(string arg)
     {
         var normalized = NormalizeSwitch(arg);
         return normalized is "?" or "h" or "help";
     }
 
+    // Purpose: Normalizes a switch token by trimming CLI prefixes and lowercasing it.
+    // Expected input: A nonblank raw switch argument.
+    // Expected output: A normalized switch name without leading slash or dash characters.
+    // Critical dependencies: The setup CLI contract and callers that use normalized switch names in comparisons.
     private static string NormalizeSwitch(string arg)
     {
         if (string.IsNullOrWhiteSpace(arg))
@@ -951,6 +1129,10 @@ internal static class CliParser
             : arg.ToLowerInvariant();
     }
 
+    // Purpose: Reads the value that follows a value-bearing CLI switch.
+    // Expected input: Full argument array, current switch index, and the normalized switch name for error reporting.
+    // Expected output: The argument immediately following the current switch.
+    // Critical dependencies: The CLI contract requiring a value after /repo, /host, /sourcepath, and /sourceurl.
     private static string ReadValue(string[] args, ref int index, string switchName)
     {
         if (index + 1 >= args.Length)
@@ -962,9 +1144,13 @@ internal static class CliParser
         return args[index];
     }
 }
+// Purpose: Executes setup assess, install, and update flows using the embedded payload and the shared path canon.
+// Expected input: Normalized setup options, current filesystem state, and published payload resources.
+// Expected output: A SetupResult describing readiness, repairs, actions, and nested path facts.
+// Critical dependencies: PayloadResources, AnarchyPathCanon, JSON manifests, local filesystem access, and current host-marketplace conventions.
 internal sealed class SetupEngine
 {
-    private const string CodexCustomMcpServerBlockPattern = @"(?ms)^\[mcp_servers\.anarchy-ai\]\r?\n(?:.*?\r?\n)*(?=^\[|\z)";
+    private static readonly string CodexCustomMcpServerBlockPattern = BuildOwnedCodexCustomMcpServerBlockPattern();
 
     private static readonly string[] CoreContractFiles =
     [
@@ -977,30 +1163,9 @@ internal sealed class SetupEngine
 
     private const string ExperimentalDirectionAssistContract = "direction-assist-test.contract.json";
 
-    private static readonly string[] PortableSchemaFiles =
-    [
-        "AGENTS-schema-governance.json",
-        "AGENTS-schema-1project.json",
-        "AGENTS-schema-narrative.json",
-        "AGENTS-schema-gov2gov-migration.json",
-        "AGENTS-schema-triage.md",
-        "Getting-Started-For-Humans.txt"
-    ];
+    private static IReadOnlyList<string> PortableSchemaFiles => AnarchyPathCanon.PortableSchemaFiles;
 
-    private static readonly string[] PluginSurfaces =
-    [
-        ".codex-plugin",
-        "assets",
-        "contracts",
-        "runtime",
-        "schemas",
-        "scripts",
-        "skills",
-        ".mcp.json",
-        "README.md",
-        "PRIVACY.md",
-        "TERMS.md"
-    ];
+    private static IReadOnlyList<string> PluginSurfaces => AnarchyPathCanon.PluginSurfaces;
 
     private static readonly string[] CoreToolNames =
     [
@@ -1016,6 +1181,10 @@ internal sealed class SetupEngine
         "direction_assist_test"
     ];
 
+    // Purpose: Guesses a default repo root for CLI help and repo-local operations when /repo is omitted.
+    // Expected input: Current executable location and current working directory.
+    // Expected output: The detected repo root or null when no trustworthy repo marker is found.
+    // Critical dependencies: TryResolveRepoFromPluginsDirectory and LooksLikeRepoRoot.
     public static string? TryResolveDefaultRepoRoot()
     {
         var exeDirectory = Path.GetFullPath(AppContext.BaseDirectory);
@@ -1029,6 +1198,10 @@ internal sealed class SetupEngine
         return LooksLikeRepoRoot(currentDirectory) ? currentDirectory : null;
     }
 
+    // Purpose: Builds the plain-text install disclosure shown before a GUI install continues.
+    // Expected input: Optional repo path and the selected install lane.
+    // Expected output: A bounded disclosure string describing destination paths, tool count, and actor impact.
+    // Critical dependencies: BuildInstallRootLabel, BuildPluginFolderLabel, BuildMarketplacePathLabel, and the current install contract.
     public static string BuildInstallDisclosure(string repoPath, InstallScope installScope)
     {
         var hasWorkspaceTarget = !string.IsNullOrWhiteSpace(repoPath);
@@ -1045,21 +1218,21 @@ internal sealed class SetupEngine
         var marketplacePath = BuildMarketplacePathLabel(installScope, repoPath);
         var disclosureLines = new List<string>
         {
-            $"Responsible disclosure for {BuildInstallScopeLabel(installScope).ToLowerInvariant()} Anarchy-AI install.",
+            $"Responsible disclosure for {BuildInstallScopeLabel(installScope).ToLowerInvariant()} {AnarchyBranding.BrandDisplayName} install.",
             "All carried schema, contract, and install surfaces remain authored in this repo and are published into the standalone installer payload.",
             $"Install root: {installRoot}",
             installScope == InstallScope.UserProfile
                 ? $"Workspace target: {targetRepo}"
                 : $"Target repo: {targetRepo}",
             "Install impact:",
-            $"- Adds {pluginFolder}\\ with {PluginSurfaces.Length} bundled surfaces.",
+            $"- Adds {pluginFolder}\\ with {PluginSurfaces.Count} bundled surfaces.",
             $"- Creates or updates {marketplacePath}.",
             installScope == InstallScope.UserProfile
                 ? $"- Registers {pluginName} as INSTALLED_BY_DEFAULT in the current user profile marketplace."
                 : $"- Registers {pluginName} as INSTALLED_BY_DEFAULT in the target repo.",
             installScope == InstallScope.UserProfile
-                ? "- Uses the Codex-native plugin marketplace lane; it does not require a custom mcp_servers.anarchy-ai block to count as ready."
-                : "- Leaves ~/.codex/config.toml untouched in the repo-local lane.",
+                ? $"- Uses the Codex-native plugin marketplace lane; it does not require a custom mcp_servers.{BuildMcpServerName()} block to count as ready."
+                : $"- Leaves {AnarchyPathCanon.BuildHomeLabelPath(AnarchyPathCanon.UserProfileCodexConfigFileRelativePath)} untouched in the repo-local lane.",
             "- Current GUI install does not rewrite AGENTS.md."
         };
 
@@ -1085,8 +1258,8 @@ internal sealed class SetupEngine
             "- Install itself does not start the MCP runtime as a background process.",
             "AI impact:",
             installScope == InstallScope.UserProfile
-                ? "- Makes Anarchy-AI available through the current user profile for supported hosts."
-                : "- Makes Anarchy-AI available by default to agents in this repo.",
+                ? $"- Makes {AnarchyBranding.BrandDisplayName} available through the current user profile for supported hosts."
+                : $"- Makes {AnarchyBranding.BrandDisplayName} available by default to agents in this repo.",
             "- Strengthens startup/control surfaces; it does not rewrite project code by itself.",
             "Back out now if this repo should remain unchanged."
         ]);
@@ -1094,6 +1267,10 @@ internal sealed class SetupEngine
         return string.Join(Environment.NewLine, disclosureLines);
     }
 
+    // Purpose: Builds the CLI help text and lane summary for the setup executable.
+    // Expected input: Optional repo path override used for availability and destination labels.
+    // Expected output: Plain-text help content that matches the current setup contract.
+    // Critical dependencies: TryResolveDefaultRepoRoot, lane label builders, and the current CLI vocabulary.
     public static string BuildCommandLineHelp(string? repoPath)
     {
         var resolvedRepo = string.IsNullOrWhiteSpace(repoPath)
@@ -1102,14 +1279,14 @@ internal sealed class SetupEngine
         var workspaceTargeted = !string.IsNullOrWhiteSpace(resolvedRepo);
         var targetRepo = workspaceTargeted ? resolvedRepo! : "(repo path unresolved)";
         var availabilityLead = workspaceTargeted
-            ? "This repo has Anarchy-AI available."
-            : "Anarchy-AI can be installed into a target repo.";
+            ? $"This repo has {AnarchyBranding.BrandDisplayName} available."
+            : $"{AnarchyBranding.BrandDisplayName} can be installed into a target repo.";
         var schemaSeedingLine = workspaceTargeted
             ? "- Seeds missing portable root schema files during install."
             : "- Seeds missing portable root schema files only when a workspace root is targeted (/repolocal or /userprofile with /repo).";
         var lines = new[]
         {
-            "Anarchy-AI Setup",
+            AnarchyBranding.SetupDisplayName,
             string.Empty,
             "Usage:",
             "  AnarchyAi.Setup.exe /assess [/repolocal|/userprofile] [/repo <path>] [/json] [/silent]",
@@ -1128,7 +1305,7 @@ internal sealed class SetupEngine
             $"- /userprofile adds {BuildPluginFolderLabel(InstallScope.UserProfile, resolvedRepo)}\\ and updates {BuildMarketplacePathLabel(InstallScope.UserProfile, resolvedRepo)}.",
             $"- /repolocal registers {BuildPluginName(InstallScope.RepoLocal, resolvedRepo)} for the selected repo.",
             $"- /userprofile registers {BuildPluginName(InstallScope.UserProfile, resolvedRepo)} for the current user profile.",
-            "- /userprofile uses the Codex-native plugin marketplace lane rather than requiring a custom mcp_servers.anarchy-ai block.",
+            $"- /userprofile uses the Codex-native plugin marketplace lane rather than requiring a custom mcp_servers.{BuildMcpServerName()} block.",
             $"- Makes {CoreToolNames.Length} core + {ExperimentalToolNames.Length} test harness tool available to supported hosts.",
             "- Does not rewrite AGENTS.md.",
             schemaSeedingLine,
@@ -1149,6 +1326,10 @@ internal sealed class SetupEngine
         return string.Join(Environment.NewLine, lines);
     }
 
+    // Purpose: Runs the selected setup assess, install, or update operation and summarizes the resulting state.
+    // Expected input: Parsed setup options plus current filesystem, marketplace, and optional update-source state.
+    // Expected output: A SetupResult containing readiness, repairs, actions, and nested path reports.
+    // Critical dependencies: ResolveWorkspaceRoot, payload extraction helpers, marketplace inspection, and the shared path canon.
     public SetupResult Execute(SetupOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -1157,11 +1338,12 @@ internal sealed class SetupEngine
         var workspaceRoot = ResolveWorkspaceRoot(options.InstallScope, options.RepoPath);
         var pluginRoot = ResolvePluginRoot(options.InstallScope, workspaceRoot);
         var marketplacePath = ResolveMarketplacePath(options.InstallScope, workspaceRoot);
-        var runtimePath = Path.Combine(pluginRoot, "runtime", "win-x64", "AnarchyAi.Mcp.Server.exe");
-        var pluginManifestPath = Path.Combine(pluginRoot, ".codex-plugin", "plugin.json");
-        var mcpPath = Path.Combine(pluginRoot, ".mcp.json");
-        var skillPath = Path.Combine(pluginRoot, "skills", "anarchy-ai-harness", "SKILL.md");
-        var schemaManifestPath = Path.Combine(pluginRoot, "schemas", "schema-bundle.manifest.json");
+        var runtimePath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath);
+        var pluginManifestPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundlePluginManifestFileRelativePath);
+        var mcpPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleMcpFileRelativePath);
+        var skillPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleSkillFileRelativePath);
+        var schemaManifestPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleSchemaManifestFileRelativePath);
+        var updateSourceRoot = string.Empty;
 
         var actionsTaken = new HashSet<string>(StringComparer.Ordinal);
         var missingComponents = new HashSet<string>(StringComparer.Ordinal);
@@ -1214,7 +1396,7 @@ internal sealed class SetupEngine
         {
             try
             {
-                RefreshFromUpdateSource(pluginRoot, workspaceRoot, options, actionsTaken, updateNotes);
+                updateSourceRoot = RefreshFromUpdateSource(pluginRoot, workspaceRoot, options, actionsTaken, updateNotes);
                 EnsurePluginManifestIdentity(pluginManifestPath, options.InstallScope, workspaceRoot, actionsTaken);
                 EnsurePluginMcpConfiguration(mcpPath, actionsTaken);
                 EnsureMarketplaceRegistration(marketplacePath, options.InstallScope, workspaceRoot, actionsTaken);
@@ -1294,14 +1476,18 @@ internal sealed class SetupEngine
 
         foreach (var contractFile in CoreContractFiles)
         {
-            var contractPath = Path.Combine(pluginRoot, "contracts", contractFile);
+            var contractPath = AnarchyPathCanon.ResolveBundleFilePath(
+                pluginRoot,
+                AnarchyPathCanon.CombineCanonRelativePath(AnarchyPathCanon.BundleContractsDirectoryRelativePath, contractFile));
             if (!File.Exists(contractPath))
             {
                 missingComponents.Add($"missing_contract:{contractFile}");
             }
         }
 
-        var experimentalDirectionAssistContractPath = Path.Combine(pluginRoot, "contracts", ExperimentalDirectionAssistContract);
+        var experimentalDirectionAssistContractPath = AnarchyPathCanon.ResolveBundleFilePath(
+            pluginRoot,
+            AnarchyPathCanon.CombineCanonRelativePath(AnarchyPathCanon.BundleContractsDirectoryRelativePath, ExperimentalDirectionAssistContract));
         if (!File.Exists(experimentalDirectionAssistContractPath))
         {
             actionsTaken.Add("experimental_direction_assist_contract_missing_non_blocking");
@@ -1397,30 +1583,43 @@ internal sealed class SetupEngine
             _ => "restore_runtime_or_complete_bundle"
         };
 
+        var resultPaths = BuildSetupResultPaths(
+            options,
+            workspaceRoot,
+            pluginRoot,
+            marketplacePath,
+            runtimePath,
+            pluginManifestPath,
+            mcpPath,
+            skillPath,
+            schemaManifestPath,
+            updateSourceRoot);
+
         return new SetupResult
         {
             bootstrap_state = bootstrapState,
             registration_mode = registrationMode,
             host_context = normalizedHostContext,
             install_scope = options.InstallScope == InstallScope.UserProfile ? "user_profile" : "repo_local",
-            workspace_root = workspaceRoot,
             update_requested = updateRequested,
             update_state = updateState,
             update_source_zip_url = options.UpdateSourceZipUrl,
-            update_source_path = options.UpdateSourcePath,
             update_notes = updateNotes.ToArray(),
-            repo_root = workspaceRoot,
-            plugin_root = pluginRoot,
             runtime_present = runtimeExists,
             marketplace_registered = marketplaceInspection.HasAnarchyPluginEntry,
             installed_by_default = marketplaceInspection.InstalledByDefault,
             actions_taken = actionsTaken.ToArray(),
             missing_components = missingComponents.ToArray(),
             safe_repairs = safeRepairs.ToArray(),
-            next_action = nextAction
+            next_action = nextAction,
+            paths = resultPaths
         };
     }
 
+    // Purpose: Writes or refreshes a Codex custom-MCP server block for the current user profile.
+    // Expected input: Install scope, normalized host context, plugin root, and mutable action log.
+    // Expected output: No direct return value; updates the Codex config file when the expected block is absent or outdated.
+    // Critical dependencies: AnarchyPathCanon, BuildExpectedCodexMcpServerBlock, UpsertTomlServerBlock, and user-profile config access.
     private static void EnsureCodexCustomMcpRegistration(InstallScope installScope, string normalizedHostContext, string pluginRoot, HashSet<string> actionsTaken)
     {
         if (installScope != InstallScope.UserProfile || !string.Equals(normalizedHostContext, "codex", StringComparison.Ordinal))
@@ -1428,7 +1627,7 @@ internal sealed class SetupEngine
             return;
         }
 
-        var codexConfigPath = Path.Combine(GetUserProfileDirectory(), ".codex", "config.toml");
+        var codexConfigPath = AnarchyPathCanon.ResolveUserProfileCodexConfigFilePath(GetUserProfileDirectory());
         var codexConfigDirectory = Path.GetDirectoryName(codexConfigPath)!;
         if (!Directory.Exists(codexConfigDirectory))
         {
@@ -1454,6 +1653,10 @@ internal sealed class SetupEngine
         }
     }
 
+    // Purpose: Normalizes host-context values into the bounded host labels supported by setup.
+    // Expected input: Raw host-context text from CLI or GUI state.
+    // Expected output: One of codex, claude, cursor, or generic, defaulting to codex.
+    // Critical dependencies: Host-specific branching elsewhere in SetupEngine.
     private static string NormalizeHostContext(string hostContext)
     {
         return hostContext.Trim().ToLowerInvariant() switch
@@ -1465,6 +1668,10 @@ internal sealed class SetupEngine
         };
     }
 
+    // Purpose: Resolves the workspace root that repo-local work should target.
+    // Expected input: Install scope and optional explicit repo path.
+    // Expected output: Absolute repo root for repo-local operations, or an empty string for user-profile operations with no workspace target.
+    // Critical dependencies: TryResolveDefaultRepoRoot, directory existence checks, and the current lane semantics.
     private static string ResolveWorkspaceRoot(InstallScope installScope, string explicitRepoPath)
     {
         if (!string.IsNullOrWhiteSpace(explicitRepoPath))
@@ -1492,6 +1699,10 @@ internal sealed class SetupEngine
         throw new InvalidOperationException("Could not resolve the repo root automatically. Provide /repo \"C:\\path\\to\\repo\".");
     }
 
+    // Purpose: Detects whether a path under a plugins directory can be safely mapped back to a repo root.
+    // Expected input: Candidate path plus an output slot for the resolved repo root.
+    // Expected output: True when the candidate represents a repo-local plugins directory and exposes the resolved repo root.
+    // Critical dependencies: DirectoryInfo and LooksLikeRepoRoot.
     private static bool TryResolveRepoFromPluginsDirectory(string path, out string repoRoot)
     {
         repoRoot = string.Empty;
@@ -1512,6 +1723,10 @@ internal sealed class SetupEngine
         return false;
     }
 
+    // Purpose: Applies the repo-root trust rule used for setup auto-detection.
+    // Expected input: Candidate filesystem path.
+    // Expected output: True when the path looks like a real git repo root.
+    // Critical dependencies: .git presence and the guardrail against trusting generic parent folders.
     private static bool LooksLikeRepoRoot(string path)
     {
         // Auto-detection should only trust an actual repo marker.
@@ -1521,6 +1736,10 @@ internal sealed class SetupEngine
                File.Exists(Path.Combine(path, ".git"));
     }
 
+    // Purpose: Classifies file-write failures that probably came from a live runtime lock.
+    // Expected input: An IOException raised during setup or update file operations.
+    // Expected output: True when the message matches the lock-related failure patterns we currently treat as recoverable.
+    // Critical dependencies: The current Windows runtime-lock error strings.
     private static bool IsRuntimeLockException(IOException ex)
     {
         return ex.Message.Contains("being used by another process", StringComparison.OrdinalIgnoreCase) ||
@@ -1528,6 +1747,10 @@ internal sealed class SetupEngine
                ex.Message.Contains("access to the path", StringComparison.OrdinalIgnoreCase);
     }
 
+    // Purpose: Hash-compares an embedded payload resource against an on-disk target file.
+    // Expected input: Embedded resource name and target file path.
+    // Expected output: True when comparison completed, with the out parameter indicating content alignment.
+    // Critical dependencies: PayloadResources, SHA256 hashing, and read access to the target file.
     private static bool TryIsResourceContentAligned(string resourceName, string targetPath, out bool aligned)
     {
         aligned = false;
@@ -1565,6 +1788,10 @@ internal sealed class SetupEngine
         }
     }
 
+    // Purpose: Materializes the embedded plugin bundle into the chosen install root while tolerating aligned locked files.
+    // Expected input: Target plugin root and mutable action log.
+    // Expected output: No direct return value; writes bundle files and records lock-related actions.
+    // Critical dependencies: PayloadResources.GetPluginBundleResources, TryIsResourceContentAligned, and filesystem write access.
     private static void ExtractEmbeddedPluginBundle(string pluginRoot, HashSet<string> actionsTaken)
     {
         var retainedLockedSurfaceWithoutDrift = false;
@@ -1573,7 +1800,7 @@ internal sealed class SetupEngine
         Directory.CreateDirectory(pluginRoot);
         foreach (var resource in PayloadResources.GetPluginBundleResources())
         {
-            var relativePath = resource["SetupPayload/plugins/anarchy-ai/".Length..]
+            var relativePath = resource[AnarchyPathCanon.BuildPluginPayloadResourcePrefix().Length..]
                 .Replace('/', Path.DirectorySeparatorChar)
                 .Replace('\\', Path.DirectorySeparatorChar);
 
@@ -1636,6 +1863,10 @@ internal sealed class SetupEngine
         actionsTaken.Add("materialized_plugin_bundle_from_embedded_payload");
     }
 
+    // Purpose: Realigns the plugin manifest's name with the install lane's expected plugin identity.
+    // Expected input: Plugin manifest path, install scope, repo root, and mutable action log.
+    // Expected output: No direct return value; rewrites the manifest when its name is missing or stale.
+    // Critical dependencies: BuildPluginName, JSON parsing, and file-write access.
     private static void EnsurePluginManifestIdentity(string pluginManifestPath, InstallScope installScope, string repoRoot, HashSet<string> actionsTaken)
     {
         if (!File.Exists(pluginManifestPath))
@@ -1666,11 +1897,15 @@ internal sealed class SetupEngine
         }
     }
 
+    // Purpose: Writes the full portable schema family from the embedded payload into the targeted repo root.
+    // Expected input: Repo root and mutable action log.
+    // Expected output: No direct return value; overwrites the portable schema family surfaces from the embedded payload.
+    // Critical dependencies: PayloadResources.GetPortableSchemaResources and filesystem write access.
     private static void ExtractEmbeddedPortableSchemaFamily(string repoRoot, HashSet<string> actionsTaken)
     {
         foreach (var resource in PayloadResources.GetPortableSchemaResources())
         {
-            var fileName = resource["SetupPayload/portable-schema/".Length..]
+            var fileName = resource[AnarchyPathCanon.BuildPortableSchemaPayloadResourcePrefix().Length..]
                 .Replace('/', Path.DirectorySeparatorChar)
                 .Replace('\\', Path.DirectorySeparatorChar);
 
@@ -1684,13 +1919,17 @@ internal sealed class SetupEngine
         actionsTaken.Add("materialized_portable_schema_family_from_embedded_payload");
     }
 
+    // Purpose: Seeds only missing portable schema files into the targeted repo root.
+    // Expected input: Repo root and mutable action log.
+    // Expected output: No direct return value; copies only absent portable schema files and records whether any copy occurred.
+    // Critical dependencies: PayloadResources.GetPortableSchemaResources and file-existence checks.
     private static void SeedMissingEmbeddedPortableSchemaFamily(string repoRoot, HashSet<string> actionsTaken)
     {
         var copiedAny = false;
 
         foreach (var resource in PayloadResources.GetPortableSchemaResources())
         {
-            var fileName = resource["SetupPayload/portable-schema/".Length..]
+            var fileName = resource[AnarchyPathCanon.BuildPortableSchemaPayloadResourcePrefix().Length..]
                 .Replace('/', Path.DirectorySeparatorChar)
                 .Replace('\\', Path.DirectorySeparatorChar);
 
@@ -1712,6 +1951,10 @@ internal sealed class SetupEngine
             : "portable_schema_family_already_present");
     }
 
+    // Purpose: Creates or refreshes the repo-local or user-profile marketplace entry for the current install lane.
+    // Expected input: Marketplace path, install scope, repo root, and mutable action log.
+    // Expected output: No direct return value; writes marketplace identity and the current Anarchy-AI plugin entry.
+    // Critical dependencies: BuildPluginName, BuildPluginRelativePath, BuildMarketplaceName, and JSON marketplace manipulation.
     private static void EnsureMarketplaceRegistration(string marketplacePath, InstallScope installScope, string repoRoot, HashSet<string> actionsTaken)
     {
         var marketplaceDirectory = Path.GetDirectoryName(marketplacePath)!;
@@ -1836,6 +2079,10 @@ internal sealed class SetupEngine
         }
     }
 
+    // Purpose: Realigns the plugin-local .mcp.json declaration with the current runtime command contract.
+    // Expected input: .mcp.json path and mutable action log.
+    // Expected output: No direct return value; rewrites the declaration when it is missing or stale.
+    // Critical dependencies: BuildMcpServerName, GeneratedAnarchyPathCanon runtime references, and JSON file writes.
     private static void EnsurePluginMcpConfiguration(string mcpPath, HashSet<string> actionsTaken)
     {
         var expectedServerName = BuildMcpServerName();
@@ -1876,16 +2123,16 @@ internal sealed class SetupEngine
             updatedMcpIdentity = true;
         }
 
-        if (!string.Equals(existingServer["command"]?.GetValue<string>(), ".\\runtime\\win-x64\\AnarchyAi.Mcp.Server.exe", StringComparison.Ordinal) ||
+        if (!string.Equals(existingServer["command"]?.GetValue<string>(), GeneratedAnarchyPathCanon.BundleRuntimeWindowsCommandRelativePath, StringComparison.Ordinal) ||
             existingServer["args"] is not JsonArray ||
-            !string.Equals(existingServer["cwd"]?.GetValue<string>(), ".", StringComparison.Ordinal))
+            !string.Equals(existingServer["cwd"]?.GetValue<string>(), GeneratedAnarchyPathCanon.BundleRuntimeWorkingDirectoryRelativePath, StringComparison.Ordinal))
         {
             updatedMcpIdentity = true;
         }
 
-        existingServer["command"] = ".\\runtime\\win-x64\\AnarchyAi.Mcp.Server.exe";
+        existingServer["command"] = GeneratedAnarchyPathCanon.BundleRuntimeWindowsCommandRelativePath;
         existingServer["args"] = new JsonArray();
-        existingServer["cwd"] = ".";
+        existingServer["cwd"] = GeneratedAnarchyPathCanon.BundleRuntimeWorkingDirectoryRelativePath;
 
         if (updatedMcpIdentity)
         {
@@ -1899,6 +2146,10 @@ internal sealed class SetupEngine
         }
     }
 
+    // Purpose: Builds a fresh marketplace object when the destination marketplace is missing or invalid.
+    // Expected input: Install scope and repo root context.
+    // Expected output: A default marketplace JSON object with the correct identity and an empty plugin list.
+    // Critical dependencies: BuildMarketplaceName and BuildMarketplaceDisplayName.
     private static JsonObject CreateDefaultMarketplace(InstallScope installScope, string repoRoot)
     {
         return new JsonObject
@@ -1912,6 +2163,10 @@ internal sealed class SetupEngine
         };
     }
 
+    // Purpose: Builds the canonical marketplace entry for the current Anarchy-AI install lane.
+    // Expected input: Install scope and repo root context.
+    // Expected output: A JSON object representing the expected plugin entry.
+    // Critical dependencies: BuildPluginName and BuildPluginRelativePath.
     private static JsonObject CreateAnarchyPluginEntry(InstallScope installScope, string repoRoot)
     {
         return new JsonObject
@@ -1931,6 +2186,10 @@ internal sealed class SetupEngine
         };
     }
 
+    // Purpose: Inspects a marketplace file and classifies whether the current Anarchy-AI entry is present and aligned.
+    // Expected input: Marketplace path, install scope, and repo root context.
+    // Expected output: A MarketplaceInspection record summarizing JSON validity, entry presence, and identity drift.
+    // Critical dependencies: BuildPluginName, BuildPluginRelativePath, BuildMarketplaceName, and IsAnarchyPluginEntry.
     private static MarketplaceInspection InspectMarketplace(string marketplacePath, InstallScope installScope, string repoRoot)
     {
         if (!File.Exists(marketplacePath))
@@ -1989,6 +2248,10 @@ internal sealed class SetupEngine
         }
     }
 
+    // Purpose: Inspects the plugin manifest and classifies whether its identity matches the expected install lane.
+    // Expected input: Plugin manifest path, install scope, and repo root context.
+    // Expected output: A PluginManifestInspection record summarizing existence, JSON validity, and identity alignment.
+    // Critical dependencies: BuildPluginName and JSON parsing.
     private static PluginManifestInspection InspectPluginManifest(string pluginManifestPath, InstallScope installScope, string repoRoot)
     {
         if (!File.Exists(pluginManifestPath))
@@ -2016,6 +2279,10 @@ internal sealed class SetupEngine
         }
     }
 
+    // Purpose: Inspects the plugin-local .mcp.json declaration and checks whether its server identity is aligned.
+    // Expected input: .mcp.json path.
+    // Expected output: An McpConfigurationInspection record summarizing existence, JSON validity, and identity alignment.
+    // Critical dependencies: BuildMcpServerName and JSON parsing.
     private static McpConfigurationInspection InspectMcpConfiguration(string mcpPath)
     {
         if (!File.Exists(mcpPath))
@@ -2045,6 +2312,10 @@ internal sealed class SetupEngine
         }
     }
 
+    // Purpose: Inspects the optional Codex custom-MCP config lane for a user-profile install.
+    // Expected input: Install scope, normalized host context, and current plugin root.
+    // Expected output: A CodexCustomMcpInspection record describing whether the config file, server block, and identity align.
+    // Critical dependencies: AnarchyPathCanon, TOML readers, and the current legacy custom-MCP pattern.
     private static CodexCustomMcpInspection InspectCodexCustomMcpConfiguration(InstallScope installScope, string normalizedHostContext, string pluginRoot)
     {
         if (installScope != InstallScope.UserProfile || !string.Equals(normalizedHostContext, "codex", StringComparison.Ordinal))
@@ -2052,20 +2323,20 @@ internal sealed class SetupEngine
             return new CodexCustomMcpInspection(false, true, true, []);
         }
 
-        var codexConfigPath = Path.Combine(GetUserProfileDirectory(), ".codex", "config.toml");
+        var codexConfigPath = AnarchyPathCanon.ResolveUserProfileCodexConfigFilePath(GetUserProfileDirectory());
         if (!File.Exists(codexConfigPath))
         {
             return new CodexCustomMcpInspection(true, false, false, ["codex_config_missing"]);
         }
 
         var content = File.ReadAllText(codexConfigPath);
-        var blockMatch = Regex.Match(content, @"(?ms)^\[mcp_servers\.anarchy-ai\]\r?\n(?:.*?\r?\n)*(?=^\[|\z)");
+        var blockMatch = Regex.Match(content, CodexCustomMcpServerBlockPattern);
         if (!blockMatch.Success)
         {
             return new CodexCustomMcpInspection(true, false, false, ["codex_mcp_server_entry_missing"]);
         }
 
-        var expectedCommand = Path.GetFullPath(Path.Combine(pluginRoot, "runtime", "win-x64", "AnarchyAi.Mcp.Server.exe"));
+        var expectedCommand = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath);
         var expectedCwd = Path.GetFullPath(pluginRoot);
         var command = TryReadTomlString(blockMatch.Value, "command");
         var cwd = TryReadTomlString(blockMatch.Value, "cwd");
@@ -2080,6 +2351,10 @@ internal sealed class SetupEngine
             : new CodexCustomMcpInspection(true, true, false, ["codex_mcp_server_entry_outdated"]);
     }
 
+    // Purpose: Detects whether a marketplace JSON node represents any Anarchy-AI plugin entry, including legacy shapes.
+    // Expected input: Candidate plugin JSON object.
+    // Expected output: True when the node matches Anarchy-AI by name or supported source path.
+    // Critical dependencies: AnarchyPathCanon.IsSupportedMarketplacePluginSourceRelativePath.
     private static bool IsAnarchyPluginEntry(JsonObject? pluginNode)
     {
         if (pluginNode is null)
@@ -2088,75 +2363,109 @@ internal sealed class SetupEngine
         }
 
         var pluginName = pluginNode["name"]?.GetValue<string>() ?? string.Empty;
-        if (pluginName.StartsWith("anarchy-ai", StringComparison.Ordinal))
+        if (AnarchyPathCanon.IsOwnedPluginName(pluginName))
         {
             return true;
         }
 
         var pluginPath = pluginNode["source"]?["path"]?.GetValue<string>() ?? string.Empty;
-        return pluginPath.StartsWith("./plugins/anarchy-ai", StringComparison.Ordinal);
+        return AnarchyPathCanon.IsSupportedMarketplacePluginSourceRelativePath(pluginPath);
     }
 
+    // Purpose: Builds the expected plugin directory name for the selected install lane.
+    // Expected input: Install scope and optional repo root used for repo-scoped naming.
+    // Expected output: The user-profile default name or a repo-scoped plugin name with a stable path hash.
+    // Critical dependencies: GeneratedAnarchyPathCanon templates, NormalizeMarketplaceSlug, and SHA256 hashing.
     internal static string BuildPluginName(InstallScope installScope, string? repoRoot)
     {
         if (installScope == InstallScope.UserProfile)
         {
-            return "anarchy-ai";
+            return GeneratedAnarchyPathCanon.DefaultPluginName;
         }
 
         if (string.IsNullOrWhiteSpace(repoRoot))
         {
-            return "anarchy-ai-<repo-slug>-<stable-path-hash>";
+            return GeneratedAnarchyPathCanon.RepoScopedPluginNameTemplate;
         }
 
         var repoName = new DirectoryInfo(repoRoot).Name;
         var slug = NormalizeMarketplaceSlug(repoName);
         var repoPathHash = SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(repoRoot).ToLowerInvariant()));
         var suffix = Convert.ToHexString(repoPathHash.AsSpan(0, 4)).ToLowerInvariant();
-        return $"anarchy-ai-{slug}-{suffix}";
+        return GeneratedAnarchyPathCanon.RepoScopedPluginNameTemplate
+            .Replace("<repo-slug>", slug, StringComparison.Ordinal)
+            .Replace("<stable-path-hash>", suffix, StringComparison.Ordinal);
     }
 
+    // Purpose: Builds the marketplace-relative source.path used to point at the selected plugin root.
+    // Expected input: Install scope and optional repo root context.
+    // Expected output: A marketplace-relative source.path for repo-local or user-profile registration.
+    // Critical dependencies: AnarchyPathCanon.BuildMarketplacePluginSourceRelativePath and BuildPluginName.
     internal static string BuildPluginRelativePath(InstallScope installScope, string? repoRoot)
     {
-        return installScope == InstallScope.UserProfile
-            ? $"./.codex/plugins/{BuildPluginName(installScope, repoRoot)}"
-            : $"./plugins/{BuildPluginName(installScope, repoRoot)}";
+        return AnarchyPathCanon.BuildMarketplacePluginSourceRelativePath(
+            installScope == InstallScope.UserProfile,
+            BuildPluginName(installScope, repoRoot));
     }
 
+    // Purpose: Returns the plugin-local MCP server name expected in .mcp.json.
+    // Expected input: None.
+    // Expected output: The stable Anarchy-AI MCP server name.
+    // Critical dependencies: GeneratedAnarchyPathCanon default plugin name.
     private static string BuildMcpServerName()
     {
-        return "anarchy-ai";
+        return GeneratedAnarchyPathCanon.DefaultPluginName;
     }
 
-    private static string BuildMarketplaceName(InstallScope installScope, string? repoRoot)
+    // Purpose: Builds the regex used to detect owned custom-MCP blocks in Codex config.
+    // Expected input: None.
+    // Expected output: One multiline regex that matches any current or legacy Anarchy-AI custom-MCP block.
+    // Critical dependencies: AnarchyPathCanon.OwnedMcpServerNames and Regex.Escape.
+    private static string BuildOwnedCodexCustomMcpServerBlockPattern()
+    {
+        var escapedNames = AnarchyPathCanon.OwnedMcpServerNames
+            .Where(static value => !string.IsNullOrWhiteSpace(value))
+            .Select(Regex.Escape);
+        var nameAlternation = string.Join("|", escapedNames);
+        return $@"(?ms)^\[mcp_servers\.(?:{nameAlternation})\]\r?\n(?:.*?\r?\n)*(?=^\[|\z)";
+    }
+
+    // Purpose: Builds the marketplace identity name for the selected install lane.
+    // Expected input: Install scope and optional repo root used for repo-scoped naming.
+    // Expected output: The user-profile marketplace name or a repo-scoped marketplace name derived from the repo slug.
+    // Critical dependencies: GeneratedAnarchyPathCanon templates and NormalizeMarketplaceSlug.
+    internal static string BuildMarketplaceName(InstallScope installScope, string? repoRoot)
     {
         if (installScope == InstallScope.UserProfile)
         {
-            return "anarchy-user-profile";
+            return GeneratedAnarchyPathCanon.UserProfileMarketplaceName;
         }
 
         if (string.IsNullOrWhiteSpace(repoRoot))
         {
-            return "anarchy-local-<repo-slug>-<stable-path-hash>";
+            return GeneratedAnarchyPathCanon.RepoScopedMarketplaceNameTemplate;
         }
 
         var repoName = new DirectoryInfo(repoRoot).Name;
         var slug = NormalizeMarketplaceSlug(repoName);
-        var repoPathHash = SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(repoRoot).ToLowerInvariant()));
-        var suffix = Convert.ToHexString(repoPathHash.AsSpan(0, 4)).ToLowerInvariant();
-        return $"anarchy-local-{slug}-{suffix}";
+        return GeneratedAnarchyPathCanon.RepoScopedMarketplaceNameTemplate
+            .Replace("<repo-slug>", slug, StringComparison.Ordinal);
     }
 
+    // Purpose: Builds the human-facing marketplace display name for the selected install lane.
+    // Expected input: Install scope and optional repo root.
+    // Expected output: A display name suitable for marketplace.json.
+    // Critical dependencies: Repo directory naming and the current display-name contract.
     private static string BuildMarketplaceDisplayName(InstallScope installScope, string? repoRoot)
     {
         if (installScope == InstallScope.UserProfile)
         {
-            return "Anarchy-AI User Profile";
+            return AnarchyBranding.UserProfileMarketplaceDisplayName;
         }
 
         if (string.IsNullOrWhiteSpace(repoRoot))
         {
-            return "Anarchy-AI Local (Repo)";
+            return AnarchyBranding.BuildRepoLocalMarketplaceDisplayName(null);
         }
 
         var repoName = new DirectoryInfo(repoRoot).Name.Trim();
@@ -2165,49 +2474,83 @@ internal sealed class SetupEngine
             repoName = "Repo";
         }
 
-        return $"Anarchy-AI Local ({repoName})";
+        return AnarchyBranding.BuildRepoLocalMarketplaceDisplayName(repoName);
     }
 
+    // Purpose: Resolves the absolute plugin root for the selected install lane.
+    // Expected input: Install scope and repo root context.
+    // Expected output: An absolute plugin root under the repo or user profile.
+    // Critical dependencies: AnarchyPathCanon and BuildPluginName.
     internal static string ResolvePluginRoot(InstallScope installScope, string repoRoot)
     {
         return installScope == InstallScope.UserProfile
-            ? Path.Combine(GetUserProfileDirectory(), ".codex", "plugins", BuildPluginName(installScope, repoRoot))
-            : Path.Combine(repoRoot, "plugins", BuildPluginName(installScope, repoRoot));
+            ? AnarchyPathCanon.ResolveUserProfilePluginRoot(GetUserProfileDirectory(), BuildPluginName(installScope, repoRoot))
+            : AnarchyPathCanon.ResolveRepoLocalPluginRoot(repoRoot, BuildPluginName(installScope, repoRoot));
     }
 
+    // Purpose: Resolves the marketplace file path for the selected install lane.
+    // Expected input: Install scope and repo root context.
+    // Expected output: The absolute repo-local or user-profile marketplace file path.
+    // Critical dependencies: AnarchyPathCanon and GetUserProfileDirectory.
     private static string ResolveMarketplacePath(InstallScope installScope, string repoRoot)
     {
         return installScope == InstallScope.UserProfile
-            ? Path.Combine(GetUserProfileDirectory(), ".agents", "plugins", "marketplace.json")
-            : Path.Combine(repoRoot, ".agents", "plugins", "marketplace.json");
+            ? AnarchyPathCanon.ResolveUserProfileMarketplaceFilePath(GetUserProfileDirectory())
+            : AnarchyPathCanon.ResolveRepoLocalMarketplaceFilePath(repoRoot);
     }
 
+    // Purpose: Returns the current Windows user-profile directory used for home-local installs.
+    // Expected input: None.
+    // Expected output: Absolute user-profile path for the current process.
+    // Critical dependencies: Environment.SpecialFolder.UserProfile.
     private static string GetUserProfileDirectory()
     {
         return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     }
 
+    // Purpose: Builds the install-root label shown in setup help and disclosure text.
+    // Expected input: Install scope.
+    // Expected output: A home-local label for user-profile installs or a placeholder for repo-local selection.
+    // Critical dependencies: AnarchyPathCanon label helpers and the current lane wording.
     internal static string BuildInstallRootLabel(InstallScope installScope)
     {
         return installScope == InstallScope.UserProfile
-            ? Path.Combine(GetUserProfileDirectory(), ".codex")
+            ? AnarchyPathCanon.BuildHomeLabelPath(AnarchyPathCanon.UserProfileInstallRootDirectoryRelativePath)
             : "<selected repo>";
     }
 
+    // Purpose: Builds the human-facing plugin-folder label for the selected install lane.
+    // Expected input: Install scope and optional repo root context.
+    // Expected output: A repo-relative or home-relative plugin-folder label.
+    // Critical dependencies: BuildPluginName and AnarchyPathCanon label builders.
     internal static string BuildPluginFolderLabel(InstallScope installScope, string? repoRoot)
     {
         return installScope == InstallScope.UserProfile
-            ? Path.Combine("~", ".codex", "plugins", BuildPluginName(installScope, repoRoot))
-            : Path.Combine("plugins", BuildPluginName(installScope, repoRoot));
+            ? AnarchyPathCanon.BuildHomeLabelPath(
+                AnarchyPathCanon.CombineCanonRelativePath(
+                    AnarchyPathCanon.UserProfilePluginParentDirectoryRelativePath,
+                    BuildPluginName(installScope, repoRoot)))
+            : AnarchyPathCanon.BuildRepoLabelPath(
+                AnarchyPathCanon.CombineCanonRelativePath(
+                    AnarchyPathCanon.RepoLocalPluginParentDirectoryRelativePath,
+                    BuildPluginName(installScope, repoRoot)));
     }
 
+    // Purpose: Builds the human-facing marketplace-path label for the selected install lane.
+    // Expected input: Install scope and optional repo context.
+    // Expected output: A repo-relative or home-relative marketplace-path label.
+    // Critical dependencies: AnarchyPathCanon label builders and lane-specific marketplace constants.
     internal static string BuildMarketplacePathLabel(InstallScope installScope, string? repoRoot)
     {
         return installScope == InstallScope.UserProfile
-            ? Path.Combine("~", ".agents", "plugins", "marketplace.json")
-            : Path.Combine(".agents", "plugins", "marketplace.json");
+            ? AnarchyPathCanon.BuildHomeLabelPath(AnarchyPathCanon.UserProfileMarketplaceFileRelativePath)
+            : AnarchyPathCanon.BuildRepoLabelPath(AnarchyPathCanon.RepoLocalMarketplaceFileRelativePath);
     }
 
+    // Purpose: Classifies whether readiness should be described as plugin-marketplace or legacy custom-MCP fallback.
+    // Expected input: Install scope, normalized host context, and legacy home-surface inspection results.
+    // Expected output: A registration-mode string for setup JSON.
+    // Critical dependencies: LegacyUserProfileInspection and the current Codex home-install model.
     internal static string DetermineRegistrationMode(InstallScope installScope, string normalizedHostContext, LegacyUserProfileInspection legacyUserProfileInspection)
     {
         if (installScope == InstallScope.UserProfile
@@ -2221,6 +2564,10 @@ internal sealed class SetupEngine
         return "plugin_marketplace";
     }
 
+    // Purpose: Builds the install-lane-specific missing-marketplace finding string.
+    // Expected input: Install scope.
+    // Expected output: The lane-appropriate missing-marketplace finding code.
+    // Critical dependencies: The current setup findings vocabulary.
     private static string BuildMarketplaceMissingFinding(InstallScope installScope)
     {
         return installScope == InstallScope.UserProfile
@@ -2228,6 +2575,10 @@ internal sealed class SetupEngine
             : "repo_marketplace_missing";
     }
 
+    // Purpose: Builds the install-lane-specific missing-plugins-array finding string.
+    // Expected input: Install scope.
+    // Expected output: The lane-appropriate missing-plugins-array finding code.
+    // Critical dependencies: The current setup findings vocabulary.
     private static string BuildMarketplaceMissingPluginsArrayFinding(InstallScope installScope)
     {
         return installScope == InstallScope.UserProfile
@@ -2235,6 +2586,194 @@ internal sealed class SetupEngine
             : "repo_marketplace_missing_plugins_array";
     }
 
+    // Purpose: Aggregates the origin, source, and destination path roles for setup output.
+    // Expected input: Setup options plus resolved workspace, bundle, marketplace, and update-source paths.
+    // Expected output: A PathRoleCollection aligned with the nested setup JSON contract.
+    // Critical dependencies: BuildSetupOriginRoleReport, BuildSetupSourceRoleReport, BuildSetupDestinationRoleReport, and AnarchyPathCanon.
+    private static PathRoleCollection BuildSetupResultPaths(
+        SetupOptions options,
+        string workspaceRoot,
+        string pluginRoot,
+        string marketplacePath,
+        string runtimePath,
+        string pluginManifestPath,
+        string mcpPath,
+        string skillPath,
+        string schemaManifestPath,
+        string updateSourceRoot)
+    {
+        var origin = BuildSetupOriginRoleReport(options, updateSourceRoot);
+        var source = BuildSetupSourceRoleReport(options, workspaceRoot, pluginRoot, updateSourceRoot);
+        var destination = BuildSetupDestinationRoleReport(
+            options,
+            workspaceRoot,
+            pluginRoot,
+            marketplacePath,
+            runtimePath,
+            pluginManifestPath,
+            mcpPath,
+            skillPath,
+            schemaManifestPath);
+
+        return AnarchyPathCanon.CreateRoleCollection(origin: origin, source: source, destination: destination);
+    }
+
+    // Purpose: Builds the origin role for setup output when an explicit update source was used.
+    // Expected input: Setup options and the resolved update-source root.
+    // Expected output: A path-role report for the repo-authored update source, or null when no update source applies.
+    // Critical dependencies: AnarchyPathCanon source-path helpers and the update-source contract.
+    private static PathRoleReport? BuildSetupOriginRoleReport(SetupOptions options, string updateSourceRoot)
+    {
+        if (string.IsNullOrWhiteSpace(updateSourceRoot))
+        {
+            return null;
+        }
+
+        var sourcePluginDirectoryPath = AnarchyPathCanon.ResolveSourcePluginDirectory(updateSourceRoot);
+        return AnarchyPathCanon.CreateRoleReport(
+            rootPath: updateSourceRoot,
+            directories:
+            [
+                CreatePathEntry("plugin_source_directory_path", sourcePluginDirectoryPath)
+            ],
+            files:
+            [
+                CreatePathEntry("plugin_mcp_file_path", AnarchyPathCanon.ResolveRelativePath(updateSourceRoot, AnarchyPathCanon.RepoSourcePluginMcpFileRelativePath)),
+                CreatePathEntry("setup_executable_file_path", AnarchyPathCanon.ResolveRelativePath(updateSourceRoot, AnarchyPathCanon.RepoSourceSetupExecutableFileRelativePath)),
+                CreatePathEntry("plugin_readme_source_file_path", AnarchyPathCanon.ResolveRelativePath(updateSourceRoot, AnarchyPathCanon.RepoSourceGeneratedPluginReadmeSourceRelativePath))
+            ],
+            relative:
+            [
+                CreatePathEntry("plugin_source_directory_relative_path", AnarchyPathCanon.RepoSourcePluginDirectoryRelativePath),
+                CreatePathEntry("plugin_mcp_file_relative_path", AnarchyPathCanon.RepoSourcePluginMcpFileRelativePath),
+                CreatePathEntry("setup_executable_file_relative_path", AnarchyPathCanon.RepoSourceSetupExecutableFileRelativePath),
+                CreatePathEntry("plugin_readme_source_file_relative_path", AnarchyPathCanon.RepoSourceGeneratedPluginReadmeSourceRelativePath)
+            ]);
+    }
+
+    // Purpose: Builds the source role for setup output.
+    // Expected input: Setup options, workspace root, plugin root, and optional update-source root.
+    // Expected output: A path-role report describing either the explicit update source or the currently materialized bundle.
+    // Critical dependencies: AnarchyPathCanon source and bundle path helpers.
+    private static PathRoleReport BuildSetupSourceRoleReport(
+        SetupOptions options,
+        string workspaceRoot,
+        string pluginRoot,
+        string updateSourceRoot)
+    {
+        if (!string.IsNullOrWhiteSpace(updateSourceRoot))
+        {
+            return AnarchyPathCanon.CreateRoleReport(
+                rootPath: updateSourceRoot,
+                directories:
+                [
+                    CreatePathEntry("plugin_source_directory_path", AnarchyPathCanon.ResolveSourcePluginDirectory(updateSourceRoot))
+                ],
+                relative:
+                [
+                    CreatePathEntry("plugin_source_directory_relative_path", AnarchyPathCanon.RepoSourcePluginDirectoryRelativePath)
+                ])!;
+        }
+
+        return AnarchyPathCanon.CreateRoleReport(
+            rootPath: pluginRoot,
+            directories:
+            [
+                CreatePathEntry("contracts_directory_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleContractsDirectoryRelativePath)),
+                CreatePathEntry("runtime_directory_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleRuntimeDirectoryRelativePath)),
+                CreatePathEntry("schemas_directory_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleSchemasDirectoryRelativePath)),
+                CreatePathEntry("scripts_directory_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleScriptsDirectoryRelativePath)),
+                CreatePathEntry("skill_directory_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleSkillDirectoryRelativePath))
+            ],
+            files:
+            [
+                CreatePathEntry("plugin_manifest_file_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundlePluginManifestFileRelativePath)),
+                CreatePathEntry("mcp_declaration_file_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleMcpFileRelativePath)),
+                CreatePathEntry("runtime_executable_file_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath)),
+                CreatePathEntry("schema_manifest_file_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleSchemaManifestFileRelativePath)),
+                CreatePathEntry("skill_file_path", AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleSkillFileRelativePath))
+            ],
+            relative:
+            [
+                CreatePathEntry("plugin_manifest_file_relative_path", AnarchyPathCanon.BundlePluginManifestFileRelativePath),
+                CreatePathEntry("mcp_declaration_file_relative_path", AnarchyPathCanon.BundleMcpFileRelativePath),
+                CreatePathEntry("runtime_executable_file_relative_path", AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath),
+                CreatePathEntry("schema_manifest_file_relative_path", AnarchyPathCanon.BundleSchemaManifestFileRelativePath),
+                CreatePathEntry("skill_file_relative_path", AnarchyPathCanon.BundleSkillFileRelativePath),
+                CreatePathEntry("marketplace_plugin_source_relative_path", BuildPluginRelativePath(options.InstallScope, workspaceRoot))
+            ])!;
+    }
+
+    // Purpose: Builds the destination role for setup output.
+    // Expected input: Setup options plus resolved bundle, runtime, marketplace, and workspace paths.
+    // Expected output: A path-role report describing the install or assessment destination surfaces.
+    // Critical dependencies: AnarchyPathCanon destination helpers and the selected install lane.
+    private static PathRoleReport BuildSetupDestinationRoleReport(
+        SetupOptions options,
+        string workspaceRoot,
+        string pluginRoot,
+        string marketplacePath,
+        string runtimePath,
+        string pluginManifestPath,
+        string mcpPath,
+        string skillPath,
+        string schemaManifestPath)
+    {
+        var destinationRoot = options.InstallScope == InstallScope.UserProfile
+            ? GetUserProfileDirectory()
+            : workspaceRoot;
+
+        return AnarchyPathCanon.CreateRoleReport(
+            rootPath: destinationRoot,
+            directories:
+            [
+                CreatePathEntry("plugin_root_directory_path", pluginRoot),
+                CreatePathEntry("marketplace_directory_path", Path.GetDirectoryName(marketplacePath)),
+                CreatePathEntry("schema_target_root_directory_path", workspaceRoot)
+            ],
+            files:
+            [
+                CreatePathEntry("marketplace_file_path", marketplacePath),
+                CreatePathEntry("plugin_manifest_file_path", pluginManifestPath),
+                CreatePathEntry("mcp_declaration_file_path", mcpPath),
+                CreatePathEntry("runtime_executable_file_path", runtimePath),
+                CreatePathEntry("skill_file_path", skillPath),
+                CreatePathEntry("schema_manifest_file_path", schemaManifestPath),
+                CreatePathEntry(
+                    "codex_config_file_path",
+                    options.InstallScope == InstallScope.UserProfile
+                        ? AnarchyPathCanon.ResolveUserProfileCodexConfigFilePath(GetUserProfileDirectory())
+                        : null)
+            ],
+            relative:
+            [
+                CreatePathEntry(
+                    "marketplace_file_relative_path",
+                    options.InstallScope == InstallScope.UserProfile
+                        ? AnarchyPathCanon.UserProfileMarketplaceFileRelativePath
+                        : AnarchyPathCanon.RepoLocalMarketplaceFileRelativePath),
+                CreatePathEntry("plugin_source_relative_path", BuildPluginRelativePath(options.InstallScope, workspaceRoot)),
+                CreatePathEntry("plugin_manifest_file_relative_path", AnarchyPathCanon.BundlePluginManifestFileRelativePath),
+                CreatePathEntry("mcp_declaration_file_relative_path", AnarchyPathCanon.BundleMcpFileRelativePath),
+                CreatePathEntry("runtime_executable_file_relative_path", AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath),
+                CreatePathEntry("schema_manifest_file_relative_path", AnarchyPathCanon.BundleSchemaManifestFileRelativePath),
+                CreatePathEntry("skill_file_relative_path", AnarchyPathCanon.BundleSkillFileRelativePath)
+            ])!;
+    }
+
+    // Purpose: Creates a keyed path entry for nested path reporting.
+    // Expected input: A path key and optional value.
+    // Expected output: A key/value pair consumed by AnarchyPathCanon.CreateRoleReport.
+    // Critical dependencies: The nested path-report key vocabulary.
+    private static KeyValuePair<string, string?> CreatePathEntry(string key, string? value)
+    {
+        return new KeyValuePair<string, string?>(key, value);
+    }
+
+    // Purpose: Detects stale legacy home-local install surfaces that can block a clean user-profile ready state.
+    // Expected input: Install scope, normalized host context, and whether the new marketplace lane is already ready.
+    // Expected output: A LegacyUserProfileInspection record describing legacy plugin-root and custom-MCP evidence.
+    // Critical dependencies: AnarchyPathCanon legacy helpers, TOML readers, and the Codex legacy cleanup model.
     private static LegacyUserProfileInspection InspectLegacyUserProfileSurfaces(InstallScope installScope, string normalizedHostContext, bool newPluginMarketplaceLaneReady)
     {
         if (installScope != InstallScope.UserProfile || !string.Equals(normalizedHostContext, "codex", StringComparison.Ordinal))
@@ -2242,11 +2781,14 @@ internal sealed class SetupEngine
             return new LegacyUserProfileInspection(false, false, newPluginMarketplaceLaneReady, []);
         }
 
-        var legacyPluginRoot = Path.Combine(GetUserProfileDirectory(), "plugins", BuildPluginName(InstallScope.UserProfile, null));
-        var legacyPluginRootPresent = Directory.Exists(legacyPluginRoot);
+        var legacyPluginRoots = AnarchyPathCanon.OwnedPluginNameExact
+            .Select(name => AnarchyPathCanon.ResolveLegacyUserProfilePluginRoot(GetUserProfileDirectory(), name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var legacyPluginRootPresent = legacyPluginRoots.Any(Directory.Exists);
         var legacyCodexCustomMcpEntryPresent = false;
 
-        var codexConfigPath = Path.Combine(GetUserProfileDirectory(), ".codex", "config.toml");
+        var codexConfigPath = AnarchyPathCanon.ResolveUserProfileCodexConfigFilePath(GetUserProfileDirectory());
         if (File.Exists(codexConfigPath))
         {
             var content = File.ReadAllText(codexConfigPath);
@@ -2255,10 +2797,15 @@ internal sealed class SetupEngine
             {
                 var command = TryReadTomlString(blockMatch.Value, "command");
                 var cwd = TryReadTomlString(blockMatch.Value, "cwd");
-                var legacyRuntimePath = Path.GetFullPath(Path.Combine(legacyPluginRoot, "runtime", "win-x64", "AnarchyAi.Mcp.Server.exe"));
+                var legacyRuntimePaths = legacyPluginRoots
+                    .Select(root => AnarchyPathCanon.ResolveBundleFilePath(root, AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var legacyWorkingDirectories = legacyPluginRoots
+                    .Select(Path.GetFullPath)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
                 legacyCodexCustomMcpEntryPresent =
-                    string.Equals(command, legacyRuntimePath, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(cwd, Path.GetFullPath(legacyPluginRoot), StringComparison.OrdinalIgnoreCase);
+                    (!string.IsNullOrWhiteSpace(command) && legacyRuntimePaths.Contains(command))
+                    || (!string.IsNullOrWhiteSpace(cwd) && legacyWorkingDirectories.Contains(Path.GetFullPath(cwd)));
             }
         }
 
@@ -2280,24 +2827,36 @@ internal sealed class SetupEngine
             findings.ToArray());
     }
 
+    // Purpose: Builds the user-facing label for the selected install scope.
+    // Expected input: Install scope.
+    // Expected output: "User-Profile" or "Repo-Local".
+    // Critical dependencies: The current wording contract for disclosures and dialogs.
     private static string BuildInstallScopeLabel(InstallScope installScope)
     {
         return installScope == InstallScope.UserProfile ? "User-Profile" : "Repo-Local";
     }
 
+    // Purpose: Builds the exact TOML block used for the optional Codex custom-MCP registration.
+    // Expected input: Plugin root and target newline style.
+    // Expected output: TOML text for the Anarchy-AI server block.
+    // Critical dependencies: AnarchyPathCanon runtime path resolution, ToTomlLiteral, and the legacy custom-MCP contract.
     private static string BuildExpectedCodexMcpServerBlock(string pluginRoot, string newline)
     {
-        var runtimePath = Path.GetFullPath(Path.Combine(pluginRoot, "runtime", "win-x64", "AnarchyAi.Mcp.Server.exe"));
+        var runtimePath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath);
         var normalizedPluginRoot = Path.GetFullPath(pluginRoot);
         return string.Join(newline, new[]
         {
-            "[mcp_servers.anarchy-ai]",
+            $"[mcp_servers.{BuildMcpServerName()}]",
             $"command = '{ToTomlLiteral(runtimePath)}'",
             $"cwd = '{ToTomlLiteral(normalizedPluginRoot)}'",
             "enabled = true"
         });
     }
 
+    // Purpose: Inserts or replaces the Anarchy-AI custom-MCP TOML block inside an existing config string.
+    // Expected input: Mutable TOML content and the expected server block text.
+    // Expected output: True when the content changed.
+    // Critical dependencies: CodexCustomMcpServerBlockPattern and DetectNewline.
     private static bool UpsertTomlServerBlock(ref string content, string expectedBlock)
     {
         var existingMatch = Regex.Match(content, CodexCustomMcpServerBlockPattern);
@@ -2330,11 +2889,19 @@ internal sealed class SetupEngine
         return true;
     }
 
+    // Purpose: Escapes a string for single-quoted TOML output.
+    // Expected input: Raw string value.
+    // Expected output: TOML-safe string literal content.
+    // Critical dependencies: The single-quoted TOML literal format.
     private static string ToTomlLiteral(string value)
     {
         return value.Replace("'", "''", StringComparison.Ordinal);
     }
 
+    // Purpose: Removes the legacy Codex custom-MCP block when it still points at the deprecated home-local plugin root.
+    // Expected input: Install scope, normalized host context, and mutable action log.
+    // Expected output: No direct return value; rewrites the Codex config file when a stale legacy block is present.
+    // Critical dependencies: AnarchyPathCanon legacy path helpers, TOML readers, and regex block removal.
     private static void RemoveLegacyCodexCustomMcpEntry(InstallScope installScope, string normalizedHostContext, HashSet<string> actionsTaken)
     {
         if (installScope != InstallScope.UserProfile || !string.Equals(normalizedHostContext, "codex", StringComparison.Ordinal))
@@ -2342,7 +2909,7 @@ internal sealed class SetupEngine
             return;
         }
 
-        var codexConfigPath = Path.Combine(GetUserProfileDirectory(), ".codex", "config.toml");
+        var codexConfigPath = AnarchyPathCanon.ResolveUserProfileCodexConfigFilePath(GetUserProfileDirectory());
         if (!File.Exists(codexConfigPath))
         {
             return;
@@ -2355,8 +2922,10 @@ internal sealed class SetupEngine
             return;
         }
 
-        var legacyPluginRoot = Path.Combine(GetUserProfileDirectory(), "plugins", BuildPluginName(InstallScope.UserProfile, null));
-        var legacyRuntimePath = Path.GetFullPath(Path.Combine(legacyPluginRoot, "runtime", "win-x64", "AnarchyAi.Mcp.Server.exe"));
+        var legacyPluginRoot = AnarchyPathCanon.ResolveLegacyUserProfilePluginRoot(
+            GetUserProfileDirectory(),
+            BuildPluginName(InstallScope.UserProfile, null));
+        var legacyRuntimePath = AnarchyPathCanon.ResolveBundleFilePath(legacyPluginRoot, AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath);
         var command = TryReadTomlString(blockMatch.Value, "command");
         var cwd = TryReadTomlString(blockMatch.Value, "cwd");
         var staleLegacyBlock =
@@ -2379,11 +2948,19 @@ internal sealed class SetupEngine
         actionsTaken.Add("removed_stale_codex_custom_mcp_entry");
     }
 
+    // Purpose: Detects the newline style to preserve when writing TOML back to disk.
+    // Expected input: Existing file content.
+    // Expected output: CRLF when present, otherwise LF.
+    // Critical dependencies: Existing file content and the current newline-preservation rule.
     private static string DetectNewline(string content)
     {
         return content.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
     }
 
+    // Purpose: Reads a string value from a TOML block using the simple parser used by setup.
+    // Expected input: TOML block text and the key to extract.
+    // Expected output: The decoded string value or null when the key is missing.
+    // Critical dependencies: Regex parsing and the current custom-MCP block format.
     private static string? TryReadTomlString(string block, string key)
     {
         var match = Regex.Match(block, $@"(?m)^\s*{Regex.Escape(key)}\s*=\s*(?<value>.+?)\s*$");
@@ -2406,6 +2983,10 @@ internal sealed class SetupEngine
         return raw;
     }
 
+    // Purpose: Reads a boolean value from a TOML block using the simple parser used by setup.
+    // Expected input: TOML block text and the key to extract.
+    // Expected output: True, false, or null when the key is missing or not recognized.
+    // Critical dependencies: Regex parsing and the current custom-MCP block format.
     private static bool? TryReadTomlBool(string block, string key)
     {
         var match = Regex.Match(block, $@"(?m)^\s*{Regex.Escape(key)}\s*=\s*(?<value>true|false)\s*$");
@@ -2417,6 +2998,10 @@ internal sealed class SetupEngine
         return string.Equals(match.Groups["value"].Value, "true", StringComparison.Ordinal);
     }
 
+    // Purpose: Normalizes a repo or marketplace label into the slug format used for repo-scoped names.
+    // Expected input: Raw label text.
+    // Expected output: Lowercase dash-separated slug, falling back to `repo` when empty.
+    // Critical dependencies: Repo-scoped naming templates and the current slug rules.
     private static string NormalizeMarketplaceSlug(string value)
     {
         var builder = new StringBuilder();
@@ -2444,7 +3029,11 @@ internal sealed class SetupEngine
         return string.IsNullOrWhiteSpace(normalized) ? "repo" : normalized;
     }
 
-    private static void RefreshFromUpdateSource(
+    // Purpose: Refreshes the installed bundle from an explicit local or remote update source.
+    // Expected input: Plugin root, workspace root, setup options, mutable action log, and mutable update notes.
+    // Expected output: The resolved source root actually used for the refresh.
+    // Critical dependencies: ResolveUpdateSourceRoot, CopySurface, bundle-surface list, and schema refresh rules.
+    private static string RefreshFromUpdateSource(
         string pluginRoot,
         string repoRoot,
         SetupOptions options,
@@ -2453,10 +3042,10 @@ internal sealed class SetupEngine
     {
         using var tempRoot = new TempDirectory();
         var sourceRoot = ResolveUpdateSourceRoot(options, tempRoot.Path, updateNotes);
-        var sourcePluginRoot = Path.Combine(sourceRoot, "plugins", "anarchy-ai");
+        var sourcePluginRoot = AnarchyPathCanon.ResolveSourcePluginDirectory(sourceRoot);
         if (!Directory.Exists(sourcePluginRoot))
         {
-            throw new DirectoryNotFoundException("Update source did not contain plugins\\anarchy-ai.");
+            throw new DirectoryNotFoundException($"Update source did not contain {AnarchyPathCanon.RepoSourcePluginDirectoryRelativePath.Replace('/', Path.DirectorySeparatorChar)}.");
         }
 
         foreach (var surface in PluginSurfaces)
@@ -2474,7 +3063,7 @@ internal sealed class SetupEngine
             {
                 updateNotes.Add("portable_schema_family_refresh_skipped_without_workspace_root");
                 actionsTaken.Add("portable_schema_family_not_targeted");
-                return;
+                return sourceRoot;
             }
 
             foreach (var schemaFile in PortableSchemaFiles)
@@ -2490,8 +3079,14 @@ internal sealed class SetupEngine
         {
             updateNotes.Add("portable_schema_family_refresh_not_requested");
         }
+
+        return sourceRoot;
     }
 
+    // Purpose: Resolves the actual update source root from CLI options.
+    // Expected input: Setup options, temporary working root, and mutable update notes.
+    // Expected output: Absolute repo root extracted from a local path, local zip, or downloaded zip.
+    // Critical dependencies: Zip download/extraction and ResolveFirstExtractedRoot.
     private static string ResolveUpdateSourceRoot(SetupOptions options, string tempRoot, HashSet<string> updateNotes)
     {
         if (!string.IsNullOrWhiteSpace(options.UpdateSourcePath))
@@ -2528,6 +3123,10 @@ internal sealed class SetupEngine
         return ResolveFirstExtractedRoot(extractRoot);
     }
 
+    // Purpose: Finds the first extracted directory root produced by an update zip.
+    // Expected input: Extraction directory path.
+    // Expected output: Absolute path to the first extracted root directory.
+    // Critical dependencies: Directory.GetDirectories and the archive layout convention.
     private static string ResolveFirstExtractedRoot(string extractPath)
     {
         var firstDirectory = Directory.GetDirectories(extractPath).FirstOrDefault();
@@ -2539,6 +3138,10 @@ internal sealed class SetupEngine
         return firstDirectory;
     }
 
+    // Purpose: Copies one source file or directory into the target location, replacing any existing target first.
+    // Expected input: Source path and destination path.
+    // Expected output: No direct return value; materializes the target surface from the source surface.
+    // Critical dependencies: File/Directory existence checks, recursive copy behavior, and filesystem write access.
     private static void CopySurface(string sourcePath, string targetPath)
     {
         if (Directory.Exists(sourcePath))
@@ -2566,6 +3169,10 @@ internal sealed class SetupEngine
     }
 }
 
+// Purpose: Summarizes marketplace inspection results for setup assessment and repair logic.
+// Expected input: Filesystem and JSON inspection facts collected by SetupEngine.
+// Expected output: Immutable marketplace state record consumed by setup branching.
+// Critical dependencies: Marketplace inspection helpers and the current marketplace findings vocabulary.
 internal sealed record MarketplaceInspection(
     bool Exists,
     bool HasPluginsArray,
@@ -2575,24 +3182,40 @@ internal sealed record MarketplaceInspection(
     bool IsValidJson,
     string[] Findings);
 
+// Purpose: Summarizes plugin-manifest inspection results for setup assessment and repair logic.
+// Expected input: Filesystem and JSON inspection facts for the plugin manifest.
+// Expected output: Immutable manifest state record consumed by setup branching.
+// Critical dependencies: Plugin manifest inspection helpers and the current findings vocabulary.
 internal sealed record PluginManifestInspection(
     bool Exists,
     bool IsValidJson,
     bool IdentityAligned,
     string[] Findings);
 
+// Purpose: Summarizes .mcp.json inspection results for setup assessment and repair logic.
+// Expected input: Filesystem and JSON inspection facts for the plugin-local MCP declaration.
+// Expected output: Immutable MCP configuration state record consumed by setup branching.
+// Critical dependencies: MCP declaration inspection helpers and the current findings vocabulary.
 internal sealed record McpConfigurationInspection(
     bool Exists,
     bool IdentityAligned,
     bool IsValidJson,
     string[] Findings);
 
+// Purpose: Summarizes optional Codex custom-MCP inspection results.
+// Expected input: Filesystem and TOML inspection facts for the user-profile Codex config file.
+// Expected output: Immutable custom-MCP inspection record.
+// Critical dependencies: TOML parsing helpers and the legacy Codex custom-MCP model.
 internal sealed record CodexCustomMcpInspection(
     bool Required,
     bool EntryPresent,
     bool IdentityAligned,
     string[] Findings);
 
+// Purpose: Summarizes legacy home-local evidence discovered during user-profile inspection.
+// Expected input: Legacy plugin-root and legacy custom-MCP detection facts.
+// Expected output: Immutable legacy-state inspection record used to block false readiness.
+// Critical dependencies: Legacy path detection and current Codex cleanup guidance.
 internal sealed record LegacyUserProfileInspection(
     bool LegacyPluginRootPresent,
     bool LegacyCodexCustomMcpEntryPresent,
@@ -2602,11 +3225,19 @@ internal sealed record LegacyUserProfileInspection(
     public bool HasLegacySurface => LegacyPluginRootPresent || LegacyCodexCustomMcpEntryPresent;
 }
 
+// Purpose: Exposes the embedded plugin bundle and portable-schema payload resources carried by the setup executable.
+// Expected input: Resource-name requests from setup extraction code.
+// Expected output: Enumerables of resource names and readable resource streams.
+// Critical dependencies: Assembly manifest resources created by the setup publish process.
 internal static class PayloadResources
 {
-    private const string PluginPrefix = "SetupPayload/plugins/anarchy-ai/";
-    private const string PortableSchemaPrefix = "SetupPayload/portable-schema/";
+    private static readonly string PluginPrefix = AnarchyPathCanon.BuildPluginPayloadResourcePrefix();
+    private static readonly string PortableSchemaPrefix = AnarchyPathCanon.BuildPortableSchemaPayloadResourcePrefix();
 
+    // Purpose: Enumerates the embedded plugin bundle resources carried by the setup executable.
+    // Expected input: None.
+    // Expected output: Resource names beneath the embedded plugin payload prefix.
+    // Critical dependencies: Assembly manifest resources and AnarchyPathCanon.BuildPluginPayloadResourcePrefix.
     public static IEnumerable<string> GetPluginBundleResources()
     {
         return typeof(PayloadResources).Assembly
@@ -2615,6 +3246,10 @@ internal static class PayloadResources
             .OrderBy(static name => name, StringComparer.Ordinal);
     }
 
+    // Purpose: Enumerates the embedded portable schema resources carried by the setup executable.
+    // Expected input: None.
+    // Expected output: Resource names beneath the embedded portable-schema payload prefix.
+    // Critical dependencies: Assembly manifest resources and AnarchyPathCanon.BuildPortableSchemaPayloadResourcePrefix.
     public static IEnumerable<string> GetPortableSchemaResources()
     {
         return typeof(PayloadResources).Assembly
@@ -2623,6 +3258,10 @@ internal static class PayloadResources
             .OrderBy(static name => name, StringComparer.Ordinal);
     }
 
+    // Purpose: Opens a manifest-resource stream from the setup executable.
+    // Expected input: Full resource name to open.
+    // Expected output: A readable resource stream.
+    // Critical dependencies: Assembly manifest resources and a valid resource name.
     public static Stream OpenResource(string resourceName)
     {
         return typeof(PayloadResources).Assembly.GetManifestResourceStream(resourceName)
@@ -2630,8 +3269,16 @@ internal static class PayloadResources
     }
 }
 
+// Purpose: Creates and cleans up a temporary directory used during setup update flows.
+// Expected input: Object construction and disposal lifetime.
+// Expected output: A temp directory path that is removed on disposal when possible.
+// Critical dependencies: Path.GetTempPath, Directory.CreateDirectory, and recursive delete permissions.
 internal sealed class TempDirectory : IDisposable
 {
+    // Purpose: Creates a new unique temporary directory for setup work.
+    // Expected input: None.
+    // Expected output: A TempDirectory instance with a created directory path.
+    // Critical dependencies: OS temp storage and directory creation permissions.
     public TempDirectory()
     {
         Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "anarchy-ai-setup-" + Guid.NewGuid().ToString("N"));
@@ -2640,6 +3287,10 @@ internal sealed class TempDirectory : IDisposable
 
     public string Path { get; }
 
+    // Purpose: Removes the temporary directory created for this instance.
+    // Expected input: None.
+    // Expected output: No direct return value; deletes the temp directory when it still exists.
+    // Critical dependencies: Recursive directory deletion and filesystem access.
     public void Dispose()
     {
         try

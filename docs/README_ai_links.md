@@ -80,6 +80,7 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 - `./ANARCHY_AI_REPO_INSTALL_PROCESS.md` - exact repo-bootstrap install process for delivering Anarchy-AI into another repo
 - `./ANARCHY_AI_ENVIRONMENT_TRUTH_MATRIX.md` - proven vs inferred environment behavior for Codex config, MCP mounting, marketplace lanes, and tool-surface verification
 - `./ANARCHY_AI_BUG_REPORTS.md` - active bug tickets for setup, mounting, divergence semantics, and proof-lane reliability
+- `./ANARCHY_AI_DOC_DISCOVERY_BUG_REGISTER.md` - bugs and hidden assumptions exposed specifically by the code documentation pass
 - `./ANARCHY_AI_PLUGIN_README_SOURCE.md` - repo-authored source for the installed plugin README; the build helper publishes this into `plugins/anarchy-ai/README.md` with destination-relative install paths
 - `../harness/README.md` - local runtime harness boundary and capability notes
 - `../harness/setup/dotnet/AnarchyAi.Setup.csproj` - Windows-first setup/installer project that embeds the current plugin bundle and exposes GUI/CLI bootstrap behavior
@@ -104,6 +105,14 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 - `../plugins/anarchy-ai/skills/anarchy-ai-harness/SKILL.md` - usage layer for the five core harness tools, with explicit discovery for the experimental `direction_assist_test` module
 - `../.agents/plugins/marketplace.json` - repo-local plugin marketplace entry
 
+## Branding
+
+- `../branding/branding-canon.json` - repo-authored branding source for display names, legal URLs, brand metadata, default publish URL, and bundle visual paths
+- `../branding/assets/` - source-owned landing zone for future brand assets such as logos, icons, and marketplace imagery
+- `../branding/published-materials/` - source-owned landing zone for publish-ready brand copy and future branded instruction additions
+- `../harness/branding/Branding.Shared.cs` - shared C# binding over the generated branding constants
+- `../harness/branding/scripts/generate-branding-artifacts.ps1` - generator for C#, PowerShell, and MSBuild branding artifacts
+
 ## Templates
 
 - `../templates/AGENTS_TEMPLATE.md`
@@ -127,7 +136,7 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 - **reference (supporting):**
   - schema READMEs, cleanup method, publication checklist, templates
 - **operational:**
-  - TODO, changelog
+  - TODO, changelog, bug registers
 
 ## Rule
 

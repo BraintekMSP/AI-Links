@@ -103,29 +103,31 @@ Current lanes:
   - marketplace under `~/.agents/plugins/marketplace.json`
 
 The generated marketplace root should be repo-scoped for repo-local installs, not globally reused.
+Keep the top-level marketplace `name` branded and readable because current Codex plugin surfaces can expose that identifier directly even though the official docs describe `interface.displayName` as the marketplace title.
 
 Current repo-local shape:
 
-- `name = anarchy-local-<repo-slug>-<stable-path-hash>`
+- `name = anarchy-ai-herringms-local-<repo-slug>`
 - `interface.displayName = Anarchy-AI Local (<RepoName>)`
-- `plugins.<entry>.name = anarchy-ai-<repo-slug>-<stable-path-hash>`
+- `plugins.<entry>.name = anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
 - `plugins.<entry>.source.path = ./plugins/anarchy-ai-<repo-slug>-<stable-path-hash>`
-- `.codex-plugin/plugin.json -> name = anarchy-ai-<repo-slug>-<stable-path-hash>`
-- `.mcp.json -> mcpServers -> anarchy-ai`
+- `.codex-plugin/plugin.json -> name = anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
+- `.mcp.json -> mcpServers -> anarchy-ai-herringms`
 
 Current user-profile shape:
 
-- `name = anarchy-user-profile`
+- `name = anarchy-ai-herringms-user-profile`
 - `interface.displayName = Anarchy-AI User Profile`
 - `plugins.<entry>.name = anarchy-ai`
-- `plugins.<entry>.source.path = ./.codex/plugins/anarchy-ai`
-- `.codex-plugin/plugin.json -> name = anarchy-ai`
-- `.mcp.json -> mcpServers -> anarchy-ai`
+- `plugins.<entry>.source.path = ./.codex/plugins/anarchy-ai-herringms`
+- `.codex-plugin/plugin.json -> name = anarchy-ai-herringms`
+- `.mcp.json -> mcpServers -> anarchy-ai-herringms`
 
 Codex home readiness is plugin-marketplace-first:
 
 - the normal home registration mode is the personal marketplace lane
-- a custom `[mcp_servers.anarchy-ai]` block in `~/.codex/config.toml` is optional fallback or debug evidence only
+- a custom `[mcp_servers.anarchy-ai-herringms]` block in `~/.codex/config.toml` is optional fallback or debug evidence only
+- older legacy `[mcp_servers.anarchy-ai]` blocks are cleanup evidence only
 - readiness does not require that custom MCP block
 
 The preferred default targeting behavior is:
@@ -234,15 +236,11 @@ Expected result shape:
 - `bootstrap_state`
 - `host_context`
 - `install_scope`
-- `workspace_root`
 - `registration_mode`
 - `update_requested`
 - `update_state`
 - `update_source_zip_url`
-- `update_source_path`
 - `update_notes`
-- `repo_root`
-- `plugin_root`
 - `runtime_present`
 - `marketplace_registered`
 - `installed_by_default`
@@ -250,13 +248,24 @@ Expected result shape:
 - `missing_components`
 - `safe_repairs`
 - `next_action`
+- `paths`
+  - `paths.origin`
+  - `paths.source`
+  - `paths.destination`
 
 User-profile default result semantics:
 
-- when `/userprofile` runs without `/repo`, `workspace_root` and `repo_root` remain intentionally empty
+- when `/userprofile` runs without `/repo`, `paths.destination.root_path` remains the current user profile root and portable schema seeding stays out of scope
 - in that case portable schema seeding stays out of scope (`portable_schema_family_not_targeted`)
 - `registration_mode = plugin_marketplace` is the normal Codex home result
 - `registration_mode = custom_mcp_fallback` is reserved for bounded legacy-state reporting when a stale custom MCP surface exists but the Codex-native marketplace lane is not ready
+
+Path-shape rules:
+
+- setup assess/install/update no longer emit flat path fields such as `workspace_root`, `repo_root`, `plugin_root`, or `update_source_path`
+- destination-relative file and directory facts now live under `paths.destination`
+- update-source facts now live under `paths.source` when update actually pulled from a local path or downloaded extract root
+- repo-authored source facts live under `paths.origin` only when that source is actually available to the current operation
 
 Install lock semantics:
 
@@ -359,10 +368,11 @@ Current proven environment fact for the user-profile lane:
 
 - user-profile install is considered ready when:
   - `~/.agents/plugins/marketplace.json` contains the Anarchy-AI user-profile entry
-  - `plugins.<entry>.source.path = ./.codex/plugins/anarchy-ai`
+  - `plugins.<entry>.source.path = ./.codex/plugins/anarchy-ai-herringms`
   - `~/.codex/plugins/anarchy-ai` contains the bundled plugin and runtime surfaces
   - setup result reports `registration_mode = plugin_marketplace`
-- a custom `[mcp_servers.anarchy-ai]` entry is optional fallback or debug evidence only and is not required for readiness
+- a custom `[mcp_servers.anarchy-ai-herringms]` entry is optional fallback or debug evidence only and is not required for readiness
+- older legacy `[mcp_servers.anarchy-ai]` entries are cleanup evidence only
 
 Current inferred behavior that still needs direct local proof:
 

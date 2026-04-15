@@ -81,6 +81,7 @@ That bundle contains:
 - `scripts/bootstrap-anarchy-ai.ps1`
 - `scripts/start-anarchy-ai.cmd`
 - `scripts/stop-anarchy-ai.ps1`
+- `scripts/remove-anarchy-ai.ps1`
 - plugin trust and asset files
 
 ### 2. Marketplace registration
@@ -100,21 +101,28 @@ The plugin identity rule is now split on purpose:
 
 Current repo-local shape:
 
-- `name = anarchy-local-<repo-slug>-<stable-path-hash>`
+- `name = anarchy-ai-herringms-local-<repo-slug>`
 - `interface.displayName = Anarchy-AI Local (<RepoName>)`
-- `plugins.<entry>.name = anarchy-ai-<repo-slug>-<stable-path-hash>`
-- `.codex-plugin/plugin.json -> name = anarchy-ai-<repo-slug>-<stable-path-hash>`
-- `.mcp.json -> mcpServers -> anarchy-ai`
+- `plugins.<entry>.name = anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
+- `.codex-plugin/plugin.json -> name = anarchy-ai-herringms-<repo-slug>-<stable-path-hash>`
+- `.mcp.json -> mcpServers -> anarchy-ai-herringms`
 
 Current user-profile shape:
 
-- `name = anarchy-user-profile`
+- `name = anarchy-ai-herringms-user-profile`
 - `interface.displayName = Anarchy-AI User Profile`
 - `plugins.<entry>.name = anarchy-ai`
-- `plugins.<entry>.source.path = ./.codex/plugins/anarchy-ai`
-- `.codex-plugin/plugin.json -> name = anarchy-ai`
-- `.mcp.json -> mcpServers -> anarchy-ai`
-- Codex home readiness is plugin-marketplace-first; a custom `mcp_servers.anarchy-ai` block is optional fallback/debug only
+- `plugins.<entry>.source.path = ./.codex/plugins/anarchy-ai-herringms`
+- `.codex-plugin/plugin.json -> name = anarchy-ai-herringms`
+- `.mcp.json -> mcpServers -> anarchy-ai-herringms`
+- Codex home readiness is plugin-marketplace-first; a custom `mcp_servers.anarchy-ai-herringms` block is optional fallback/debug only
+- older legacy `mcp_servers.anarchy-ai` blocks are cleanup evidence only
+
+Marketplace naming note:
+
+- official Codex plugin docs describe `interface.displayName` as the marketplace title shown in Codex
+- current Codex plugin surfaces can still expose the top-level marketplace `name`
+- keep that `name` branded and stable across devices rather than leaking a path-derived hash
 
 It enforces this plugin entry shape:
 
@@ -227,9 +235,10 @@ Expected good result shape:
 - `installed_by_default = true`
 - `next_action = use_preflight_session`
 - `install_scope = repo_local|user_profile`
+- `paths.destination` is present and carries the target plugin/runtime/marketplace file paths
 - for default `/userprofile` with no `/repo`:
-  - `workspace_root = ""`
-  - `repo_root = ""`
+  - `paths.destination.root_path = <current-user-profile>`
+  - portable schema seeding stays out of scope
 
 Any other result shape means the harness is partially delivered — files present, accessibility incomplete. Count installation as complete only when the expected good result shape is reached.
 
@@ -251,7 +260,7 @@ Scope note:
 
 - `/repolocal` seeds into the selected repo root.
 - `/userprofile` seeds only when `/repo "<path>"` is provided explicitly.
-- default `/userprofile` with blank `/repo` keeps `workspace_root` and `repo_root` empty and reports `portable_schema_family_not_targeted`.
+- default `/userprofile` with blank `/repo` keeps portable schema seeding out of scope, reports `portable_schema_family_not_targeted`, and still returns `paths.destination` for the user-profile target.
 
 If you want install to overwrite repo-root schema files from the embedded portable schema family, run:
 
@@ -296,8 +305,9 @@ Useful result fields:
 - `update_requested`
 - `update_state`
 - `update_source_zip_url`
-- `update_source_path`
 - `update_notes`
+- `paths.source`
+- `paths.destination`
 
 Expected success result:
 
@@ -341,7 +351,23 @@ Where `<installed-plugin-root>` is one of:
 - repo-local:
   - `.\plugins\anarchy-ai-<repo-slug>-<stable-path-hash>`
 - user-profile:
-  - `~\.codex\plugins\anarchy-ai`
+  - `~\.codex\plugins\anarchy-ai-herringms`
+
+If Anarchy-AI needs to be retired cleanly instead of repaired, use the dedicated retirement script rather than ad hoc file deletion:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\remove-anarchy-ai.ps1 -Mode Assess
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\remove-anarchy-ai.ps1 -Mode Quarantine -Targets repo_local,user_profile,device_app
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\remove-anarchy-ai.ps1 -Mode Remove -Targets repo_local,user_profile,device_app
+```
+
+That script inventories first, preserves repo-authored source truth, backs up mutable files before rewrite, rewrites shared marketplace files in place to remove only Anarchy-AI entries, clears owned optional custom-MCP fallback blocks such as `mcp_servers.anarchy-ai-herringms` and older legacy `mcp_servers.anarchy-ai`, and retires the documented plugin-cache lane without guessing at broader Codex-private app databases.
 
 ## Compatibility and fallback lane
 
@@ -384,7 +410,7 @@ For the current Codex-first path, accessibility requires all of the following:
   - `./.agents/plugins/marketplace.json`
   - `~/.agents/plugins/marketplace.json`
 - when using user-profile lane with Codex:
-  - `~/.agents/plugins/marketplace.json` points at `./.codex/plugins/anarchy-ai`
+  - `~/.agents/plugins/marketplace.json` points at `./.codex/plugins/anarchy-ai-herringms`
   - `~/.codex/plugins/anarchy-ai` contains the bundled runtime and plugin surfaces
   - `~/.codex/config.toml` custom MCP registration is optional fallback/debug only and is not required for `ready`
 - policy is `INSTALLED_BY_DEFAULT`

@@ -1,0 +1,8 @@
+﻿<Project>
+  <PropertyGroup>
+    <AnarchyCanonRepoSourcePluginDirectoryRelativePath>plugins/anarchy-ai</AnarchyCanonRepoSourcePluginDirectoryRelativePath>
+    <AnarchyCanonPluginPayloadPrefix>SetupPayload/plugins/anarchy-ai/</AnarchyCanonPluginPayloadPrefix>
+    <AnarchyCanonPortableSchemaPayloadPrefix>SetupPayload/portable-schema/</AnarchyCanonPortableSchemaPayloadPrefix>
+    <AnarchyCanonBundleAssetsDirectoryRelativePath>assets</AnarchyCanonBundleAssetsDirectoryRelativePath>
+  </PropertyGroup>
+</Project>
