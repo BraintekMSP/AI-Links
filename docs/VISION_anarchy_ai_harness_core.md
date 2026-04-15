@@ -6,7 +6,7 @@ what-done-looks-like-at-this-scope: the repo carries a stable harness-core visio
 commitments-that-must-survive-scope-evolution:
 - Shared harness logic remains authoritative in shared contracts and runtime implementation, not in App Server, SDK orchestration, skills, or host-specific prompts.
 - The first-class harness contract set is explicit and bounded: `preflight_session`, `compile_active_work_state`, `is_schema_real_or_shadow_copied`, `assess_harness_gap_state`, and `run_gov2gov_migration`.
-- `preflight_session` exists to decide whether meaningful governed work should continue, bootstrap, inspect schema reality, or stop for human direction.
+- `preflight_session` exists to decide whether complex changes should continue, bootstrap, inspect schema reality, or stop for human direction.
 - `assess_harness_gap_state` exists to report install, runtime, schema, startup, and adoption gaps as one bounded environment-facing result rather than as scattered tool outputs.
 - The shared core owns workspace inspection, canonical bundle checks, preflight rules, active-work compilation, schema-reality classification, non-destructive reconciliation, and gap-assessment logic.
 - The shared core does not own Codex-only lifecycle behavior, Claude-only install mechanics, App Server protocol handling, SDK orchestration policy, host-native UI prompts, or schema authorship.

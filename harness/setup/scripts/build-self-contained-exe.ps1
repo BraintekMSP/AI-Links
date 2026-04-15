@@ -464,8 +464,8 @@ function Update-GeneratedPluginManifest {
   $manifestPath = Resolve-CanonRelativePath -RootPath $RepoRoot -RelativePath ($pathCanon.relative_paths.repo_source_plugin_directory_relative_path + '/' + $pathCanon.relative_paths.bundle_plugin_manifest_file_relative_path)
   $manifestObject = [ordered]@{
     name = [string]$pathCanon.names.default_plugin_name
-    version = '0.1.6'
-    description = 'Windows-first local delivery plugin for Anarchy-AI with repo-authored published truth, Codex-native home install, and bounded harness tools for preflight, gap assessment, active-work compilation, schema reality, and gov2gov reconciliation.'
+    version = '0.1.7'
+    description = [string]$branding.messaging.plugin_description
     author = [ordered]@{
       name = [string]$branding.metadata.author_name
       url = [string]$branding.metadata.author_url
@@ -486,8 +486,8 @@ function Update-GeneratedPluginManifest {
     mcpServers = './.mcp.json'
     interface = [ordered]@{
       displayName = [string]$branding.names.brand_display_name
-      shortDescription = 'Windows-first runtime harness for preflight, gap assessment, active-work compilation, schema reality, and gov2gov reconciliation'
-      longDescription = 'Installs Anarchy-AI, the runtime framework harness for the AGENTS Heuristic Underlay. The schema family remains the canonical layer, the underlay remains the operative layer built from it, and Anarchy-AI preflights meaningful governed work, assesses install and adoption gaps, compiles active work, evaluates schema reality, and runs non-destructive gov2gov reconciliation through a local MCP lane.'
+      shortDescription = [string]$branding.messaging.plugin_short_description
+      longDescription = [string]$branding.messaging.plugin_long_description
       developerName = [string]$branding.metadata.developer_name
       category = 'Coding'
       capabilities = @(
@@ -497,11 +497,7 @@ function Update-GeneratedPluginManifest {
       websiteURL = [string]$branding.metadata.homepage_url
       privacyPolicyURL = [string]$branding.metadata.privacy_policy_url
       termsOfServiceURL = [string]$branding.metadata.terms_of_service_url
-      defaultPrompt = @(
-        'Use Anarchy-AI as the runtime harness for the AGENTS Heuristic Underlay.',
-        'Run preflight_session before meaningful governed work.',
-        'Use assess_harness_gap_state when install, runtime, schema, or adoption state is unclear.'
-      )
+      defaultPrompt = @($branding.messaging.plugin_default_prompt_lines)
       brandColor = [string]$branding.metadata.brand_color
       composerIcon = './' + ([string]$branding.relative_paths.bundle_plugin_composer_icon_relative_path)
       logo = './' + ([string]$branding.relative_paths.bundle_plugin_logo_relative_path)

@@ -88,6 +88,10 @@ $privacyPolicyUrl = [string]$canon.metadata.privacy_policy_url
 $termsOfServiceUrl = [string]$canon.metadata.terms_of_service_url
 $defaultUpdateSourceZipUrl = [string]$canon.metadata.default_update_source_zip_url
 $brandColor = [string]$canon.metadata.brand_color
+$pluginDescription = [string]$canon.messaging.plugin_description
+$pluginShortDescription = [string]$canon.messaging.plugin_short_description
+$pluginLongDescription = [string]$canon.messaging.plugin_long_description
+$pluginDefaultPromptLines = @($canon.messaging.plugin_default_prompt_lines | ForEach-Object { [string]$_ })
 $brandingRootDirectoryRelativePath = [string]$canon.relative_paths.branding_root_directory_relative_path
 $brandingAssetsDirectoryRelativePath = [string]$canon.relative_paths.branding_assets_directory_relative_path
 $brandingPublishedMaterialsDirectoryRelativePath = [string]$canon.relative_paths.branding_published_materials_directory_relative_path
@@ -118,6 +122,9 @@ internal static class GeneratedAnarchyBranding
     public const string TermsOfServiceUrl = "$(Convert-ToCSharpStringLiteral $termsOfServiceUrl)";
     public const string DefaultUpdateSourceZipUrl = "$(Convert-ToCSharpStringLiteral $defaultUpdateSourceZipUrl)";
     public const string BrandColor = "$(Convert-ToCSharpStringLiteral $brandColor)";
+    public const string PluginDescription = "$(Convert-ToCSharpStringLiteral $pluginDescription)";
+    public const string PluginShortDescription = "$(Convert-ToCSharpStringLiteral $pluginShortDescription)";
+    public const string PluginLongDescription = "$(Convert-ToCSharpStringLiteral $pluginLongDescription)";
     public const string BrandingRootDirectoryRelativePath = "$(Convert-ToCSharpStringLiteral $brandingRootDirectoryRelativePath)";
     public const string BrandingAssetsDirectoryRelativePath = "$(Convert-ToCSharpStringLiteral $brandingAssetsDirectoryRelativePath)";
     public const string BrandingPublishedMaterialsDirectoryRelativePath = "$(Convert-ToCSharpStringLiteral $brandingPublishedMaterialsDirectoryRelativePath)";
@@ -128,6 +135,10 @@ internal static class GeneratedAnarchyBranding
     public const string BundleSetupIconRelativePath = "$(Convert-ToCSharpStringLiteral $bundleSetupIconRelativePath)";
     public const string BundlePluginComposerIconRelativePath = "$(Convert-ToCSharpStringLiteral $bundlePluginComposerIconRelativePath)";
     public const string BundlePluginLogoRelativePath = "$(Convert-ToCSharpStringLiteral $bundlePluginLogoRelativePath)";
+    public static readonly string[] PluginDefaultPromptLines = new[]
+    {
+$(($pluginDefaultPromptLines | ForEach-Object { '        "' + (Convert-ToCSharpStringLiteral $_) + '"' }) -join ",`n")
+    };
 }
 "@
 
@@ -150,6 +161,14 @@ $psd1 = @"
     terms_of_service_url = '$termsOfServiceUrl'
     default_update_source_zip_url = '$defaultUpdateSourceZipUrl'
     brand_color = '$brandColor'
+  }
+  messaging = @{
+    plugin_description = '$pluginDescription'
+    plugin_short_description = '$pluginShortDescription'
+    plugin_long_description = '$pluginLongDescription'
+    plugin_default_prompt_lines = @(
+$(($pluginDefaultPromptLines | ForEach-Object { "      '$_'" }) -join "`n")
+    )
   }
   relative_paths = @{
     branding_root_directory_relative_path = '$brandingRootDirectoryRelativePath'
@@ -183,6 +202,9 @@ $props = @"
     <AnarchyBrandingTermsOfServiceUrl>$(Convert-ToXmlText $termsOfServiceUrl)</AnarchyBrandingTermsOfServiceUrl>
     <AnarchyBrandingDefaultUpdateSourceZipUrl>$(Convert-ToXmlText $defaultUpdateSourceZipUrl)</AnarchyBrandingDefaultUpdateSourceZipUrl>
     <AnarchyBrandingBrandColor>$(Convert-ToXmlText $brandColor)</AnarchyBrandingBrandColor>
+    <AnarchyBrandingPluginDescription>$(Convert-ToXmlText $pluginDescription)</AnarchyBrandingPluginDescription>
+    <AnarchyBrandingPluginShortDescription>$(Convert-ToXmlText $pluginShortDescription)</AnarchyBrandingPluginShortDescription>
+    <AnarchyBrandingPluginLongDescription>$(Convert-ToXmlText $pluginLongDescription)</AnarchyBrandingPluginLongDescription>
     <AnarchyBrandingBrandingRootDirectoryRelativePath>$(Convert-ToXmlText $brandingRootDirectoryRelativePath)</AnarchyBrandingBrandingRootDirectoryRelativePath>
     <AnarchyBrandingBrandingAssetsDirectoryRelativePath>$(Convert-ToXmlText $brandingAssetsDirectoryRelativePath)</AnarchyBrandingBrandingAssetsDirectoryRelativePath>
     <AnarchyBrandingBrandingPublishedMaterialsDirectoryRelativePath>$(Convert-ToXmlText $brandingPublishedMaterialsDirectoryRelativePath)</AnarchyBrandingBrandingPublishedMaterialsDirectoryRelativePath>

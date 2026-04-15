@@ -75,7 +75,7 @@ The user needs:
 
 The default agent rule is:
 
-- meaningful governed work starts with `preflight_session`
+- complex changes start with `preflight_session`
 
 Direct tool use remains valid when the lane is already clear.
 

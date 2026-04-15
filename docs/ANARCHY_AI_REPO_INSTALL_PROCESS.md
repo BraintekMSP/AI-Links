@@ -431,7 +431,7 @@ For the current architecture, enforcement means the harness changes how work beg
 
 The target repo should treat this as the default rule:
 
-- meaningful governed work starts with `preflight_session`
+- complex changes start with `preflight_session`
 
 That is the current harness posture.
 Without it, the harness remains optional utilities.
@@ -440,7 +440,7 @@ Without it, the harness remains optional utilities.
 
 To make that rule operational, add a direction in the target repo's startup surface or control-plane prompt packet that says the agent should:
 
-- run `preflight_session` before meaningful governed work
+- run `preflight_session` before complex changes
 - use `assess_harness_gap_state` when install/runtime/schema/adoption state is unclear
 - use `is_schema_real_or_shadow_copied` before trusting copied schema presence
 
@@ -450,7 +450,7 @@ A paste-ready block that satisfies this requirement lives in:
 
 Drop it into the target repo's `AGENTS.md`, control-plane prompt packet, or primary startup surface. The one-line minimum viable adoption is:
 
-> Meaningful governed work in this repo starts with `preflight_session`.
+> Complex changes in this repo start with `preflight_session`.
 
 Agents familiar with the harness recognize this entry; agents new to the harness follow the link chain to the harness docs.
 
@@ -534,7 +534,7 @@ A target repo should only be considered fully adopted when all of the following 
 - assess returns `ready`
 - `preflight_session` is callable
 - `assess_harness_gap_state` is callable
-- the repo's agent-facing startup/control-plane direction expects preflight-first for meaningful governed work
+- the repo's agent-facing startup/control-plane direction expects preflight-first for complex changes
 - if the schema family is in use, the schema package is materially `real`, not merely copied
 
 ## Current scope — what is in v1 and what is reserved for future delivery
@@ -563,7 +563,7 @@ Current scope:
 4. Run `AnarchyAi.Setup.exe /assess` with the same lane and require `bootstrap_state = ready`.
 5. Install now seeds missing portable schema-family files by default; use `/refreshschemas` only when repo-root schema copies should be overwritten from the embedded payload.
 6. Use `AnarchyAi.Setup.exe /update` when the carried bundle needs to be refreshed.
-7. Add a startup/control-plane instruction that meaningful governed work starts with `preflight_session`.
+7. Add a startup/control-plane instruction that complex changes start with `preflight_session`.
 8. Verify schema reality before trusting copied schema presence.
 9. Use gov2gov planning where existing authority surfaces must be reconciled.
 

@@ -2,7 +2,7 @@
   "contract_name": "preflight_session_contract",
   "contract_version": "0.1.0",
   "function_name": "preflight_session",
-  "purpose": "Decide whether the current repo/session is ready for meaningful governed work before the agent continues.",
+  "purpose": "Decide whether the current repo/session is ready for complex changes before the agent continues.",
   "input_contract": {
     "workspace_root": {
       "type": "absolute_path",

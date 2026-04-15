@@ -16,6 +16,9 @@ internal static class GeneratedAnarchyBranding
     public const string TermsOfServiceUrl = "https://github.com/BraintekMSP/AI-Links/blob/main/LICENSE";
     public const string DefaultUpdateSourceZipUrl = "https://github.com/BraintekMSP/AI-Links/archive/refs/heads/main.zip";
     public const string BrandColor = "#203630";
+    public const string PluginDescription = "Windows-first local Anarchy-AI harness that turns incomplete repo context into durable working context for complex changes.";
+    public const string PluginShortDescription = "Turn incomplete context into higher-value working context for complex changes";
+    public const string PluginLongDescription = "Installs Anarchy-AI, the runtime harness for the AGENTS Heuristic Underlay. It helps transform incomplete repo context into valuable working context for complex changes, often with lower token consumption than rebuilding that context from scratch in chat. Anarchy-AI preflights complex changes, compiles active work, checks schema reality, and non-destructively migrates current AGENTS files into a directionally stronger structure informed by Google Research on repeated exposure and structured context.";
     public const string BrandingRootDirectoryRelativePath = "branding";
     public const string BrandingAssetsDirectoryRelativePath = "branding/assets";
     public const string BrandingPublishedMaterialsDirectoryRelativePath = "branding/published-materials";
@@ -26,4 +29,10 @@ internal static class GeneratedAnarchyBranding
     public const string BundleSetupIconRelativePath = "assets/anarchy-ai.ico";
     public const string BundlePluginComposerIconRelativePath = "assets/anarchy-ai.png";
     public const string BundlePluginLogoRelativePath = "assets/anarchy_ai.svg";
+    public static readonly string[] PluginDefaultPromptLines = new[]
+    {
+        "Use Anarchy-AI as the runtime harness for the AGENTS Heuristic Underlay.",
+        "Run preflight_session before complex changes or when the repo context feels incomplete, stale, or expensive to rebuild in chat.",
+        "Use assess_harness_gap_state when install, runtime, schema, or adoption state is unclear, and use run_gov2gov_migration to plan non-destructive AGENTS migration when current files are partial or drifting."
+    };
 }

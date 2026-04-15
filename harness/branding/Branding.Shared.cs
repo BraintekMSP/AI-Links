@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace AnarchyAi.Branding;
 
 /// <summary>
@@ -36,6 +38,14 @@ internal static class AnarchyBranding
     public static string DefaultUpdateSourceZipUrl => GeneratedAnarchyBranding.DefaultUpdateSourceZipUrl;
 
     public static string BrandColor => GeneratedAnarchyBranding.BrandColor;
+
+    public static string PluginDescription => GeneratedAnarchyBranding.PluginDescription;
+
+    public static string PluginShortDescription => GeneratedAnarchyBranding.PluginShortDescription;
+
+    public static string PluginLongDescription => GeneratedAnarchyBranding.PluginLongDescription;
+
+    public static IReadOnlyList<string> PluginDefaultPromptLines => GeneratedAnarchyBranding.PluginDefaultPromptLines;
 
     public static string BrandingRootDirectoryRelativePath => GeneratedAnarchyBranding.BrandingRootDirectoryRelativePath;
 

@@ -1,6 +1,16 @@
 ﻿# Changelog - AI-Links
 
 
+## 2026-04-15
+
+### Sales-facing Anarchy-AI language refresh
+
+- Moved the plugin promise into the repo-authored branding canon so the product pitch, default prompt, and future rebrand copy stop living as hard-coded strings inside the build helper.
+- Reframed Anarchy-AI around complex changes instead of "meaningful governed work" across the generated plugin manifest, installed README, harness skill, preflight contract, MCP server descriptions, and active architecture/install docs.
+- Strengthened the user-facing value proposition to emphasize turning incomplete repo context into valuable working context, often with lower token consumption than rebuilding the same setup in chat.
+- Added explicit language that Anarchy-AI provides a non-destructive migration lane for current AGENTS files into a directionally stronger structure informed by the repo's Google Research-backed prompt-structure findings.
+- Extended the documentation-truth audit so active docs, the installed plugin README, the harness skill, and the preflight contract fail validation if stale "meaningful governed work" language reappears.
+
 ## 2026-04-14
 
 ### Namespaced Codex identity ownership

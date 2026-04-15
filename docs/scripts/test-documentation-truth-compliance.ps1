@@ -148,6 +148,27 @@ $activeDocRules = @(
       '{{REPO_LOCAL_PLUGIN_ROOT}}',
       '{{USER_PROFILE_PLUGIN_ROOT}}'
     )
+  },
+  @{
+    path = 'plugins/anarchy-ai/skills/anarchy-ai-harness/SKILL.md'
+    required = @(
+      'complex changes'
+    )
+    forbidden = @()
+  },
+  @{
+    path = 'harness/contracts/preflight-session.contract.json'
+    required = @(
+      'ready for complex changes'
+    )
+    forbidden = @()
+  },
+  @{
+    path = 'plugins/anarchy-ai/contracts/preflight-session.contract.json'
+    required = @(
+      'ready for complex changes'
+    )
+    forbidden = @()
   }
 )
 
@@ -171,6 +192,10 @@ foreach ($rule in $activeDocRules) {
     if (-not [string]::IsNullOrWhiteSpace([string]$snippet) -and $content.Contains([string]$snippet)) {
       Add-Finding -Findings $findings -RelativePath $relativePath -FindingType 'forbidden_stale_snippet' -Detail ("Found stale active-doc snippet: {0}" -f $snippet)
     }
+  }
+
+  if ($content.Contains('meaningful governed work')) {
+    Add-Finding -Findings $findings -RelativePath $relativePath -FindingType 'forbidden_stale_language' -Detail 'Found stale active-surface language: meaningful governed work'
   }
 }
 

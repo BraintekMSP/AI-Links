@@ -103,7 +103,7 @@
       "run_bootstrap_harness_install"
     ],
     "agent_actions": [
-      "run_preflight_session_before_meaningful_work",
+      "run_preflight_session_before_complex_changes",
       "run_gov2gov_migration:plan_only"
     ],
     "evidence_basis": [

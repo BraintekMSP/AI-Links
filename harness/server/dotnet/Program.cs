@@ -2175,7 +2175,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
             agentActions.Add("run_gov2gov_migration:plan_only");
         }
 
-        agentActions.Add("run_preflight_session_before_meaningful_work");
+        agentActions.Add("run_preflight_session_before_complex_changes");
         agentActions.Add("treat_schema_state_as_input_not_completion");
         safeRepairs.AddRange(schemaSafeRepairs);
         var assessmentPaths = BuildAssessmentPaths(
@@ -2674,7 +2674,7 @@ internal sealed class PreflightSessionRunner(
     SchemaRealityInspector schemaRealityInspector,
     ActiveWorkStateCompiler activeWorkStateCompiler)
 {
-    // Purpose: Produces one bounded preflight decision for meaningful governed work.
+    // Purpose: Produces one bounded preflight decision for complex changes.
     // Expected input: Workspace root, current objective, optional host context, optional startup surfaces, and optional user intent.
     // Expected output: An anonymous object describing readiness, gaps, required action, and schema state.
     // Critical dependencies: ActiveWorkStateCompiler.Compile, HarnessGapAssessor.Assess, and SchemaRealityInspector.Evaluate.
@@ -2861,7 +2861,7 @@ internal sealed class AnarchyAiHarnessTools(
         Title = "Preflight Session",
         ReadOnly = true,
         UseStructuredContent = true)]
-    [Description("Decide whether the current repo/session is ready for meaningful governed work before the agent continues.")]
+    [Description("Decide whether the current repo/session is ready for complex changes before the agent continues.")]
     public object PreflightSession(
         [Description("Absolute workspace root to inspect.")] string workspace_root,
         [Description("Current work objective in plain language.")] string current_objective,

@@ -1,7 +1,7 @@
 ﻿{
     "name":  "anarchy-ai-herringms",
-    "version":  "0.1.6",
-    "description":  "Windows-first local delivery plugin for Anarchy-AI with repo-authored published truth, Codex-native home install, and bounded harness tools for preflight, gap assessment, active-work compilation, schema reality, and gov2gov reconciliation.",
+    "version":  "0.1.7",
+    "description":  "Windows-first local Anarchy-AI harness that turns incomplete repo context into durable working context for complex changes.",
     "author":  {
                    "name":  "Matt Herring",
                    "url":  "https://github.com/BraintekMSP/AI-Links"
@@ -22,8 +22,8 @@
     "mcpServers":  "./.mcp.json",
     "interface":  {
                       "displayName":  "Anarchy-AI",
-                      "shortDescription":  "Windows-first runtime harness for preflight, gap assessment, active-work compilation, schema reality, and gov2gov reconciliation",
-                      "longDescription":  "Installs Anarchy-AI, the runtime framework harness for the AGENTS Heuristic Underlay. The schema family remains the canonical layer, the underlay remains the operative layer built from it, and Anarchy-AI preflights meaningful governed work, assesses install and adoption gaps, compiles active work, evaluates schema reality, and runs non-destructive gov2gov reconciliation through a local MCP lane.",
+                      "shortDescription":  "Turn incomplete context into higher-value working context for complex changes",
+                      "longDescription":  "Installs Anarchy-AI, the runtime harness for the AGENTS Heuristic Underlay. It helps transform incomplete repo context into valuable working context for complex changes, often with lower token consumption than rebuilding that context from scratch in chat. Anarchy-AI preflights complex changes, compiles active work, checks schema reality, and non-destructively migrates current AGENTS files into a directionally stronger structure informed by Google Research on repeated exposure and structured context.",
                       "developerName":  "herringms",
                       "category":  "Coding",
                       "capabilities":  [
@@ -35,8 +35,8 @@
                       "termsOfServiceURL":  "https://github.com/BraintekMSP/AI-Links/blob/main/LICENSE",
                       "defaultPrompt":  [
                                             "Use Anarchy-AI as the runtime harness for the AGENTS Heuristic Underlay.",
-                                            "Run preflight_session before meaningful governed work.",
-                                            "Use assess_harness_gap_state when install, runtime, schema, or adoption state is unclear."
+                                            "Run preflight_session before complex changes or when the repo context feels incomplete, stale, or expensive to rebuild in chat.",
+                                            "Use assess_harness_gap_state when install, runtime, schema, or adoption state is unclear, and use run_gov2gov_migration to plan non-destructive AGENTS migration when current files are partial or drifting."
                                         ],
                       "brandColor":  "#203630",
                       "composerIcon":  "./assets/anarchy-ai.png",

@@ -5,7 +5,9 @@
 
 ## Purpose
 
-This plugin is the user-facing delivery surface for Anarchy-AI, the runtime framework harness for the AGENTS Heuristic Underlay.
+This plugin is the user-facing delivery surface for Anarchy-AI, the runtime harness for the AGENTS Heuristic Underlay.
+
+Anarchy-AI helps teams stop paying the same context tax every session. It turns incomplete repo context into valuable working context for complex changes, often with lower token consumption than repeatedly rebuilding the same setup in chat. It also provides a non-destructive migration lane for current AGENTS files, moving them toward a directionally stronger structure aligned with the Google Research findings captured in this repo.
 
 The current architecture is:
 
@@ -94,7 +96,7 @@ Older legacy `mcp_servers.anarchy-ai` entries are cleanup evidence only.
 ## Current Tool State
 
 - `preflight_session` is implemented and returns:
-  - bounded readiness for meaningful governed work
+  - bounded readiness for complex changes
   - recommended next path
   - adoption state and active gaps
 - `compile_active_work_state` is implemented and returns a bounded operational packet for:
@@ -121,11 +123,11 @@ Older legacy `mcp_servers.anarchy-ai` entries are cleanup evidence only.
 
 Together, these tools give Anarchy-AI its current runtime promise:
 
-- preflight meaningful governed work before the agent proceeds
-- compile active work into bounded operational state
+- preflight complex changes before the agent proceeds
+- compile incomplete or drifting work context into bounded operational state
 - evaluate whether the schema package is materially real here
 - assess install, runtime, schema, and adoption gaps explicitly
-- reconcile local drift or partial materialization without replacing schema authorship
+- non-destructively migrate current AGENTS files toward a directionally stronger structure without replacing local authorship
 
 Experimental test-lane addition:
 

@@ -49,7 +49,7 @@ It currently exists to:
 
 It now performs:
 
-- session preflight for meaningful governed work
+- session preflight for complex changes
 - real schema-reality classification
 - canonical schema bundle integrity and possession detection
 - bounded current-work compilation
