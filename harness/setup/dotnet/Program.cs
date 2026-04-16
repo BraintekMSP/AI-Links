@@ -1281,7 +1281,7 @@ internal sealed class SetupEngine
 
         if (installScope == InstallScope.RepoLocal)
         {
-            disclosureLines.Add("- Repo-local caveat: the runtime binary is placed under this repo's plugins folder on this machine. Codex documents repo-local as a team-shared install scope, but the bundled runtime is per-machine; collaborators who clone this repo will see the marketplace entry and still need their own install to get a working runtime.");
+            disclosureLines.Add("- Repo-local caveat: the installer writes the Codex-documented repo-local shape (marketplace.json + plugins/ bundle), but this lane has not yet been observed producing a callable plugin in Codex's plugin surface. The direct MCP server surface is the only observed working path, and cross-machine / cross-session verification is stale. Treat repo-local as unproven until a promotion test lands in the Environment Truth Matrix. The bundled runtime is also per-machine, so a committed marketplace entry does not carry a working runtime to collaborators.");
         }
 
         if (hasWorkspaceTarget)

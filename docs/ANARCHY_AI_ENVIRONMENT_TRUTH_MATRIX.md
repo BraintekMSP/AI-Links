@@ -180,20 +180,25 @@ Promotion test:
 3. observe whether Codex materializes the documented cache path or config entry
 4. repeat after a no-op reinstall if needed
 
-### C. Repo-local Codex marketplace auto-discovery
+### C. Repo-local Codex lane has not been observed producing a callable plugin
 
 Why this remains inferred:
 
 - OpenAI Codex docs describe `$REPO_ROOT/.agents/plugins/marketplace.json` + `$REPO_ROOT/plugins/` as a peer install scope to home-local
-- Anarchy-AI installer writes that repo-local shape correctly, but a fresh-session test proving Codex auto-discovers a repo marketplace on launch inside a repo directory without any home-local priming has not been captured in this matrix
+- the Anarchy-AI installer writes that repo-local shape correctly on disk
+- the repo-local lane has NOT been observed surfacing the Anarchy-AI plugin in Codex's plugin UI on the installing machine; the only observed working surface for repo-local is the direct MCP server (runtime callable as an MCP endpoint), not a Codex-native plugin entry
+- the last observation of any repo-local working behavior was roughly one week prior to this entry, on a single local-host deploy; nothing more recent and nothing cross-machine has been captured
 - the documentation describes the layout as a scope option, not explicitly as an auto-discovery rule
+
+Status summary: **repo-local is currently treated as unproven.** The installer disclosure text reflects this.
 
 Promotion test:
 
 1. install repo-local only on a machine with no prior home-local Anarchy install
 2. launch Codex with the repo as working directory in a fresh session
-3. observe whether the repo marketplace is discovered and the plugin is callable without further action
-4. repeat with a second contributor cloning the repo after the repo-local marketplace is committed
+3. observe whether the Anarchy-AI plugin appears in Codex's plugin surface (plugins list, plugin-UI enablement, or equivalent Codex-native plugin recognition), not just whether an MCP endpoint is callable
+4. if only the MCP endpoint is callable, record that as a partial result and continue treating the plugin lane as unproven
+5. repeat with a second contributor cloning the repo after the repo-local marketplace is committed
 
 ### D. Claude Code MCP registration via `claude mcp add`
 
@@ -236,7 +241,7 @@ Claim:
 Current status:
 
 - Codex home-local: proven for the documented personal marketplace lane
-- Codex repo-local: Codex-documented, auto-discovery unverified (see inferred item C)
+- Codex repo-local: Codex-documented on disk, plugin surface unobserved (see inferred item C -- currently treated as unproven)
 - Claude Code: planned Pass 2, unverified (see inferred item D)
 - Claude Desktop: planned Pass 2, unverified (see inferred item E)
 - Cursor and other hosts: out of current scope
