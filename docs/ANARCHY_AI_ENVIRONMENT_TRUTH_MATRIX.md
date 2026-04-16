@@ -180,6 +180,51 @@ Promotion test:
 3. observe whether Codex materializes the documented cache path or config entry
 4. repeat after a no-op reinstall if needed
 
+### C. Repo-local Codex marketplace auto-discovery
+
+Why this remains inferred:
+
+- OpenAI Codex docs describe `$REPO_ROOT/.agents/plugins/marketplace.json` + `$REPO_ROOT/plugins/` as a peer install scope to home-local
+- Anarchy-AI installer writes that repo-local shape correctly, but a fresh-session test proving Codex auto-discovers a repo marketplace on launch inside a repo directory without any home-local priming has not been captured in this matrix
+- the documentation describes the layout as a scope option, not explicitly as an auto-discovery rule
+
+Promotion test:
+
+1. install repo-local only on a machine with no prior home-local Anarchy install
+2. launch Codex with the repo as working directory in a fresh session
+3. observe whether the repo marketplace is discovered and the plugin is callable without further action
+4. repeat with a second contributor cloning the repo after the repo-local marketplace is committed
+
+### D. Claude Code MCP registration via `claude mcp add`
+
+Why this remains inferred:
+
+- Claude Code docs describe `claude mcp add <name> --scope user --transport stdio -- <command>` writing to `~/.claude.json`
+- Anarchy-AI has not yet shelled out to this command from the installer; no live capture of the resulting `~/.claude.json` shape after Anarchy registration exists in this matrix
+- `claude` binary PATH availability for the installer's process is itself unverified -- Claude Code is commonly spawned by the Desktop app's embedded copy rather than from a user-PATH install
+
+Promotion test:
+
+1. confirm `claude --version` is callable from a child process launched by the installer on a representative machine
+2. run `claude mcp add anarchy-ai --scope user --transport stdio -- <abs-exe>`
+3. capture the resulting entry in `~/.claude.json`
+4. restart Claude Code and verify the MCP server launches and the harness tools are listed
+
+### E. Claude Desktop MCP registration via `claude_desktop_config.json`
+
+Why this remains inferred:
+
+- MCP docs describe the Windows config path as `%APPDATA%\Claude\claude_desktop_config.json`, with an MSIX-virtualized alternate at `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json`
+- Anarchy-AI has not yet written or merged into either path; JSON-merge semantics for a file that may already contain user-owned `mcpServers` entries are unverified
+- Claude Desktop permission prompts are per-action rather than one-time; the user-visible impact of registering a new server has not been captured
+
+Promotion test:
+
+1. install on a Store/MSIX Claude Desktop machine and on a non-MSIX machine
+2. merge (not overwrite) the Anarchy entry into `claude_desktop_config.json`
+3. restart Claude Desktop
+4. verify Anarchy tools appear and a pre-existing unrelated MCP entry is still intact
+
 ## Portability Posture
 
 ### 1. Application portability
@@ -190,13 +235,16 @@ Claim:
 
 Current status:
 
-- Codex: proven for the documented personal marketplace lane
-- non-Codex hosts: inferred
+- Codex home-local: proven for the documented personal marketplace lane
+- Codex repo-local: Codex-documented, auto-discovery unverified (see inferred item C)
+- Claude Code: planned Pass 2, unverified (see inferred item D)
+- Claude Desktop: planned Pass 2, unverified (see inferred item E)
+- Cursor and other hosts: out of current scope
 
 Why:
 
-- current evidence in this repo is from Codex only
-- equivalent install or mount evidence is not yet captured for Claude or Cursor
+- current proven evidence in this repo is from Codex home-local only
+- Claude Code and Claude Desktop installer lanes exist only as greyed-out placeholders in the setup GUI until Pass 2 promotes them through the matrix
 
 ### 2. Agent-session portability
 

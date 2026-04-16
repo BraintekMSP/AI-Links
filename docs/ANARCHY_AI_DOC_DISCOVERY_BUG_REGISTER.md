@@ -56,17 +56,18 @@ Documentation completeness closure rule:
 
 ### AA-DOCBUG-003: Legacy custom-MCP helpers remain live in setup code after readiness moved to plugin-marketplace-first
 
-- Status: open
+- Status: resolved
 - Discovery type: proven fact
 - Surface:
   - `harness/setup/dotnet/Program.cs`
 - What documentation exposed:
-  - setup still carries `EnsureCodexCustomMcpRegistration` and `InspectCodexCustomMcpConfiguration`
-  - current Codex readiness and install guidance are now plugin-marketplace-first, with custom MCP treated as fallback/debug only
-- Why it matters:
+  - setup carried `EnsureCodexCustomMcpRegistration`, `InspectCodexCustomMcpConfiguration`, `BuildExpectedCodexMcpServerBlock`, `UpsertTomlServerBlock`, `ToTomlLiteral`, and the `CodexCustomMcpInspection` record with no call sites
+  - current Codex readiness and install guidance are plugin-marketplace-first, with custom MCP treated as fallback/debug only
+- Why it mattered:
   - dormant legacy code can drift, confuse later maintainers, or accidentally be reintroduced as active truth
-- Investigation target:
-  - decide whether these helpers should be removed, isolated into a legacy-only path, or explicitly covered by tests and docs as non-primary behavior
+- Resolution:
+  - dead helpers and record removed in the installer Pass 1 lane restructure
+  - `RemoveLegacyCodexCustomMcpEntry` retained because it is actively called from setup to clean up stale legacy blocks in existing `~/.codex/config.toml` files
 
 ### AA-DOCBUG-004: Retirement script treated shared marketplace registries as disposable files
 

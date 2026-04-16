@@ -215,9 +215,10 @@ internal sealed class SetupForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 6,
+            RowCount = 7,
             Padding = new Padding(14)
         };
+        rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -318,6 +319,48 @@ internal sealed class SetupForm : Form
         lanePanel.Controls.Add(platformGroup, 1, 0);
         rootPanel.Controls.Add(lanePanel, 0, 2);
 
+        var hostTargetGroup = new GroupBox
+        {
+            Text = "Host Target",
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            Padding = new Padding(12, 12, 12, 8),
+            Margin = new Padding(0, 12, 0, 0)
+        };
+        var hostTargetFlow = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false
+        };
+        hostTargetFlow.Controls.Add(new RadioButton
+        {
+            AutoSize = true,
+            Text = "Codex (current)",
+            Checked = true,
+            Enabled = true,
+            Margin = new Padding(0, 2, 0, 4)
+        });
+        hostTargetFlow.Controls.Add(new RadioButton
+        {
+            AutoSize = true,
+            Text = "Claude Code (planned)",
+            Checked = false,
+            Enabled = false,
+            Margin = new Padding(0, 2, 0, 4)
+        });
+        hostTargetFlow.Controls.Add(new RadioButton
+        {
+            AutoSize = true,
+            Text = "Claude Desktop (planned)",
+            Checked = false,
+            Enabled = false,
+            Margin = new Padding(0, 2, 0, 0)
+        });
+        hostTargetGroup.Controls.Add(hostTargetFlow);
+        rootPanel.Controls.Add(hostTargetGroup, 0, 3);
+
         var pathSectionPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
@@ -408,7 +451,7 @@ internal sealed class SetupForm : Form
         _targetRepoPanel.Controls.Add(_targetRepoBrowseButton, 2, 0);
         pathSectionPanel.Controls.Add(_targetRepoPanel, 0, 1);
 
-        rootPanel.Controls.Add(pathSectionPanel, 0, 3);
+        rootPanel.Controls.Add(pathSectionPanel, 0, 4);
 
         var buttonPanel = new FlowLayoutPanel
         {
@@ -436,7 +479,7 @@ internal sealed class SetupForm : Form
             Text = "Ready."
         };
         buttonPanel.Controls.Add(_statusLabel);
-        rootPanel.Controls.Add(buttonPanel, 0, 4);
+        rootPanel.Controls.Add(buttonPanel, 0, 5);
 
         _resultTextBox = new TextBox
         {
@@ -449,7 +492,7 @@ internal sealed class SetupForm : Form
             Font = new System.Drawing.Font("Consolas", 10.0f),
             Margin = new Padding(0, 12, 0, 0)
         };
-        rootPanel.Controls.Add(_resultTextBox, 0, 5);
+        rootPanel.Controls.Add(_resultTextBox, 0, 6);
 
         Controls.Add(rootPanel);
         UpdateActionButtons();
@@ -1236,6 +1279,11 @@ internal sealed class SetupEngine
             "- Current GUI install does not rewrite AGENTS.md."
         };
 
+        if (installScope == InstallScope.RepoLocal)
+        {
+            disclosureLines.Add("- Repo-local caveat: the runtime binary is placed under this repo's plugins folder on this machine. Codex documents repo-local as a team-shared install scope, but the bundled runtime is per-machine; collaborators who clone this repo will see the marketplace entry and still need their own install to get a working runtime.");
+        }
+
         if (hasWorkspaceTarget)
         {
             disclosureLines.Add("- Seeds missing portable root schema files from the embedded payload.");
@@ -1301,11 +1349,13 @@ internal sealed class SetupEngine
             $"  Target repo: {targetRepo}",
             string.Empty,
             "Here's what changes:",
-            $"- /repolocal adds {BuildPluginFolderLabel(InstallScope.RepoLocal, resolvedRepo)}\\ and updates {BuildMarketplacePathLabel(InstallScope.RepoLocal, resolvedRepo)}.",
-            $"- /userprofile adds {BuildPluginFolderLabel(InstallScope.UserProfile, resolvedRepo)}\\ and updates {BuildMarketplacePathLabel(InstallScope.UserProfile, resolvedRepo)}.",
+            $"- /repolocal (home-local runtime + repo-local marketplace, Codex) adds {BuildPluginFolderLabel(InstallScope.RepoLocal, resolvedRepo)}\\ and updates {BuildMarketplacePathLabel(InstallScope.RepoLocal, resolvedRepo)}.",
+            $"- /userprofile (home-local runtime + home-local marketplace, Codex) adds {BuildPluginFolderLabel(InstallScope.UserProfile, resolvedRepo)}\\ and updates {BuildMarketplacePathLabel(InstallScope.UserProfile, resolvedRepo)}.",
             $"- /repolocal registers {BuildPluginName(InstallScope.RepoLocal, resolvedRepo)} for the selected repo.",
             $"- /userprofile registers {BuildPluginName(InstallScope.UserProfile, resolvedRepo)} for the current user profile.",
             $"- /userprofile uses the Codex-native plugin marketplace lane rather than requiring a custom mcp_servers.{BuildMcpServerName()} block.",
+            "- /repolocal places the runtime binary under the target repo's plugins folder on this machine; collaborators need their own install to get a working runtime even when the marketplace entry is committed.",
+            "- Claude Code and Claude Desktop host lanes are planned for a later pass; setup currently targets Codex only.",
             $"- Makes {CoreToolNames.Length} core + {ExperimentalToolNames.Length} test harness tool available to supported hosts.",
             "- Does not rewrite AGENTS.md.",
             schemaSeedingLine,
@@ -1614,43 +1664,6 @@ internal sealed class SetupEngine
             next_action = nextAction,
             paths = resultPaths
         };
-    }
-
-    // Purpose: Writes or refreshes a Codex custom-MCP server block for the current user profile.
-    // Expected input: Install scope, normalized host context, plugin root, and mutable action log.
-    // Expected output: No direct return value; updates the Codex config file when the expected block is absent or outdated.
-    // Critical dependencies: AnarchyPathCanon, BuildExpectedCodexMcpServerBlock, UpsertTomlServerBlock, and user-profile config access.
-    private static void EnsureCodexCustomMcpRegistration(InstallScope installScope, string normalizedHostContext, string pluginRoot, HashSet<string> actionsTaken)
-    {
-        if (installScope != InstallScope.UserProfile || !string.Equals(normalizedHostContext, "codex", StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        var codexConfigPath = AnarchyPathCanon.ResolveUserProfileCodexConfigFilePath(GetUserProfileDirectory());
-        var codexConfigDirectory = Path.GetDirectoryName(codexConfigPath)!;
-        if (!Directory.Exists(codexConfigDirectory))
-        {
-            Directory.CreateDirectory(codexConfigDirectory);
-            actionsTaken.Add("created_codex_config_directory");
-        }
-
-        var content = File.Exists(codexConfigPath) ? File.ReadAllText(codexConfigPath) : string.Empty;
-        if (!File.Exists(codexConfigPath))
-        {
-            actionsTaken.Add("created_codex_config_file");
-        }
-
-        var expectedServerBlock = BuildExpectedCodexMcpServerBlock(pluginRoot, DetectNewline(content));
-        if (UpsertTomlServerBlock(ref content, expectedServerBlock))
-        {
-            File.WriteAllText(codexConfigPath, content);
-            actionsTaken.Add("updated_codex_custom_mcp_server_entry");
-        }
-        else
-        {
-            actionsTaken.Add("codex_custom_mcp_server_already_registered");
-        }
     }
 
     // Purpose: Normalizes host-context values into the bounded host labels supported by setup.
@@ -2312,45 +2325,6 @@ internal sealed class SetupEngine
         }
     }
 
-    // Purpose: Inspects the optional Codex custom-MCP config lane for a user-profile install.
-    // Expected input: Install scope, normalized host context, and current plugin root.
-    // Expected output: A CodexCustomMcpInspection record describing whether the config file, server block, and identity align.
-    // Critical dependencies: AnarchyPathCanon, TOML readers, and the current legacy custom-MCP pattern.
-    private static CodexCustomMcpInspection InspectCodexCustomMcpConfiguration(InstallScope installScope, string normalizedHostContext, string pluginRoot)
-    {
-        if (installScope != InstallScope.UserProfile || !string.Equals(normalizedHostContext, "codex", StringComparison.Ordinal))
-        {
-            return new CodexCustomMcpInspection(false, true, true, []);
-        }
-
-        var codexConfigPath = AnarchyPathCanon.ResolveUserProfileCodexConfigFilePath(GetUserProfileDirectory());
-        if (!File.Exists(codexConfigPath))
-        {
-            return new CodexCustomMcpInspection(true, false, false, ["codex_config_missing"]);
-        }
-
-        var content = File.ReadAllText(codexConfigPath);
-        var blockMatch = Regex.Match(content, CodexCustomMcpServerBlockPattern);
-        if (!blockMatch.Success)
-        {
-            return new CodexCustomMcpInspection(true, false, false, ["codex_mcp_server_entry_missing"]);
-        }
-
-        var expectedCommand = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath);
-        var expectedCwd = Path.GetFullPath(pluginRoot);
-        var command = TryReadTomlString(blockMatch.Value, "command");
-        var cwd = TryReadTomlString(blockMatch.Value, "cwd");
-        var enabled = TryReadTomlBool(blockMatch.Value, "enabled");
-        var identityAligned =
-            string.Equals(command, expectedCommand, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(cwd, expectedCwd, StringComparison.OrdinalIgnoreCase) &&
-            enabled == true;
-
-        return identityAligned
-            ? new CodexCustomMcpInspection(true, true, true, [])
-            : new CodexCustomMcpInspection(true, true, false, ["codex_mcp_server_entry_outdated"]);
-    }
-
     // Purpose: Detects whether a marketplace JSON node represents any Anarchy-AI plugin entry, including legacy shapes.
     // Expected input: Candidate plugin JSON object.
     // Expected output: True when the node matches Anarchy-AI by name or supported source path.
@@ -2845,68 +2819,6 @@ internal sealed class SetupEngine
         return installScope == InstallScope.UserProfile ? "User-Profile" : "Repo-Local";
     }
 
-    // Purpose: Builds the exact TOML block used for the optional Codex custom-MCP registration.
-    // Expected input: Plugin root and target newline style.
-    // Expected output: TOML text for the Anarchy-AI server block.
-    // Critical dependencies: AnarchyPathCanon runtime path resolution, ToTomlLiteral, and the legacy custom-MCP contract.
-    private static string BuildExpectedCodexMcpServerBlock(string pluginRoot, string newline)
-    {
-        var runtimePath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath);
-        var normalizedPluginRoot = Path.GetFullPath(pluginRoot);
-        return string.Join(newline, new[]
-        {
-            $"[mcp_servers.{BuildMcpServerName()}]",
-            $"command = '{ToTomlLiteral(runtimePath)}'",
-            $"cwd = '{ToTomlLiteral(normalizedPluginRoot)}'",
-            "enabled = true"
-        });
-    }
-
-    // Purpose: Inserts or replaces the Anarchy-AI custom-MCP TOML block inside an existing config string.
-    // Expected input: Mutable TOML content and the expected server block text.
-    // Expected output: True when the content changed.
-    // Critical dependencies: CodexCustomMcpServerBlockPattern and DetectNewline.
-    private static bool UpsertTomlServerBlock(ref string content, string expectedBlock)
-    {
-        var existingMatch = Regex.Match(content, CodexCustomMcpServerBlockPattern);
-        if (existingMatch.Success)
-        {
-            var existingNormalized = existingMatch.Value.TrimEnd('\r', '\n');
-            var expectedNormalized = expectedBlock.TrimEnd('\r', '\n');
-            if (string.Equals(existingNormalized, expectedNormalized, StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            var sectionRegex = new Regex(CodexCustomMcpServerBlockPattern, RegexOptions.Multiline);
-            content = sectionRegex.Replace(content, expectedBlock + DetectNewline(content), 1);
-            return true;
-        }
-
-        var newline = DetectNewline(content);
-        if (!string.IsNullOrWhiteSpace(content) && !content.EndsWith(newline, StringComparison.Ordinal))
-        {
-            content += newline;
-        }
-
-        if (!string.IsNullOrWhiteSpace(content))
-        {
-            content += newline;
-        }
-
-        content += expectedBlock + newline;
-        return true;
-    }
-
-    // Purpose: Escapes a string for single-quoted TOML output.
-    // Expected input: Raw string value.
-    // Expected output: TOML-safe string literal content.
-    // Critical dependencies: The single-quoted TOML literal format.
-    private static string ToTomlLiteral(string value)
-    {
-        return value.Replace("'", "''", StringComparison.Ordinal);
-    }
-
     // Purpose: Removes the legacy Codex custom-MCP block when it still points at the deprecated home-local plugin root.
     // Expected input: Install scope, normalized host context, and mutable action log.
     // Expected output: No direct return value; rewrites the Codex config file when a stale legacy block is present.
@@ -3209,16 +3121,6 @@ internal sealed record McpConfigurationInspection(
     bool Exists,
     bool IdentityAligned,
     bool IsValidJson,
-    string[] Findings);
-
-// Purpose: Summarizes optional Codex custom-MCP inspection results.
-// Expected input: Filesystem and TOML inspection facts for the user-profile Codex config file.
-// Expected output: Immutable custom-MCP inspection record.
-// Critical dependencies: TOML parsing helpers and the legacy Codex custom-MCP model.
-internal sealed record CodexCustomMcpInspection(
-    bool Required,
-    bool EntryPresent,
-    bool IdentityAligned,
     string[] Findings);
 
 // Purpose: Summarizes legacy home-local evidence discovered during user-profile inspection.

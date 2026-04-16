@@ -98,8 +98,11 @@ Current environment evidence discipline:
 - keep inferred host behavior separate from proven architecture facts
 - maintain explicit separation between:
   - host-neutral marketplace plane (`.agents`)
-  - Codex plugin-marketplace install plane (`~/.agents/plugins/marketplace.json` -> `~/.codex/plugins/anarchy-ai`)
-  - optional Codex custom-MCP fallback/debug plane (`~/.codex/config.toml`)
+  - home-local Codex install plane (`~/.agents/plugins/marketplace.json` -> `~/.codex/plugins/anarchy-ai`) -- proven
+  - repo-local Codex install plane (`<repo>/.agents/plugins/marketplace.json` -> `<repo>/plugins/anarchy-ai-local-...`) -- Codex-documented, runtime is per-machine
+  - home-local Claude Code install plane (`claude mcp add --scope user -- <abs-exe>` writing `~/.claude.json`) -- planned, Pass 2
+  - home-local Claude Desktop install plane (JSON merge into `%APPDATA%\Claude\claude_desktop_config.json`, probe MSIX variant) -- planned, Pass 2
+  - legacy Codex custom-MCP cleanup plane (`~/.codex/config.toml` stale `[mcp_servers.*]` removal) -- retained for migration only
   - runtime/tool plane (bundled `AnarchyAi.Mcp.Server.exe`)
 
 ## Adapter Allocation
@@ -161,11 +164,17 @@ Preferred next delivery direction:
 - repo-local install remains the default target
 - explicit alternate repo targeting remains available through `/repo`
 
+Pass 2 planned work (scaffolded in current installer, Host Target UI greyed out):
+
+- Claude Code lane via `claude mcp add --scope user --transport stdio -- <abs-exe>` shellout with PATH discovery and deferred-write fallback
+- Claude Desktop lane via JSON-merge into `%APPDATA%\Claude\claude_desktop_config.json` with MSIX-path probing (`%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json`) and restart disclosure
+
 Future work reserved for later delivery:
 
 - machine-level install
 - managed rollout for RMM/Immybot
-- Claude packaging/registration adapter
+- Claude Code marketplace-plugin parity lane (`~/.claude/plugins/known_marketplaces.json` + `extraKnownMarketplaces`/`enabledPlugins`)
+- Claude Desktop `.mcpb` bundle (silent-install path not documented)
 - Cursor adapter
 - reflection workflow (`assess the last exchange and do better`) as a secondary workflow
 
