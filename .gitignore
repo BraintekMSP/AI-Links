@@ -41,3 +41,10 @@ plugins/anarchy-ai/runtime/win-x64/*.pdb
 
 # Local direction-assist test telemetry
 .agents/anarchy-ai/direction-assist-test.jsonl
+
+# Per-machine Claude host baseline captures
+# Destinations are documented in docs/scripts/capture-claude-baseline.ps1
+# and in the Environment Truth Matrix. The snapshots themselves are
+# user-specific meta (userID, project paths, session caches) and do not
+# generalize across machines, so they live locally only.
+docs/EVIDENCE/claude-baseline/
