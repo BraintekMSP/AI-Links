@@ -200,35 +200,39 @@ Promotion test:
 4. if only the MCP endpoint is callable, record that as a partial result and continue treating the plugin lane as unproven
 5. repeat with a second contributor cloning the repo after the repo-local marketplace is committed
 
-### D. Claude Code MCP registration via `claude mcp add`
+### D. Claude Code MCP registration via user-scope `~/.claude.json`
+
+Status: **implemented, pending fresh-session verification.** The installer lane exists in code (`ClaudeCodeUserScopeLane.Register`) and is gated on the `/claudecode` or `/allhosts` host-target flag. It remains `inferred` under the matrix taxonomy until the fresh-session repeatability check is captured.
 
 Why this remains inferred:
 
-- Claude Code docs describe `claude mcp add <name> --scope user --transport stdio -- <command>` writing to `~/.claude.json`
-- Anarchy-AI has not yet shelled out to this command from the installer; no live capture of the resulting `~/.claude.json` shape after Anarchy registration exists in this matrix
-- `claude` binary PATH availability for the installer's process is itself unverified -- Claude Code is commonly spawned by the Desktop app's embedded copy rather than from a user-PATH install
+- the installer now writes `mcpServers.<anarchy-ai server name>` directly into `~/.claude.json` via a read-merge-write path (`.bak` on first modification, UTF-8 no-BOM, `File.Replace` atomic swap); this avoids the `claude` CLI PATH dependency described in earlier passes
+- baseline captures at `docs/EVIDENCE/claude-baseline/` (gitignored; see `docs/scripts/capture-claude-baseline.ps1`) established that `mcpServers` is absent pre-install on this machine and that `.claude.json` churn is confined to `cachedGrowthBookFeatures` across app restarts
+- no post-install capture of the resulting `~/.claude.json` shape has been taken yet on a fresh Claude Code session; Claude Code restart is a documented prerequisite and is not yet exercised against this lane
 
 Promotion test:
 
-1. confirm `claude --version` is callable from a child process launched by the installer on a representative machine
-2. run `claude mcp add anarchy-ai --scope user --transport stdio -- <abs-exe>`
-3. capture the resulting entry in `~/.claude.json`
-4. restart Claude Code and verify the MCP server launches and the harness tools are listed
+1. run `.\plugins\AnarchyAi.Setup.exe /install /userprofile /claudecode /silent /json` on a machine with a captured pre-install `~/.claude.json` baseline
+2. diff pre/post `~/.claude.json` and confirm exactly one new `mcpServers.<name>` entry with the expected `command`/`args`, no other user-owned `mcpServers` entries mutated, and a sibling `.claude.json.bak` present
+3. restart Claude Code and confirm the MCP server launches and harness tools are listed in the fresh session
+4. re-run the installer and confirm the action surfaces as `claude_code_user_scope_registration_noop` (dedup-by-name proves idempotency)
 
 ### E. Claude Desktop MCP registration via `claude_desktop_config.json`
 
+Status: **implemented, pending fresh-session verification.** The installer lane exists in code (`ClaudeDesktopLane.Register` plus `ClaudeDesktopInstallDetector`) and is gated on the `/claudedesktop` or `/allhosts` host-target flag. It remains `inferred` under the matrix taxonomy until the fresh-app repeatability check is captured on both MSIX and classic installs.
+
 Why this remains inferred:
 
-- MCP docs describe the Windows config path as `%APPDATA%\Claude\claude_desktop_config.json`, with an MSIX-virtualized alternate at `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json`
-- Anarchy-AI has not yet written or merged into either path; JSON-merge semantics for a file that may already contain user-owned `mcpServers` entries are unverified
-- Claude Desktop permission prompts are per-action rather than one-time; the user-visible impact of registering a new server has not been captured
+- the installer auto-detects MSIX vs classic Claude Desktop by directory existence (`%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude` and `%APPDATA%\Claude`) with MSIX-preferred tie-break, then merges into the active `claude_desktop_config.json` via the same read-merge-write path as lane D
+- baseline captures confirm that on this machine both paths are populated with byte-identical content (file redirection from a single MSIX install, not two independent installs) and that `claude_desktop_config.json` is stable across restarts
+- no post-install capture has been taken yet on either a fresh MSIX app restart or on a machine with a classic (non-MSIX) install; Claude Desktop has no hot-reload for `mcpServers`, and an open upstream issue can cause older MSIX builds to ignore `mcpServers` entries even when correctly placed -- the installer surfaces this caveat in the disclosure, but its reach on this machine's MSIX build is untested
 
 Promotion test:
 
-1. install on a Store/MSIX Claude Desktop machine and on a non-MSIX machine
-2. merge (not overwrite) the Anarchy entry into `claude_desktop_config.json`
-3. restart Claude Desktop
-4. verify Anarchy tools appear and a pre-existing unrelated MCP entry is still intact
+1. on an MSIX Claude Desktop machine: run `.\plugins\AnarchyAi.Setup.exe /install /userprofile /claudedesktop /silent /json`, diff pre/post `claude_desktop_config.json` at the resolved active path, confirm the new `mcpServers.<name>` entry coexists with any pre-existing unrelated entry, and confirm a sibling `.bak` exists
+2. fully quit Claude Desktop (including the tray process) and relaunch; confirm Anarchy tools appear; if they do not, capture the current MSIX build version and cross-reference the upstream ignore-`mcpServers` issue
+3. repeat on a classic (non-MSIX) Claude Desktop machine and confirm the detector selects the `%APPDATA%\Claude` path
+4. re-run the installer on each machine and confirm the action surfaces as `claude_desktop_registration_noop`; on a machine with no Claude Desktop install, confirm the action surfaces as `claude_desktop_registration_skipped_no_install_detected`
 
 ## Portability Posture
 
@@ -242,14 +246,14 @@ Current status:
 
 - Codex home-local: proven for the documented personal marketplace lane
 - Codex repo-local: Codex-documented on disk, plugin surface unobserved (see inferred item C -- currently treated as unproven)
-- Claude Code: planned Pass 2, unverified (see inferred item D)
-- Claude Desktop: planned Pass 2, unverified (see inferred item E)
+- Claude Code: Pass 2 implemented, pending verification (see inferred item D -- installer writes `~/.claude.json` but fresh-session check is not yet captured)
+- Claude Desktop: Pass 2 implemented, pending verification (see inferred item E -- installer writes the detected `claude_desktop_config.json` but fresh-app check on both MSIX and classic is not yet captured)
 - Cursor and other hosts: out of current scope
 
 Why:
 
 - current proven evidence in this repo is from Codex home-local only
-- Claude Code and Claude Desktop installer lanes exist only as greyed-out placeholders in the setup GUI until Pass 2 promotes them through the matrix
+- Claude Code and Claude Desktop installer lanes now ship as opt-in host targets (`/claudecode`, `/claudedesktop`, `/allhosts`) and are selectable from live GUI checkboxes; they remain inferred until promotion tests D and E are captured on representative machines
 
 ### 2. Agent-session portability
 

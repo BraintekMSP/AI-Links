@@ -33,6 +33,54 @@ internal enum InstallScope
     UserProfile
 }
 
+// Purpose: Declares the host registration surfaces the installer can target in a single run.
+// Expected input: Selection from CLI switches (/codex, /claudecode, /claudedesktop) or GUI host checkboxes.
+// Expected output: A flags bitmask describing every host lane the current run should register with.
+// Critical dependencies: SetupEngine host-lane dispatch and disclosure text construction.
+[Flags]
+internal enum HostTargets
+{
+    None = 0,
+    Codex = 1 << 0,
+    ClaudeCode = 1 << 1,
+    ClaudeDesktop = 1 << 2
+}
+
+// Purpose: Renders HostTargets flag combinations into stable string labels for disclosure, JSON output, and help text.
+// Expected input: A HostTargets bitmask value.
+// Expected output: Canonical short labels ("codex", "claude_code", "claude_desktop") per selected flag.
+// Critical dependencies: SetupResult JSON contract and disclosure text construction.
+internal static class HostTargetLabels
+{
+    public const string CodexLabel = "codex";
+    public const string ClaudeCodeLabel = "claude_code";
+    public const string ClaudeDesktopLabel = "claude_desktop";
+
+    public static string[] ToLabelArray(HostTargets targets)
+    {
+        var labels = new List<string>(3);
+        if (targets.HasFlag(HostTargets.Codex)) { labels.Add(CodexLabel); }
+        if (targets.HasFlag(HostTargets.ClaudeCode)) { labels.Add(ClaudeCodeLabel); }
+        if (targets.HasFlag(HostTargets.ClaudeDesktop)) { labels.Add(ClaudeDesktopLabel); }
+        return labels.ToArray();
+    }
+
+    public static string ToDisplayString(HostTargets targets)
+    {
+        var labels = ToLabelArray(targets);
+        if (labels.Length == 0) { return "(none)"; }
+        return string.Join(" + ", labels.Select(DisplayFor));
+    }
+
+    public static string DisplayFor(string label) => label switch
+    {
+        CodexLabel => "Codex",
+        ClaudeCodeLabel => "Claude Code",
+        ClaudeDesktopLabel => "Claude Desktop",
+        _ => label
+    };
+}
+
 // Purpose: Carries normalized setup inputs from the CLI or GUI into the execution engine.
 // Expected input: Parsed mode, install lane, optional repo/source values, and output-mode flags.
 // Expected output: An immutable options object consumed by SetupEngine.
@@ -42,6 +90,7 @@ internal sealed class SetupOptions
     public OperationMode Mode { get; init; } = OperationMode.Assess;
     public InstallScope InstallScope { get; init; } = InstallScope.RepoLocal;
     public string HostContext { get; init; } = "codex";
+    public HostTargets HostTargets { get; init; } = HostTargets.Codex;
     public bool Silent { get; init; }
     public bool JsonOutput { get; init; }
     public bool RefreshPortableSchemaFamily { get; init; }
@@ -59,6 +108,7 @@ internal sealed class SetupResult
     public required string bootstrap_state { get; init; }
     public required string registration_mode { get; init; }
     public required string host_context { get; init; }
+    public required string[] host_targets { get; init; }
     public required string install_scope { get; init; }
     public required bool update_requested { get; init; }
     public required string update_state { get; init; }
@@ -187,6 +237,9 @@ internal sealed class SetupForm : Form
     private Label _subtitleLabel = null!;
     private readonly RadioButton _repoLocalRadioButton;
     private readonly RadioButton _userProfileRadioButton;
+    private readonly CheckBox _codexHostCheckBox;
+    private readonly CheckBox _claudeCodeHostCheckBox;
+    private readonly CheckBox _claudeDesktopHostCheckBox;
     private readonly Button _assessButton;
     private readonly Button _installButton;
     private readonly Button _browseButton;
@@ -334,30 +387,35 @@ internal sealed class SetupForm : Form
             FlowDirection = FlowDirection.TopDown,
             WrapContents = false
         };
-        hostTargetFlow.Controls.Add(new RadioButton
+        _codexHostCheckBox = new CheckBox
         {
             AutoSize = true,
-            Text = "Codex (current)",
+            Text = "Codex",
             Checked = true,
             Enabled = true,
             Margin = new Padding(0, 2, 0, 4)
-        });
-        hostTargetFlow.Controls.Add(new RadioButton
+        };
+        hostTargetFlow.Controls.Add(_codexHostCheckBox);
+
+        _claudeCodeHostCheckBox = new CheckBox
         {
             AutoSize = true,
-            Text = "Claude Code (planned)",
+            Text = "Claude Code (user scope; unverified on this machine)",
             Checked = false,
-            Enabled = false,
+            Enabled = true,
             Margin = new Padding(0, 2, 0, 4)
-        });
-        hostTargetFlow.Controls.Add(new RadioButton
+        };
+        hostTargetFlow.Controls.Add(_claudeCodeHostCheckBox);
+
+        _claudeDesktopHostCheckBox = new CheckBox
         {
             AutoSize = true,
-            Text = "Claude Desktop (planned)",
+            Text = "Claude Desktop (auto-detected install; unverified on this machine)",
             Checked = false,
-            Enabled = false,
+            Enabled = true,
             Margin = new Padding(0, 2, 0, 0)
-        });
+        };
+        hostTargetFlow.Controls.Add(_claudeDesktopHostCheckBox);
         hostTargetGroup.Controls.Add(hostTargetFlow);
         rootPanel.Controls.Add(hostTargetGroup, 0, 3);
 
@@ -678,12 +736,14 @@ internal sealed class SetupForm : Form
         {
             var installScope = GetSelectedInstallScope();
             var effectiveRepoPath = GetEffectiveRepoPath();
+            var selectedHostTargets = GetSelectedHostTargets();
             if (mode == OperationMode.Install)
             {
                 var disclosure = new InstallDisclosureForm(
                     effectiveRepoPath,
-                    SetupEngine.BuildInstallDisclosure(effectiveRepoPath, installScope),
-                    installScope);
+                    SetupEngine.BuildInstallDisclosure(effectiveRepoPath, installScope, selectedHostTargets),
+                    installScope,
+                    selectedHostTargets);
 
                 if (disclosure.ShowDialog(this) != DialogResult.OK)
                 {
@@ -698,6 +758,7 @@ internal sealed class SetupForm : Form
                 Mode = mode,
                 InstallScope = installScope,
                 HostContext = "codex",
+                HostTargets = selectedHostTargets,
                 RepoPath = effectiveRepoPath
             });
 
@@ -720,6 +781,19 @@ internal sealed class SetupForm : Form
     private InstallScope GetSelectedInstallScope()
     {
         return _userProfileRadioButton.Checked ? InstallScope.UserProfile : InstallScope.RepoLocal;
+    }
+
+    // Purpose: Resolves the selected host targets from the host-target checkbox group.
+    // Expected input: Current checkbox state of Codex, Claude Code, and Claude Desktop host toggles.
+    // Expected output: A HostTargets bitmask describing every host lane the current GUI run should register.
+    // Critical dependencies: The host-target checkbox controls and the default-to-Codex fallback when all are unchecked.
+    private HostTargets GetSelectedHostTargets()
+    {
+        var targets = HostTargets.None;
+        if (_codexHostCheckBox.Checked) { targets |= HostTargets.Codex; }
+        if (_claudeCodeHostCheckBox.Checked) { targets |= HostTargets.ClaudeCode; }
+        if (_claudeDesktopHostCheckBox.Checked) { targets |= HostTargets.ClaudeDesktop; }
+        return targets == HostTargets.None ? HostTargets.Codex : targets;
     }
 
     // Purpose: Refreshes action-button labels and lane-specific explanatory UI when the selected install lane changes.
@@ -815,10 +889,10 @@ internal sealed class SetupForm : Form
 internal sealed class InstallDisclosureForm : Form
 {
     // Purpose: Builds the modal disclosure dialog for a pending install action.
-    // Expected input: Repo-path context, disclosure text, and the chosen install scope.
+    // Expected input: Repo-path context, disclosure text, chosen install scope, and chosen host targets.
     // Expected output: A ready-to-show modal form instance.
     // Critical dependencies: Generated disclosure text, SetupWindowIcon, and Windows Forms layout controls.
-    public InstallDisclosureForm(string repoPath, string disclosureText, InstallScope installScope)
+    public InstallDisclosureForm(string repoPath, string disclosureText, InstallScope installScope, HostTargets hostTargets)
     {
         Text = "Install Disclosure";
         Width = 920;
@@ -864,7 +938,7 @@ internal sealed class InstallDisclosureForm : Form
             BackColor = System.Drawing.SystemColors.Control,
             Dock = DockStyle.Top,
             Height = 74,
-            Text = $"Target repo:{Environment.NewLine}{repoPath}{Environment.NewLine}Install lane:{Environment.NewLine}{(installScope == InstallScope.UserProfile ? "User-profile" : "Repo-local")}",
+            Text = $"Target repo:{Environment.NewLine}{repoPath}{Environment.NewLine}Install lane:{Environment.NewLine}{(installScope == InstallScope.UserProfile ? "User-profile" : "Repo-local")}{Environment.NewLine}Host targets:{Environment.NewLine}{HostTargetLabels.ToDisplayString(hostTargets)}",
             Margin = new Padding(0, 6, 0, 10),
             TabStop = false
         }, 0, 1);
@@ -1077,6 +1151,7 @@ internal static class CliParser
         var mode = OperationMode.Assess;
         var installScope = InstallScope.RepoLocal;
         var hostContext = "codex";
+        var hostTargets = HostTargets.None;
         var silent = false;
         var jsonOutput = false;
         var refreshPortableSchemaFamily = false;
@@ -1121,6 +1196,18 @@ internal static class CliParser
                 case "host":
                     hostContext = ReadValue(args, ref i, normalized);
                     break;
+                case "codex":
+                    hostTargets |= HostTargets.Codex;
+                    break;
+                case "claudecode":
+                    hostTargets |= HostTargets.ClaudeCode;
+                    break;
+                case "claudedesktop":
+                    hostTargets |= HostTargets.ClaudeDesktop;
+                    break;
+                case "allhosts":
+                    hostTargets |= HostTargets.Codex | HostTargets.ClaudeCode | HostTargets.ClaudeDesktop;
+                    break;
                 case "sourcepath":
                     updateSourcePath = ReadValue(args, ref i, normalized);
                     break;
@@ -1132,11 +1219,18 @@ internal static class CliParser
             }
         }
 
+        // Default to Codex when no host flag supplied, preserving prior single-host behavior.
+        if (hostTargets == HostTargets.None)
+        {
+            hostTargets = HostTargets.Codex;
+        }
+
         return new SetupOptions
         {
             Mode = mode,
             InstallScope = installScope,
             HostContext = hostContext,
+            HostTargets = hostTargets,
             Silent = silent,
             JsonOutput = jsonOutput,
             RefreshPortableSchemaFamily = refreshPortableSchemaFamily,
@@ -1242,10 +1336,10 @@ internal sealed class SetupEngine
     }
 
     // Purpose: Builds the plain-text install disclosure shown before a GUI install continues.
-    // Expected input: Optional repo path and the selected install lane.
+    // Expected input: Optional repo path, selected install lane, and selected host targets.
     // Expected output: A bounded disclosure string describing destination paths, tool count, and actor impact.
     // Critical dependencies: BuildInstallRootLabel, BuildPluginFolderLabel, BuildMarketplacePathLabel, and the current install contract.
-    public static string BuildInstallDisclosure(string repoPath, InstallScope installScope)
+    public static string BuildInstallDisclosure(string repoPath, InstallScope installScope, HostTargets hostTargets)
     {
         var hasWorkspaceTarget = !string.IsNullOrWhiteSpace(repoPath);
         var targetRepo = string.IsNullOrWhiteSpace(repoPath)
@@ -1279,9 +1373,24 @@ internal sealed class SetupEngine
             "- Current GUI install does not rewrite AGENTS.md."
         };
 
-        if (installScope == InstallScope.RepoLocal)
+        if (installScope == InstallScope.RepoLocal && hostTargets.HasFlag(HostTargets.Codex))
         {
-            disclosureLines.Add("- Repo-local caveat: the installer writes the Codex-documented repo-local shape (marketplace.json + plugins/ bundle), but this lane has not yet been observed producing a callable plugin in Codex's plugin surface. The direct MCP server surface is the only observed working path, and cross-machine / cross-session verification is stale. Treat repo-local as unproven until a promotion test lands in the Environment Truth Matrix. The bundled runtime is also per-machine, so a committed marketplace entry does not carry a working runtime to collaborators.");
+            disclosureLines.Add("- Repo-local Codex caveat: the installer writes the Codex-documented repo-local shape (marketplace.json + plugins/ bundle), but this lane has not yet been observed producing a callable plugin in Codex's plugin surface. The direct MCP server surface is the only observed working path, and cross-machine / cross-session verification is stale. Treat repo-local as unproven until a promotion test lands in the Environment Truth Matrix. The bundled runtime is also per-machine, so a committed marketplace entry does not carry a working runtime to collaborators.");
+        }
+
+        disclosureLines.Add($"- Host targets: {HostTargetLabels.ToDisplayString(hostTargets)}.");
+
+        if (hostTargets.HasFlag(HostTargets.ClaudeCode))
+        {
+            disclosureLines.Add($"- Claude Code lane: adds an mcpServers.{BuildMcpServerName()} entry to ~/.claude.json at user scope (read-merge-write; creates a .bak on first modification). Unverified on this machine -- needs a promotion test in the Truth Matrix before it is treated as proven.");
+            disclosureLines.Add("- Claude Code restart: the running Claude Code session must be restarted for the new MCP server to appear.");
+        }
+
+        if (hostTargets.HasFlag(HostTargets.ClaudeDesktop))
+        {
+            disclosureLines.Add($"- Claude Desktop lane: auto-detects MSIX vs classic install and merges mcpServers.{BuildMcpServerName()} into the active claude_desktop_config.json (read-merge-write; creates a .bak on first modification; no-op when no install is detected). Unverified on this machine -- needs a promotion test in the Truth Matrix before it is treated as proven.");
+            disclosureLines.Add("- Claude Desktop restart: the full app (including the tray process) must be quit and relaunched; Claude Desktop has no hot-reload for mcpServers.");
+            disclosureLines.Add("- Claude Desktop MSIX caveat: an open upstream issue can cause older MSIX builds to ignore mcpServers entries even when placed correctly; if the entry does not appear after restart, update Claude Desktop and retry.");
         }
 
         if (hasWorkspaceTarget)
@@ -1337,9 +1446,9 @@ internal sealed class SetupEngine
             AnarchyBranding.SetupDisplayName,
             string.Empty,
             "Usage:",
-            "  AnarchyAi.Setup.exe /assess [/repolocal|/userprofile] [/repo <path>] [/json] [/silent]",
-            "  AnarchyAi.Setup.exe /install [/repolocal|/userprofile] [/repo <path>] [/refreshschemas] [/json] [/silent]",
-            "  AnarchyAi.Setup.exe /update [/repolocal|/userprofile] [/repo <path>] [/sourcepath <path>] [/sourceurl <url>] [/refreshschemas] [/json] [/silent]",
+            "  AnarchyAi.Setup.exe /assess [/repolocal|/userprofile] [/repo <path>] [/codex] [/claudecode] [/claudedesktop] [/allhosts] [/json] [/silent]",
+            "  AnarchyAi.Setup.exe /install [/repolocal|/userprofile] [/repo <path>] [/codex] [/claudecode] [/claudedesktop] [/allhosts] [/refreshschemas] [/json] [/silent]",
+            "  AnarchyAi.Setup.exe /update [/repolocal|/userprofile] [/repo <path>] [/codex] [/claudecode] [/claudedesktop] [/allhosts] [/sourcepath <path>] [/sourceurl <url>] [/refreshschemas] [/json] [/silent]",
             "  AnarchyAi.Setup.exe /? | -? | /h | -h | /help | -help | --help | --?",
             string.Empty,
             "Availability:",
@@ -1355,7 +1464,9 @@ internal sealed class SetupEngine
             $"- /userprofile registers {BuildPluginName(InstallScope.UserProfile, resolvedRepo)} for the current user profile.",
             $"- /userprofile uses the Codex-native plugin marketplace lane rather than requiring a custom mcp_servers.{BuildMcpServerName()} block.",
             "- /repolocal places the runtime binary under the target repo's plugins folder on this machine; collaborators need their own install to get a working runtime even when the marketplace entry is committed.",
-            "- Claude Code and Claude Desktop host lanes are planned for a later pass; setup currently targets Codex only.",
+            "- Host targets default to Codex when no /codex|/claudecode|/claudedesktop|/allhosts flag is passed; multiple host flags combine (e.g. /codex /claudecode).",
+            $"- /claudecode adds an mcpServers.{BuildMcpServerName()} entry to ~/.claude.json at user scope (read-merge-write; creates a .bak on first modification). Requires a Claude Code restart. Unverified on this machine -- promotion pending.",
+            $"- /claudedesktop auto-detects MSIX vs classic Claude Desktop and merges mcpServers.{BuildMcpServerName()} into the active claude_desktop_config.json (read-merge-write; creates a .bak on first modification; no-op when no install is detected). Requires a full app restart; older MSIX builds may ignore mcpServers (upstream issue) -- update and retry. Unverified on this machine -- promotion pending.",
             $"- Makes {CoreToolNames.Length} core + {ExperimentalToolNames.Length} test harness tool available to supported hosts.",
             "- Does not rewrite AGENTS.md.",
             schemaSeedingLine,
@@ -1370,7 +1481,11 @@ internal sealed class SetupEngine
             "  /refreshschemas         Force-refresh the portable schema family into repo root.",
             "  /json                   Emit JSON result for assess/install/update operations.",
             "  /silent                 Suppress GUI/prompt behavior for CLI use.",
-            "  /host <name>            Carry host context such as codex, claude, cursor, or generic."
+            "  /host <name>            Carry host context such as codex, claude, cursor, or generic.",
+            "  /codex                  Target the Codex host lane (default when no host flag is passed).",
+            "  /claudecode             Target the Claude Code user-scope lane (~/.claude.json).",
+            "  /claudedesktop          Target the Claude Desktop lane (MSIX or classic claude_desktop_config.json).",
+            "  /allhosts               Target every implemented host lane at once (Codex + Claude Code + Claude Desktop)."
         };
 
         return string.Join(Environment.NewLine, lines);
@@ -1407,10 +1522,42 @@ internal sealed class SetupEngine
         {
             try
             {
+                // Runtime bundle + plugin-bundle-integrity steps are prerequisites for every host lane, so they run unconditionally.
                 ExtractEmbeddedPluginBundle(pluginRoot, actionsTaken);
                 EnsurePluginManifestIdentity(pluginManifestPath, options.InstallScope, workspaceRoot, actionsTaken);
                 EnsurePluginMcpConfiguration(mcpPath, actionsTaken);
-                EnsureMarketplaceRegistration(marketplacePath, options.InstallScope, workspaceRoot, actionsTaken);
+
+                // Codex lane: plugin marketplace registration only runs when the Codex host is selected.
+                if (options.HostTargets.HasFlag(HostTargets.Codex))
+                {
+                    EnsureMarketplaceRegistration(marketplacePath, options.InstallScope, workspaceRoot, actionsTaken);
+                }
+                else
+                {
+                    actionsTaken.Add("codex_marketplace_registration_skipped_host_not_selected");
+                }
+
+                // Claude Code lane: write mcpServers entry to ~/.claude.json at user scope.
+                if (options.HostTargets.HasFlag(HostTargets.ClaudeCode))
+                {
+                    ClaudeCodeUserScopeLane.Register(
+                        serverName: BuildMcpServerName(),
+                        commandPath: runtimePath,
+                        args: null,
+                        env: null,
+                        actionsTaken: actionsTaken);
+                }
+
+                // Claude Desktop lane: detect MSIX vs classic install and merge mcpServers into the active config.
+                if (options.HostTargets.HasFlag(HostTargets.ClaudeDesktop))
+                {
+                    ClaudeDesktopLane.Register(
+                        serverName: BuildMcpServerName(),
+                        commandPath: runtimePath,
+                        args: null,
+                        env: null,
+                        actionsTaken: actionsTaken);
+                }
 
                 if (string.IsNullOrWhiteSpace(workspaceRoot))
                 {
@@ -1449,7 +1596,36 @@ internal sealed class SetupEngine
                 updateSourceRoot = RefreshFromUpdateSource(pluginRoot, workspaceRoot, options, actionsTaken, updateNotes);
                 EnsurePluginManifestIdentity(pluginManifestPath, options.InstallScope, workspaceRoot, actionsTaken);
                 EnsurePluginMcpConfiguration(mcpPath, actionsTaken);
-                EnsureMarketplaceRegistration(marketplacePath, options.InstallScope, workspaceRoot, actionsTaken);
+
+                if (options.HostTargets.HasFlag(HostTargets.Codex))
+                {
+                    EnsureMarketplaceRegistration(marketplacePath, options.InstallScope, workspaceRoot, actionsTaken);
+                }
+                else
+                {
+                    actionsTaken.Add("codex_marketplace_registration_skipped_host_not_selected");
+                }
+
+                if (options.HostTargets.HasFlag(HostTargets.ClaudeCode))
+                {
+                    ClaudeCodeUserScopeLane.Register(
+                        serverName: BuildMcpServerName(),
+                        commandPath: runtimePath,
+                        args: null,
+                        env: null,
+                        actionsTaken: actionsTaken);
+                }
+
+                if (options.HostTargets.HasFlag(HostTargets.ClaudeDesktop))
+                {
+                    ClaudeDesktopLane.Register(
+                        serverName: BuildMcpServerName(),
+                        commandPath: runtimePath,
+                        args: null,
+                        env: null,
+                        actionsTaken: actionsTaken);
+                }
+
                 updateState = "completed";
             }
             catch (IOException ex) when (IsRuntimeLockException(ex))
@@ -1650,6 +1826,7 @@ internal sealed class SetupEngine
             bootstrap_state = bootstrapState,
             registration_mode = registrationMode,
             host_context = normalizedHostContext,
+            host_targets = HostTargetLabels.ToLabelArray(options.HostTargets),
             install_scope = options.InstallScope == InstallScope.UserProfile ? "user_profile" : "repo_local",
             update_requested = updateRequested,
             update_state = updateState,
@@ -3214,5 +3391,360 @@ internal sealed class TempDirectory : IDisposable
         catch
         {
         }
+    }
+}
+
+// Purpose: Detects which Claude Desktop install (MSIX Store build or classic standalone) is present on the current user profile.
+// Expected input: Current user profile filesystem state; no caller data.
+// Expected output: A bounded InstallKind value plus the resolved config path for the detected install.
+// Critical dependencies: Directory.Exists checks against the two documented Claude Desktop config roots. Detection intentionally
+// avoids shelling out to Get-AppxPackage or touching the registry so the installer stays free of PowerShell and elevation assumptions.
+internal static class ClaudeDesktopInstallDetector
+{
+    internal enum InstallKind
+    {
+        None,
+        Classic,
+        Msix,
+        Both
+    }
+
+    // Purpose: Resolves the MSIX Claude Desktop LocalCache Roaming directory on the current user profile.
+    // Expected input: None; reads the LocalApplicationData special folder.
+    // Expected output: Absolute path to the MSIX LocalCache Roaming\Claude directory (whether or not it currently exists).
+    // Critical dependencies: Environment.GetFolderPath and the fixed MSIX package family name Claude_pzs8sxrjxfjjc.
+    public static string GetMsixClaudeDir()
+    {
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return Path.Combine(localAppData, "Packages", "Claude_pzs8sxrjxfjjc", "LocalCache", "Roaming", "Claude");
+    }
+
+    // Purpose: Resolves the classic Claude Desktop config directory on the current user profile.
+    // Expected input: None; reads the ApplicationData special folder.
+    // Expected output: Absolute path to the %APPDATA%\Claude directory (whether or not it currently exists).
+    // Critical dependencies: Environment.GetFolderPath and the classic Anthropic Claude install shape.
+    public static string GetClassicClaudeDir()
+    {
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        return Path.Combine(appData, "Claude");
+    }
+
+    // Purpose: Returns the claude_desktop_config.json path beneath a Claude Desktop root directory.
+    // Expected input: The directory returned by GetMsixClaudeDir or GetClassicClaudeDir.
+    // Expected output: Full path ending in claude_desktop_config.json.
+    // Critical dependencies: The documented Claude Desktop config file name.
+    public static string GetConfigPath(string claudeDir) => Path.Combine(claudeDir, "claude_desktop_config.json");
+
+    // Purpose: Detects which Claude Desktop install is present on the current user profile.
+    // Expected input: None; inspects the two documented Claude Desktop directories.
+    // Expected output: None, Classic, Msix, or Both per directory existence.
+    // Critical dependencies: Directory.Exists against the MSIX LocalCache Roaming\Claude and classic %APPDATA%\Claude paths.
+    public static InstallKind Detect()
+    {
+        var msix = Directory.Exists(GetMsixClaudeDir());
+        var classic = Directory.Exists(GetClassicClaudeDir());
+        if (msix && classic) { return InstallKind.Both; }
+        if (msix) { return InstallKind.Msix; }
+        if (classic) { return InstallKind.Classic; }
+        return InstallKind.None;
+    }
+
+    // Purpose: Resolves the active Claude Desktop config path for the detected install kind.
+    // Expected input: A InstallKind value.
+    // Expected output: Absolute path of the claude_desktop_config.json the installer should write, or null when no install is detected.
+    // Critical dependencies: GetMsixClaudeDir, GetClassicClaudeDir, and the documented MSIX-preferred-over-classic selection rule when both are present.
+    public static string? ResolveActiveConfigPath(InstallKind kind)
+    {
+        return kind switch
+        {
+            InstallKind.Msix => GetConfigPath(GetMsixClaudeDir()),
+            InstallKind.Classic => GetConfigPath(GetClassicClaudeDir()),
+            // Both-present tie-break prefers the MSIX path because the current default Claude Desktop download is the MSIX build;
+            // the classic %APPDATA%\Claude directory is often a stale seed or post-uninstall residue rather than an active install.
+            InstallKind.Both => GetConfigPath(GetMsixClaudeDir()),
+            _ => null
+        };
+    }
+
+    // Purpose: Returns a short human-readable label for the detected install kind.
+    // Expected input: A InstallKind value.
+    // Expected output: A stable short label for JSON output and disclosure text.
+    // Critical dependencies: SetupResult actions-taken contract and disclosure wording.
+    public static string ToLabel(InstallKind kind) => kind switch
+    {
+        InstallKind.Msix => "msix",
+        InstallKind.Classic => "classic",
+        InstallKind.Both => "both_msix_preferred",
+        _ => "none"
+    };
+}
+
+// Purpose: Provides shared read-merge-write helpers for Claude Code and Claude Desktop JSON config edits.
+// Expected input: Absolute paths to Claude host config files and the JSON object the installer wants to merge in.
+// Expected output: Tolerant JSON parsing (comments, trailing commas, empty, missing), atomic writes, and first-time backups.
+// Critical dependencies: System.Text.Json and the on-disk Claude host config contracts.
+internal static class ClaudeHostConfigWriter
+{
+    // Purpose: Reads a Claude host config file and returns its root JsonObject, creating an empty one when missing or malformed.
+    // Expected input: Absolute path to a claude_desktop_config.json or .claude.json file.
+    // Expected output: A mutable JsonObject plus a boolean indicating whether the file existed and parsed as an object.
+    // Critical dependencies: System.Text.Json with comment skipping and trailing-comma tolerance to match Claude Desktop user-edited files.
+    public static (JsonObject Root, bool FileExistedAndParsed) ReadTolerant(string configPath)
+    {
+        if (!File.Exists(configPath))
+        {
+            return (new JsonObject(), false);
+        }
+
+        string raw;
+        try
+        {
+            raw = File.ReadAllText(configPath);
+        }
+        catch
+        {
+            return (new JsonObject(), false);
+        }
+
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return (new JsonObject(), false);
+        }
+
+        try
+        {
+            var documentOptions = new JsonDocumentOptions
+            {
+                CommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true
+            };
+            using var doc = JsonDocument.Parse(raw, documentOptions);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return (new JsonObject(), false);
+            }
+
+            var rootNode = JsonNode.Parse(doc.RootElement.GetRawText());
+            return rootNode is JsonObject obj ? (obj, true) : (new JsonObject(), false);
+        }
+        catch (JsonException)
+        {
+            return (new JsonObject(), false);
+        }
+    }
+
+    // Purpose: Ensures an object-shaped child exists under the given key on the supplied parent.
+    // Expected input: A parent JsonObject and the desired key.
+    // Expected output: The existing JsonObject at that key, or a newly attached empty JsonObject when missing or wrong-typed.
+    // Critical dependencies: System.Text.Json.Nodes.
+    public static JsonObject EnsureObjectChild(JsonObject parent, string key)
+    {
+        if (parent[key] is JsonObject existing)
+        {
+            return existing;
+        }
+
+        var created = new JsonObject();
+        parent[key] = created;
+        return created;
+    }
+
+    // Purpose: Writes a Claude host config file atomically, creating a one-time .bak backup the first time the installer modifies it.
+    // Expected input: Absolute config path, the mutated root JsonObject, and whether the original file existed.
+    // Expected output: No return value; temp-file write plus File.Replace so a mid-write crash cannot corrupt the existing file.
+    // Critical dependencies: File.Replace for atomic rename, UTF-8 without BOM encoding, and the documented Claude host config contract.
+    public static void WriteAtomic(string configPath, JsonObject root, bool originalFileExisted)
+    {
+        var directory = Path.GetDirectoryName(configPath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        var serializerOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+        var content = root.ToJsonString(serializerOptions);
+
+        var backupPath = configPath + ".bak";
+        if (originalFileExisted && !File.Exists(backupPath))
+        {
+            try
+            {
+                File.Copy(configPath, backupPath, overwrite: false);
+            }
+            catch
+            {
+                // Backup is best-effort. The atomic replace below still protects the live file from mid-write corruption.
+            }
+        }
+
+        var tempPath = configPath + ".anarchy-tmp";
+        File.WriteAllText(tempPath, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+        if (File.Exists(configPath))
+        {
+            // File.Replace requires the destination to exist; it performs an atomic swap on Windows.
+            File.Replace(tempPath, configPath, destinationBackupFileName: null);
+        }
+        else
+        {
+            File.Move(tempPath, configPath);
+        }
+    }
+
+    // Purpose: Determines whether an existing mcpServers entry already describes the Anarchy runtime at the expected command path.
+    // Expected input: The existing JsonObject entry and the command path the installer wants to register.
+    // Expected output: True when the entry's command matches the expected path case-insensitively, otherwise false.
+    // Critical dependencies: The documented Claude host stdio entry shape with a "command" string key.
+    public static bool EntryMatchesCommand(JsonObject entry, string expectedCommandPath)
+    {
+        if (entry["command"] is not JsonValue commandValue)
+        {
+            return false;
+        }
+
+        return commandValue.TryGetValue<string>(out var existingCommand)
+            && string.Equals(existingCommand, expectedCommandPath, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Purpose: Builds a fresh stdio entry JsonObject for a Claude host mcpServers map.
+    // Expected input: The absolute command path and optional args/env maps.
+    // Expected output: A JsonObject with "command", "args", and (when non-empty) "env" keys matching the documented stdio schema.
+    // Critical dependencies: The Claude Code and Claude Desktop stdio entry contracts.
+    public static JsonObject BuildStdioEntry(string commandPath, IReadOnlyList<string>? args, IReadOnlyDictionary<string, string>? env)
+    {
+        var entry = new JsonObject
+        {
+            ["command"] = commandPath
+        };
+
+        var argsArray = new JsonArray();
+        if (args is not null)
+        {
+            foreach (var arg in args)
+            {
+                argsArray.Add(arg);
+            }
+        }
+        entry["args"] = argsArray;
+
+        if (env is not null && env.Count > 0)
+        {
+            var envObj = new JsonObject();
+            foreach (var pair in env)
+            {
+                envObj[pair.Key] = pair.Value;
+            }
+            entry["env"] = envObj;
+        }
+
+        return entry;
+    }
+}
+
+// Purpose: Registers Anarchy-AI with Claude Code at user scope by merging an mcpServers entry into ~/.claude.json.
+// Expected input: The MCP runtime command path for this install plus the shared actions set from SetupEngine.Execute.
+// Expected output: An updated ~/.claude.json with a top-level mcpServers[anarchy-ai] entry plus a stable action-taken marker.
+// Critical dependencies: ClaudeHostConfigWriter for tolerant read-merge-write, and the documented Claude Code user-scope contract
+// (claude mcp add --scope user <name> -- <command>) whose on-disk shape this lane writes directly.
+internal static class ClaudeCodeUserScopeLane
+{
+    // Purpose: Returns the absolute path to ~/.claude.json on the current user profile.
+    // Expected input: None; reads the UserProfile special folder.
+    // Expected output: Absolute path ending in .claude.json.
+    // Critical dependencies: Environment.GetFolderPath and the documented Claude Code user-scope config location.
+    public static string GetUserScopeConfigPath()
+    {
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return Path.Combine(userProfile, ".claude.json");
+    }
+
+    // Purpose: Registers the Anarchy-AI MCP runtime with Claude Code at user scope.
+    // Expected input: The MCP server name, absolute runtime command path, optional args/env, and the shared actions-taken set.
+    // Expected output: No return value; mutates the config file and records an action label.
+    // Critical dependencies: ClaudeHostConfigWriter helpers and the documented ~/.claude.json top-level mcpServers contract.
+    public static void Register(
+        string serverName,
+        string commandPath,
+        IReadOnlyList<string>? args,
+        IReadOnlyDictionary<string, string>? env,
+        ISet<string> actionsTaken)
+    {
+        var configPath = GetUserScopeConfigPath();
+        var (root, fileExisted) = ClaudeHostConfigWriter.ReadTolerant(configPath);
+        var mcpServers = ClaudeHostConfigWriter.EnsureObjectChild(root, "mcpServers");
+
+        if (mcpServers[serverName] is JsonObject existingEntry)
+        {
+            if (ClaudeHostConfigWriter.EntryMatchesCommand(existingEntry, commandPath))
+            {
+                actionsTaken.Add("claude_code_user_scope_registration_noop");
+                return;
+            }
+
+            // Replace our own stale entry (matching name) with the refreshed command path.
+            mcpServers[serverName] = ClaudeHostConfigWriter.BuildStdioEntry(commandPath, args, env);
+            ClaudeHostConfigWriter.WriteAtomic(configPath, root, fileExisted);
+            actionsTaken.Add("claude_code_user_scope_registration_refreshed");
+            return;
+        }
+
+        mcpServers[serverName] = ClaudeHostConfigWriter.BuildStdioEntry(commandPath, args, env);
+        ClaudeHostConfigWriter.WriteAtomic(configPath, root, fileExisted);
+        actionsTaken.Add("claude_code_user_scope_registration_added");
+    }
+}
+
+// Purpose: Registers Anarchy-AI with Claude Desktop by merging an mcpServers entry into the detected claude_desktop_config.json.
+// Expected input: The MCP runtime command path for this install plus the shared actions set from SetupEngine.Execute.
+// Expected output: An updated Claude Desktop config plus a stable action-taken marker; a clean no-op when no install is detected.
+// Critical dependencies: ClaudeDesktopInstallDetector to pick the active config, ClaudeHostConfigWriter for safe read-merge-write,
+// and the documented Claude Desktop mcpServers stdio contract.
+internal static class ClaudeDesktopLane
+{
+    // Purpose: Registers the Anarchy-AI MCP runtime with Claude Desktop when an install is detected.
+    // Expected input: The MCP server name, absolute runtime command path, optional args/env, and the shared actions-taken set.
+    // Expected output: No return value; mutates the detected config file and records an action label per outcome.
+    // Critical dependencies: ClaudeDesktopInstallDetector and ClaudeHostConfigWriter helpers.
+    public static void Register(
+        string serverName,
+        string commandPath,
+        IReadOnlyList<string>? args,
+        IReadOnlyDictionary<string, string>? env,
+        ISet<string> actionsTaken)
+    {
+        var installKind = ClaudeDesktopInstallDetector.Detect();
+        actionsTaken.Add($"claude_desktop_install_detected_{ClaudeDesktopInstallDetector.ToLabel(installKind)}");
+
+        var configPath = ClaudeDesktopInstallDetector.ResolveActiveConfigPath(installKind);
+        if (configPath is null)
+        {
+            actionsTaken.Add("claude_desktop_registration_skipped_no_install_detected");
+            return;
+        }
+
+        var (root, fileExisted) = ClaudeHostConfigWriter.ReadTolerant(configPath);
+        var mcpServers = ClaudeHostConfigWriter.EnsureObjectChild(root, "mcpServers");
+
+        if (mcpServers[serverName] is JsonObject existingEntry)
+        {
+            if (ClaudeHostConfigWriter.EntryMatchesCommand(existingEntry, commandPath))
+            {
+                actionsTaken.Add("claude_desktop_registration_noop");
+                return;
+            }
+
+            mcpServers[serverName] = ClaudeHostConfigWriter.BuildStdioEntry(commandPath, args, env);
+            ClaudeHostConfigWriter.WriteAtomic(configPath, root, fileExisted);
+            actionsTaken.Add("claude_desktop_registration_refreshed");
+            return;
+        }
+
+        mcpServers[serverName] = ClaudeHostConfigWriter.BuildStdioEntry(commandPath, args, env);
+        ClaudeHostConfigWriter.WriteAtomic(configPath, root, fileExisted);
+        actionsTaken.Add("claude_desktop_registration_added");
     }
 }

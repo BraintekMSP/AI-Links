@@ -100,8 +100,8 @@ Current environment evidence discipline:
   - host-neutral marketplace plane (`.agents`)
   - home-local Codex install plane (`~/.agents/plugins/marketplace.json` -> `~/.codex/plugins/anarchy-ai`) -- proven
   - repo-local Codex install plane (`<repo>/.agents/plugins/marketplace.json` -> `<repo>/plugins/anarchy-ai-local-...`) -- Codex-documented, runtime is per-machine
-  - home-local Claude Code install plane (`claude mcp add --scope user -- <abs-exe>` writing `~/.claude.json`) -- planned, Pass 2
-  - home-local Claude Desktop install plane (JSON merge into `%APPDATA%\Claude\claude_desktop_config.json`, probe MSIX variant) -- planned, Pass 2
+  - home-local Claude Code install plane (direct read-merge-write into user-scope `~/.claude.json`, no `claude` CLI shellout) -- Pass 2 implemented, pending verification (see truth matrix item D)
+  - home-local Claude Desktop install plane (auto-detect MSIX vs classic install, read-merge-write into the active `claude_desktop_config.json`) -- Pass 2 implemented, pending verification (see truth matrix item E)
   - legacy Codex custom-MCP cleanup plane (`~/.codex/config.toml` stale `[mcp_servers.*]` removal) -- retained for migration only
   - runtime/tool plane (bundled `AnarchyAi.Mcp.Server.exe`)
 
@@ -164,10 +164,13 @@ Preferred next delivery direction:
 - repo-local install remains the default target
 - explicit alternate repo targeting remains available through `/repo`
 
-Pass 2 planned work (scaffolded in current installer, Host Target UI greyed out):
+Pass 2 implemented (pending promotion through the truth matrix):
 
-- Claude Code lane via `claude mcp add --scope user --transport stdio -- <abs-exe>` shellout with PATH discovery and deferred-write fallback
-- Claude Desktop lane via JSON-merge into `%APPDATA%\Claude\claude_desktop_config.json` with MSIX-path probing (`%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json`) and restart disclosure
+- host-target selection surface: `[Flags] HostTargets { Codex, ClaudeCode, ClaudeDesktop }` threaded through `SetupOptions`, the CLI (`/codex`, `/claudecode`, `/claudedesktop`, `/allhosts`; default Codex when none supplied), and live GUI checkboxes (replacing the Pass-1 greyed-out placeholders)
+- Claude Code lane: `ClaudeCodeUserScopeLane.Register` performs a direct read-merge-write against `~/.claude.json` rather than shelling out to the `claude` CLI; the shellout path was abandoned because the `claude` binary is not reliably on PATH for the installer process (it is commonly the Desktop app's embedded copy) and baseline evidence showed a clean stdio-compatible write surface
+- Claude Desktop lane: `ClaudeDesktopInstallDetector` disambiguates MSIX vs classic vs absent by directory existence on `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude` and `%APPDATA%\Claude`, with MSIX-preferred tie-break when both populated (single MSIX install with file redirection, not two independent installs); `ClaudeDesktopLane.Register` then merges into the resolved active config
+- shared write discipline for both Claude lanes: tolerant parse (`JsonCommentHandling.Skip` + `AllowTrailingCommas`), dedup-by-name (noop when the existing `command` already matches), `.bak` on first modification, UTF-8 no-BOM, atomic `File.Replace` swap, and per-action result codes (`..._noop` / `_refreshed` / `_added` / `_skipped_no_install_detected`)
+- disclosure + help text call out the restart requirement, the MSIX-ignore-`mcpServers` upstream caveat, and that both Claude lanes remain unverified on this machine
 
 Future work reserved for later delivery:
 

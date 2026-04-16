@@ -74,11 +74,11 @@ public sealed class SetupEngineTests
     /// Verifies that the install disclosure describes the Codex-native user-profile lane without reviving legacy custom-MCP wording.
     /// </summary>
     /// <returns>No direct return value; the method asserts disclosure content.</returns>
-    /// <remarks>Critical dependencies: <see cref="SetupEngine.BuildInstallDisclosure(string, InstallScope)"/> and the generated install copy.</remarks>
+    /// <remarks>Critical dependencies: <see cref="SetupEngine.BuildInstallDisclosure(string, InstallScope, HostTargets)"/> and the generated install copy.</remarks>
     [Fact]
     public void BuildInstallDisclosure_UserProfile_DescribesPluginMarketplaceLane()
     {
-        var disclosure = SetupEngine.BuildInstallDisclosure(string.Empty, InstallScope.UserProfile);
+        var disclosure = SetupEngine.BuildInstallDisclosure(string.Empty, InstallScope.UserProfile, HostTargets.Codex);
 
         Assert.Contains(@"~\.codex\plugins\anarchy-ai", disclosure);
         Assert.Contains(@"~/.agents/plugins/marketplace.json".Replace('/', Path.DirectorySeparatorChar), disclosure);
@@ -109,7 +109,7 @@ public sealed class SetupEngineTests
     [Fact]
     public void BuildInstallDisclosure_ReportsCoreAndTestToolCounts()
     {
-        var disclosure = SetupEngine.BuildInstallDisclosure(string.Empty, InstallScope.UserProfile);
+        var disclosure = SetupEngine.BuildInstallDisclosure(string.Empty, InstallScope.UserProfile, HostTargets.Codex);
 
         Assert.Contains("5 core + 1 test harness tool", disclosure, StringComparison.OrdinalIgnoreCase);
     }
