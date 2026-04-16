@@ -67,11 +67,11 @@ foreach ($t in $targets) {
     $manifest.files[$t.Key] = $entry
 }
 
-# Claude CLI discovery (read-only)
-$whereClaude = & where.exe claude 2>$null
-if ($LASTEXITCODE -eq 0 -and $whereClaude) {
+# Claude CLI discovery (read-only, tolerate absence without aborting)
+$claudeCmd = Get-Command claude -ErrorAction SilentlyContinue
+if ($claudeCmd) {
     $manifest.claude_cli.on_path = $true
-    $manifest.claude_cli.where_output = $whereClaude
+    $manifest.claude_cli.where_output = $claudeCmd.Source
     Write-Host "  [found]    claude CLI on PATH" -ForegroundColor Green
     try {
         $claudeVersion = & claude --version 2>&1
