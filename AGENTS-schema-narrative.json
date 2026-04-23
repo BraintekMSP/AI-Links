@@ -28,6 +28,32 @@
       "process":           "narrative-beats and bad-patterns are critical -- these records reveal where internal workflows break down",
       "personal-project":  "record-state-at-review-open-and-close and open-threads are critical -- these records replace the memory of a solo creator working across long time gaps",
       "other":             "describe the entity and its primary parties -- the agent derives the relevant shape from that description"
+    },
+
+    "in-session-capture-triggers": {
+      "role": "rules that fire during an active work session to prevent ambient session state -- open lanes, reframes, observed patterns, proposed decisions -- from existing only in response tokens and evaporating at session end or context compression -- these rules are terrain-layer, not harness-enforced, and describe the shape the agent is expected to hold",
+      "why-this-exists": "the narrative schema's update-cadence (monthly, quarterly, transient) is calendar-based and its signal-cues are passive observations -- neither triggers during a productive session -- without these in-session triggers, a session that accumulates multiple proposals, reframes, or observed patterns loses everything that did not reach a named field before the session closed -- the failure mode is specifically the render-to-human step becoming the only materialization step",
+
+      "render-inversion-before-multi-lane-proposal": {
+        "rule": "when the agent is about to present more than one lane, proposal, decision, reframe, or open question to the human in a single response, those items must first be materialized into the narrative record's open-threads, known-decisions, or observed-patterns sections as appropriate -- the response then cites the record path and renders only a summary view of the materialized items",
+        "constraint": "the list must never exist only in the response tokens -- items that reach the human without first reaching the record are lost when context compresses or the session ends",
+        "what-counts-as-multi-lane": "two or more of: proposed actions awaiting human decision, reframes of existing concepts, observed patterns not yet recorded, open questions that the human is expected to answer, recommended next steps that branch -- if any combination of these reaches two or more in a single response, the rule fires",
+        "render-shape-when-rule-fires": "cite the record path -- list only the ids of materialized items and a one-line summary each -- the record holds the durable form, the response holds a view of the record"
+      },
+
+      "self-inspection-digest-trigger": {
+        "rule": "at any turn, if the agent could list more than one uncaptured open thread, reframe, or observed pattern accumulated in the current session, the next turn must open with a digest pass before new work",
+        "evaluation-method": "the agent evaluates this by asking itself: from the current session, how many items exist that belong in the narrative record but have not yet been written? if the answer is more than one, digest before continuing",
+        "what-the-digest-produces": "materialization of accumulated items into the narrative record's appropriate sections -- open-threads for unresolved proposals, known-decisions for choices made and confirmed, observed-patterns for recurring behaviors noticed in passing, entries for beats and reframes",
+        "why-self-inspection-not-counting": "a numeric cue-count threshold becomes ceremonial the moment agents start gaming the count -- self-inspection uses the agent's own summarization capability as the check and is harder to route around without noticing"
+      },
+
+      "enforcement-posture": {
+        "what-these-rules-are": "terrain -- they shape behavior by describing the shape the agent should hold, but they do not have harness-level interrupt power",
+        "what-these-rules-are-not": "walls -- nothing in the schema prevents an agent from rendering a multi-lane list without first materializing it, and nothing in the schema prevents a session from closing with accumulated uncaptured state",
+        "how-to-promote-to-walls": "pair these rules with Claude Code hooks -- or equivalent harness hooks in other deployments -- that run on UserPromptSubmit, Stop, or PostToolUse events and either inject reminders into context or block the action until the rule is satisfied -- the schema describes the shape, the harness is where enforcement lives -- this separation keeps the schema honest about what it can and cannot do",
+        "ships-with-schema": "example hook configuration is shipped alongside this schema in .claude/settings.json at the workspace root -- adopting deployments may copy, adapt, or replace it"
+      }
     }
   },
 

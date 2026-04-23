@@ -166,6 +166,25 @@
       "type": "thread-open",
       "summary": "2.2 / 4 layered model assessment parked -- the hypothesis that schemas currently sit at layer 2 and runtime-coupled state is layer 3 needs articulation before it shapes product direction -- not load-bearing for current decisions",
       "status": "open"
+    },
+    {
+      "id": "e014",
+      "date": "2026-04-23",
+      "type": "correction",
+      "summary": "corrects the framing of observed-patterns.bad related to 'skills sucks' -- the original framing implied the underlying position was anti-skills -- Mike's position is that skills are good but are not the right tool for terms specifically (terms are load-bearing by reference, block-read, negation-anchored; skills are optional by default and designed for discovery of capabilities) -- the failure mode being captured is glib dismissal as rationale, not a stance on skills as a feature -- original observed-pattern text preserved alongside this correction",
+      "superseded-by": "observed-patterns.bad[0] corrected text",
+      "status": "resolved"
+    },
+    {
+      "id": "e015",
+      "date": "2026-04-23",
+      "type": "decision",
+      "summary": "expensive-to-reopen, not impossible-to-reopen -- the guardrail-against-self feature works by raising the cost of reopening a closed decision, not by preventing reopening -- a human who has learned more and now believes they were wrong must be able to reverse a prior decision -- the record's job is to make the reversal visible and deliberate, not to block it -- when a decision is reversed, a new beat entry and a known-decisions update (reversed: true) are mandatory so the reversal is itself load-bearing",
+      "cast": {
+        "owner": "Mike Herring",
+        "finalized-by": "Mike Herring"
+      },
+      "status": "resolved"
     }
   ],
 
@@ -259,7 +278,7 @@
     ],
     "bad": [
       {
-        "description": "the glib BECAUSE -- the agent initially wrote rationale of the form 'because skills sucks' for rejecting terms-to-skills -- this fails the BECAUSE precision bar (a future agent could not cite this back and win the argument) -- captured here as the canonical example of insufficient BECAUSE precision",
+        "description": "the glib BECAUSE -- rationale written as dismissal instead of precise reasoning fails the BECAUSE precision bar (a future agent could not cite it back and win the argument) -- the canonical example from this session was a shorthand 'skills sucks' framing used for the terms-to-skills rejection, which was later corrected (see entry e014) -- the actual defensible rationale is the one recorded in d001: skills are optional by default and designed for capability discovery, terms are load-bearing by reference and depend on block-read cross-references, so converting fragments the ontology -- the pattern captured here is the shorthand, not any stance on skills as a feature -- skills are good, just not the right tool for terms specifically",
         "resolved": true,
         "tribal": false
       },

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "_comment": "Repo-level Claude Code settings for AI-Links. Ships the harness-layer companion for the narrative schema's in-session-capture-triggers. See AGENTS-schema-narrative.json meta.in-session-capture-triggers and Getting-Started-For-Humans.txt section 'SCHEMAS DESCRIBE, HARNESSES ENFORCE'.",
+
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo IN-SESSION CAPTURE REMINDER -- before presenting more than one lane, proposal, decision, reframe, or open question to the human, first materialize those items into narratives/projects/ai-links.json open-threads, known-decisions, or observed-patterns -- render only a citation plus a one-line summary per id -- if you could list more than one uncaptured item from the current session right now, open this turn with a digest pass before new work -- see AGENTS-schema-narrative.json meta.in-session-capture-triggers"
+          }
+        ]
+      }
+    ]
+  }
+}
