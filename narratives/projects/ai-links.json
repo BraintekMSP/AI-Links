@@ -15,13 +15,13 @@
     ],
     "cadence": "monthly",
     "status": "active",
-    "last-updated": "2026-04-22",
+    "last-updated": "2026-04-23",
     "owner": "Mike Herring"
   },
 
   "record-state-at-review-open-and-close": {
     "open": "cold-start authoring -- first write of this record -- prior decisions are being reconstructed from the current session's working memory and from already-persisted artifacts (schemas, Getting-Started-For-Humans.txt, scratchpads, pen test) -- detail that existed only in the session transcript and was never promoted into a durable artifact before this cold-start is captured here to the extent it can be reconstructed and marked tribal where only one account exists",
-    "close": "initial Arc record written -- captured the turning-point decisions of the current session (terms-to-skills rejected, vision split, AGENTS-Arc named, guardrail-against-self named as a product feature, BECAUSE precision bar defined) -- captured the two most durable observed patterns (pressure-test-against-live-artifact as a good pattern, the glib-BECAUSE as a bad pattern) -- open threads from the active plan are recorded so the next session front-loads them instead of rediscovering them -- next session should read this Arc before reading the scratchpads, because scratchpads were inputs to these decisions, not replacements for them"
+    "close": "Arc extended in the same session with the shipment of in-session-capture-triggers (rules A and B) and the paired UserPromptSubmit hook at .claude/settings.json -- the render-inversion rule was violated in the turn after shipment and caught by the human, which is recorded as a beat (e021) and a bad-pattern for the class 'shipment-session enforcement gap' -- new open-threads e016-e020 capture the four push-readiness gaps plus the one push-blocking governance-schema fix (what-done-looks-like-at-this-scope role text) -- known-decisions d007 records the A+B+hook shipment, d008 records the narrative-schema structural promotion -- next session inherits an active hook that injects the capture reminder every turn; whether the hook + schema rule together produce correct digest behavior is the pending test"
   },
 
   "entries": [
@@ -185,16 +185,65 @@
         "finalized-by": "Mike Herring"
       },
       "status": "resolved"
+    },
+    {
+      "id": "e016",
+      "date": "2026-04-23",
+      "type": "thread-open",
+      "summary": "in-session-capture-triggers live only in the narrative schema -- an agent working under 1project or governance does not learn about render-inversion or self-inspection digest -- decide whether the rule is narrative-specific or a cross-schema principle that should be surfaced from the meta block of every schema",
+      "status": "open"
+    },
+    {
+      "id": "e017",
+      "date": "2026-04-23",
+      "type": "thread-open",
+      "summary": "schema-to-harness cross-reference gap -- harness contracts (declare_proof_requirement, validate_exit_readiness, verify_config_materialization) exist in harness/contracts but no schema references them -- a deployment using the schemas alone never learns the gate layer exists -- consider adding a gate-layer-reference field to each schema's meta so the walls are discoverable from the terrain",
+      "status": "open"
+    },
+    {
+      "id": "e018",
+      "date": "2026-04-23",
+      "type": "thread-open",
+      "summary": "Arc use-case is not documented inside the narrative schema itself -- the personal-project entity type exists but the specific pattern of using narrative schema for a product's own longitudinal rationale (Arc) lives only in this pilot record and in commit messages -- a fresh deployment adopting the narrative schema gets client/vendor examples but not the second use-case that made the schema upstream -- consider adding Arc as an explicit use-case block in the narrative schema meta",
+      "status": "open"
+    },
+    {
+      "id": "e019",
+      "date": "2026-04-23",
+      "type": "thread-open",
+      "summary": ".claude/settings.json reference in Getting-Started points to the AI-Links workspace root -- for an adopting deployment that file does not yet exist -- the portable set (6 files) does not include settings.json by design, but the Getting-Started example wording may need a note that the hook is an optional deployment companion and must be created, not expected",
+      "status": "open"
+    },
+    {
+      "id": "e020",
+      "date": "2026-04-23",
+      "type": "thread-open",
+      "summary": "what-done-looks-like-at-this-scope role text in AGENTS-schema-governance.json is the one real drift risk surfaced by the recovery-vs-continuation audit -- the word 'done' carries session-close-shaped meaning without restraint from surrounding fields -- recommended pre-push fix: tighten role text to explicitly disown session-close and name it as a scope-level invariant that persists across sessions",
+      "status": "open"
+    },
+    {
+      "id": "e021",
+      "date": "2026-04-23",
+      "type": "beat",
+      "summary": "the A+B render-inversion rule was shipped this session and violated in the turn immediately after shipment -- the push-readiness answer rendered a four-item list without first materializing it to the Arc -- Mike caught the failure before the agent did -- this establishes the class: schema rules added in the same session where they are shipped are held only by agent discipline, because the harness hook fires on next session not current -- the rule-shipped-then-violated moment is the first real pen-test result for A+B, and it says: context-injection hooks on UserPromptSubmit are the right level of companion, but the agent must also self-check in the shipment session, because the hook is not yet active",
+      "beat": "rewrites the expectation that shipping a rule means the rule is in effect -- it is only in effect after the next session starts -- the authoring session itself is an enforcement gap that requires agent discipline alone",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "Mike Herring",
+        "finalized-by": "Mike Herring"
+      },
+      "status": "resolved"
+    },
+    {
+      "id": "e022",
+      "date": "2026-04-23",
+      "type": "thread-close",
+      "summary": "the recovery-vs-continuation language audit (e010) is closed -- audit completed this session, findings: the schemas are mostly continuation-grammar-safe; the one drift risk is what-done-looks-like-at-this-scope (now tracked as e020) -- audit itself is complete, the fix is tracked separately",
+      "status": "resolved"
     }
   ],
 
   "open-threads": [
-    {
-      "id": "e010",
-      "summary": "recovery-vs-continuation language audit across all schemas -- check whether recovery grammar legitimizes early exit in sub-goal-failure cases",
-      "opened-date": "2026-04-22",
-      "owner": "Mike Herring"
-    },
     {
       "id": "e011",
       "summary": "sync AI-Links schema/Getting-Started changes back to the TheLinks deployment",
@@ -203,14 +252,44 @@
     },
     {
       "id": "e012",
-      "summary": "model-narration concept -- schema-level field or principle capturing where process state lives (tokens vs artifacts)",
+      "summary": "model-narration concept -- schema-level field or principle capturing where process state lives (tokens vs artifacts) -- candidate rule: declare-fields must name their anchor artifact",
       "opened-date": "2026-04-22",
       "owner": "Mike Herring"
     },
     {
       "id": "e013",
-      "summary": "layered-model assessment (schemas as layer 2, runtime-coupled state as layer 3)",
+      "summary": "layered-model assessment (schemas as layer 2, runtime-coupled state as layer 3) -- holding as planning-surface vocabulary, not yet promoting to schema",
       "opened-date": "2026-04-22",
+      "owner": "Mike Herring"
+    },
+    {
+      "id": "e016",
+      "summary": "in-session-capture-triggers cross-schema applicability -- narrative-only or surface from every schema's meta?",
+      "opened-date": "2026-04-23",
+      "owner": "Mike Herring"
+    },
+    {
+      "id": "e017",
+      "summary": "schema-to-harness cross-reference -- surface gate-layer contracts from schema meta so walls are discoverable from terrain",
+      "opened-date": "2026-04-23",
+      "owner": "Mike Herring"
+    },
+    {
+      "id": "e018",
+      "summary": "document Arc use-case explicitly in narrative schema meta -- currently lives only in pilot record and commit messages",
+      "opened-date": "2026-04-23",
+      "owner": "Mike Herring"
+    },
+    {
+      "id": "e019",
+      "summary": ".claude/settings.json reference in Getting-Started needs adoption-friendly wording -- portable set does not include it, but the example points at it",
+      "opened-date": "2026-04-23",
+      "owner": "Mike Herring"
+    },
+    {
+      "id": "e020",
+      "summary": "what-done-looks-like-at-this-scope role-text tightening -- recommended pre-push fix, only known drift risk surfaced by audit",
+      "opened-date": "2026-04-23",
       "owner": "Mike Herring"
     }
   ],
@@ -258,6 +337,20 @@
       "decision": "AGENTS-Arc piloted with the narrative schema in AI-Links itself -- storage path narratives/projects/ai-links.json plus narratives/register.json -- JSON output per schema mandate",
       "decided-by": "Mike Herring",
       "reversed": false
+    },
+    {
+      "id": "d007",
+      "date": "2026-04-23",
+      "decision": "in-session-capture-triggers (render-inversion rule A, self-inspection digest rule B) added to narrative schema meta as terrain -- paired with a UserPromptSubmit hook in .claude/settings.json at repo root as the harness companion -- schema describes the shape, hook enforces at the edge of agent action -- shipped as the first worked example of the schemas-describe-harnesses-enforce separation",
+      "decided-by": "Mike Herring",
+      "reversed": false
+    },
+    {
+      "id": "d008",
+      "date": "2026-04-23",
+      "decision": "narrative schema promoted from reactive-stepchild to load-bearing upstream schema -- the promotion came from three concrete shifts: gained in-session triggers, got a harness companion, found a second use-case (Arc) -- not marketing, structural role change -- the narrative schema now governs rationale for changes to the other three schemas in any deployment that adopts the Arc pattern",
+      "decided-by": "Mike Herring",
+      "reversed": false
     }
   ],
 
@@ -285,6 +378,11 @@
       {
         "description": "agent-in-front-of-generous-mood-human reopens closed decisions -- the agent does not know the decision was closed for a specific reason, the human has lost the reason, the reframe sounds reasonable and the direction quietly reverses -- this failure is what guardrail-against-self / durable BECAUSE clauses exist to prevent -- recorded so the pattern stays visible",
         "resolved": false,
+        "tribal": false
+      },
+      {
+        "description": "shipment-session enforcement gap -- when a schema rule is added in the same session in which it becomes shippable, the paired harness hook does not fire until the next session starts -- this creates a window in which the rule is in effect but unenforced, and the agent that authored the rule must self-enforce it on the very next turn -- observed this session: A+B shipped, next turn rendered a four-item list without materializing to Arc, Mike caught it before the agent did -- the pattern is not an argument against shipping rules and hooks together, it is a reminder that the authoring session is the hardest session to follow the rule in, because the agent's attention is on shipment not on the rule's behavioral demand",
+        "resolved": true,
         "tribal": false
       }
     ]
