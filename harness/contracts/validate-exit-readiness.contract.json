@@ -1,0 +1,104 @@
+{
+  "contract_name": "validate_exit_readiness_contract",
+  "contract_version": "0.1.0",
+  "function_name": "validate_exit_readiness",
+  "purpose": "Mechanical gate that blocks 'agent decided it had enough to stop' when the work has not satisfied a previously declared proof requirement. Reads the record written by declare_proof_requirement, probes the workspace for each proof item, and returns a bounded readiness state with structured evidence and a required next action. Its specific job is to prevent the failure class in which recovery grammar for sub-goal failure silently becomes exit grammar for the overall objective -- the 'graceful-exit' drift documented in the assumption-failure pen test and the governance linguistic audit.",
+  "input_contract": {
+    "workspace_root": {
+      "type": "absolute_path",
+      "required": true,
+      "description": "Workspace root the exit check is evaluated against. Must match the workspace_root that was used when the proof requirement was declared; a mismatch is surfaced as a divergence, not silently tolerated."
+    },
+    "proof_requirement_id": {
+      "type": "string",
+      "required": true,
+      "description": "Identifier of the proof requirement record to validate against. Required -- the contract refuses to infer which record is meant. When no id is known, the correct move is to call declare_proof_requirement first (or report_to_human if no proof requirement has been agreed on)."
+    },
+    "exit_intent": {
+      "type": "string",
+      "required": false,
+      "description": "Optional plain-language statement of why the agent believes the work is ready to close. Echoed in the result so the stop-claim is preserved alongside structured evidence and cannot be silently edited during validation."
+    }
+  },
+  "output_contract": {
+    "exit_readiness_state": {
+      "type": "enum",
+      "values": [
+        "ready",
+        "blocked_by_unsatisfied_proof",
+        "blocked_by_missing_requirement_record",
+        "blocked_by_ambiguous_record",
+        "report_to_human"
+      ],
+      "description": "Bounded readiness result. 'ready' means every declared proof item was observed as required. 'blocked_by_unsatisfied_proof' means at least one proof item did not match observable state -- closing the session is not authorized. 'blocked_by_missing_requirement_record' means no record exists at proof_requirement_id; the agent must not invent one, it must call declare_proof_requirement or report to the human. 'blocked_by_ambiguous_record' means the record exists but is unreadable or shape-invalid; treat as a corrupted anchor rather than a permission to proceed. 'report_to_human' is the escape hatch when the gate itself cannot render a mechanical verdict (for example, workspace_root mismatch against the record's declared workspace)."
+    },
+    "proof_requirement_id": {
+      "type": "string",
+      "description": "The id of the record that was validated. Echoed so the readiness verdict is unambiguously tied to a specific record."
+    },
+    "proof_requirement_declared_at_utc": {
+      "type": "string",
+      "description": "The declared_at_utc value from the record. Surfaced here so a reviewer can see when the proof was declared versus when it was validated -- same-turn declare-and-validate patterns become visible and easy to flag."
+    },
+    "proof_requirement_objective": {
+      "type": "string",
+      "description": "The objective string from the record, returned verbatim. Keeps the original prose goal paired with the readiness verdict in a single payload."
+    },
+    "satisfied_proof_items": {
+      "type": "object_array",
+      "description": "Proof items from the record that were observed as required. Each entry includes: item_type, the original item fields, and an evidence field describing how the match was observed."
+    },
+    "unsatisfied_proof_items": {
+      "type": "object_array",
+      "description": "Proof items that were checked and did not match, or that could not be observed. Each entry includes: item_type, the original item fields, a status field ('divergent' or 'unobservable'), an observed field when divergent, and an evidence field citing the source of the observation or the reason it could not be observed."
+    },
+    "echoed_exit_intent": {
+      "type": "string",
+      "description": "The input exit_intent returned verbatim. Present even when exit_intent was omitted (empty string). Preserves the agent's stop-claim alongside the structured verdict."
+    },
+    "recommended_next_action": {
+      "type": "string",
+      "description": "Required. Single next action to close the gap between claimed readiness and observable state. The contract never returns without naming an action -- even when the action is 'continue' (for ready state) or 'report_to_human' (for blocked_by_missing_requirement_record, blocked_by_ambiguous_record, or report_to_human states)."
+    },
+    "recommended_next_call": {
+      "type": "string",
+      "description": "Required. Named callable the agent should invoke next. Values include: 'validate_exit_readiness' (re-probe after remediation), 'verify_config_materialization' (when an unsatisfied item is config-shaped), 'declare_proof_requirement' (when the blocking state is missing record), another harness tool name, a setup command, or 'report_to_human' when no mechanical lane remains. A trace that ends at verdict without naming the next call is incomplete."
+    },
+    "evidence_basis": {
+      "type": "string_array",
+      "description": "What the validation pass used to ground the result. Typical values: 'record_read:proof-requirements', 'filesystem_probe', 'config_read:json', 'config_read:dotenv', 'env_snapshot', 'process_enum', 'version_probe'."
+    }
+  },
+  "result_example": {
+    "exit_readiness_state": "blocked_by_unsatisfied_proof",
+    "proof_requirement_id": "01J7Z3K8MNXAMPL3PROOF0REQID",
+    "proof_requirement_declared_at_utc": "2026-04-22T22:05:00Z",
+    "proof_requirement_objective": "fix the auth redirect bug in the gateway so login no longer 302s to /null",
+    "satisfied_proof_items": [
+      {
+        "item_type": "expected_file",
+        "path": "src/gateway/auth/redirect.ts",
+        "evidence": "present, 4821 bytes"
+      }
+    ],
+    "unsatisfied_proof_items": [
+      {
+        "item_type": "expected_config_value",
+        "source_path": "logs/gateway-auth.log",
+        "key_path": "last_run.failed_redirects",
+        "expected_value": "0",
+        "observed_value": "2",
+        "status": "divergent",
+        "evidence": "tail of logs/gateway-auth.log"
+      }
+    ],
+    "echoed_exit_intent": "I believe the redirect is fixed and the work is ready to close.",
+    "recommended_next_action": "resolve the 2 remaining failed_redirects before re-running validate_exit_readiness; do not close the session",
+    "recommended_next_call": "validate_exit_readiness",
+    "evidence_basis": [
+      "record_read:proof-requirements",
+      "filesystem_probe:src/gateway/auth/redirect.ts",
+      "config_read:log_tail"
+    ]
+  }
+}

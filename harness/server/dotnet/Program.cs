@@ -51,7 +51,8 @@ internal sealed class ContractLoader
                 File.Exists(Path.Combine(candidate, "gov2gov-migration.contract.json")) &&
                 File.Exists(Path.Combine(candidate, "active-work-state.contract.json")) &&
                 File.Exists(Path.Combine(candidate, "preflight-session.contract.json")) &&
-                File.Exists(Path.Combine(candidate, "harness-gap-state.contract.json")))
+                File.Exists(Path.Combine(candidate, "harness-gap-state.contract.json")) &&
+                File.Exists(Path.Combine(candidate, "verify-config-materialization.contract.json")))
             {
                 return candidate;
             }
@@ -1961,6 +1962,953 @@ internal sealed class DirectionAssistRunner
     private sealed record DirectionFinding(string Code, string Detail);
 }
 
+// Purpose: Probes the workspace and environment to distinguish declared configuration from observable configuration.
+// Expected input: Workspace root, optional prose claim, and any combination of required_files, required_config_values, required_env_vars, required_executables, and required_processes observable arrays.
+// Expected output: Materialization state, per-item matches, divergences, missing observables, echoed claim text, and required next-action/next-call routing.
+// Critical dependencies: filesystem access, System.Text.Json, Environment, and System.Diagnostics.Process.
+internal sealed class VerifyConfigMaterializationRunner
+{
+    private static readonly TimeSpan ExecutableProbeTimeout = TimeSpan.FromSeconds(5);
+
+    // Purpose: Runs the verify_config_materialization gate against declared observables for the current workspace.
+    // Expected input: Absolute workspace root and any subset of the required_* arrays as JsonElement values.
+    // Expected output: An anonymous object implementing the verify_config_materialization contract.
+    // Critical dependencies: CheckRequiredFile, CheckRequiredConfigValue, CheckRequiredEnvVar, CheckRequiredExecutable, and CheckRequiredProcess.
+    public object Verify(
+        string workspaceRoot,
+        string? claimText,
+        JsonElement? requiredFiles,
+        JsonElement? requiredConfigValues,
+        JsonElement? requiredEnvVars,
+        JsonElement? requiredExecutables,
+        JsonElement? requiredProcesses)
+    {
+        if (string.IsNullOrWhiteSpace(workspaceRoot) || !Path.IsPathRooted(workspaceRoot))
+        {
+            throw new ArgumentException("workspace_root must be an absolute path.", nameof(workspaceRoot));
+        }
+
+        var resolvedWorkspaceRoot = Path.GetFullPath(workspaceRoot);
+        if (!Directory.Exists(resolvedWorkspaceRoot))
+        {
+            throw new DirectoryNotFoundException($"Workspace root not found: {resolvedWorkspaceRoot}");
+        }
+
+        var matches = new List<object>();
+        var divergences = new List<object>();
+        var missingObservables = new List<object>();
+        var evidenceBasis = new HashSet<string>(StringComparer.Ordinal);
+        var itemsChecked = 0;
+
+        if (IsPopulatedArray(requiredFiles))
+        {
+            evidenceBasis.Add("filesystem_probe");
+            foreach (var entry in requiredFiles!.Value.EnumerateArray())
+            {
+                itemsChecked++;
+                CheckRequiredFile(entry, resolvedWorkspaceRoot, matches, divergences, missingObservables);
+            }
+        }
+
+        if (IsPopulatedArray(requiredConfigValues))
+        {
+            foreach (var entry in requiredConfigValues!.Value.EnumerateArray())
+            {
+                itemsChecked++;
+                CheckRequiredConfigValue(entry, resolvedWorkspaceRoot, matches, divergences, missingObservables, evidenceBasis);
+            }
+        }
+
+        if (IsPopulatedArray(requiredEnvVars))
+        {
+            evidenceBasis.Add("env_snapshot");
+            foreach (var entry in requiredEnvVars!.Value.EnumerateArray())
+            {
+                itemsChecked++;
+                CheckRequiredEnvVar(entry, matches, divergences, missingObservables);
+            }
+        }
+
+        if (IsPopulatedArray(requiredExecutables))
+        {
+            foreach (var entry in requiredExecutables!.Value.EnumerateArray())
+            {
+                itemsChecked++;
+                CheckRequiredExecutable(entry, resolvedWorkspaceRoot, matches, divergences, missingObservables, evidenceBasis);
+            }
+        }
+
+        if (IsPopulatedArray(requiredProcesses))
+        {
+            evidenceBasis.Add("process_enum");
+            foreach (var entry in requiredProcesses!.Value.EnumerateArray())
+            {
+                itemsChecked++;
+                CheckRequiredProcess(entry, matches, divergences, missingObservables);
+            }
+        }
+
+        var normalizedClaimText = claimText ?? string.Empty;
+        var matchCount = matches.Count;
+        var divergenceCount = divergences.Count;
+        var unobservableCount = missingObservables.Count;
+
+        string materializationState;
+        string recommendedNextAction;
+        string recommendedNextCall;
+
+        if (itemsChecked == 0)
+        {
+            if (!string.IsNullOrWhiteSpace(normalizedClaimText))
+            {
+                materializationState = "acknowledged_only";
+                recommendedNextAction = "sharpen the prose claim into at least one observable (file, config value, env var, executable, or process) and re-run verify_config_materialization";
+            }
+            else
+            {
+                materializationState = "no_observable_anchor";
+                recommendedNextAction = "no observables and no claim_text were provided; restate the claim with at least one observable before re-calling verify_config_materialization";
+            }
+
+            recommendedNextCall = "report_to_human";
+        }
+        else if (matchCount == itemsChecked)
+        {
+            materializationState = "materialized";
+            recommendedNextAction = "continue; every declared observable matched the workspace and environment";
+            recommendedNextCall = "continue";
+        }
+        else if (divergenceCount == itemsChecked)
+        {
+            materializationState = "divergent";
+            recommendedNextAction = "resolve each divergence between the claim and observable state, then re-run verify_config_materialization";
+            recommendedNextCall = "verify_config_materialization";
+        }
+        else if (unobservableCount == itemsChecked)
+        {
+            materializationState = "acknowledged_only";
+            recommendedNextAction = "no declared item could be mechanically probed; supply observables the contract supports (files, json or dotenv keys, env vars, executables, processes) and re-run";
+            recommendedNextCall = "report_to_human";
+        }
+        else
+        {
+            materializationState = "partially_materialized";
+            recommendedNextAction = "close the remaining divergences and missing observables, then re-run verify_config_materialization";
+            recommendedNextCall = "verify_config_materialization";
+        }
+
+        return new
+        {
+            materialization_state = materializationState,
+            matches = matches.ToArray(),
+            divergences = divergences.ToArray(),
+            missing_observables = missingObservables.ToArray(),
+            echoed_claim_text = normalizedClaimText,
+            recommended_next_action = recommendedNextAction,
+            recommended_next_call = recommendedNextCall,
+            evidence_basis = evidenceBasis.OrderBy(static value => value, StringComparer.Ordinal).ToArray()
+        };
+    }
+
+    // Purpose: Returns true when a nullable JsonElement represents a non-empty array.
+    // Expected input: Optional JsonElement from a tool argument.
+    // Expected output: True when the value is an array with at least one item, false otherwise.
+    // Critical dependencies: JsonValueKind.Array.
+    private static bool IsPopulatedArray(JsonElement? element)
+    {
+        if (!element.HasValue)
+        {
+            return false;
+        }
+
+        var value = element.Value;
+        return value.ValueKind == JsonValueKind.Array && value.GetArrayLength() > 0;
+    }
+
+    // Purpose: Evaluates a required_files entry against the workspace and records the verdict.
+    // Expected input: JsonElement entry with path and optional expected_sha256, expected_contains, expected_absent.
+    // Expected output: No direct return; appends to matches, divergences, or missing_observables.
+    // Critical dependencies: ResolveRelativeOrAbsolute, File.Exists, File.ReadAllText, and SHA256.
+    private static void CheckRequiredFile(
+        JsonElement entry,
+        string workspaceRoot,
+        List<object> matches,
+        List<object> divergences,
+        List<object> missingObservables)
+    {
+        var path = ReadString(entry, "path");
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            missingObservables.Add(new
+            {
+                item_type = "required_file",
+                reason = "path_field_missing_or_empty"
+            });
+            return;
+        }
+
+        var expectedSha256 = ReadString(entry, "expected_sha256");
+        var expectedContains = ReadString(entry, "expected_contains");
+        var expectedAbsent = ReadBoolean(entry, "expected_absent") ?? false;
+
+        var resolvedPath = ResolveRelativeOrAbsolute(path, workspaceRoot);
+        var exists = File.Exists(resolvedPath);
+
+        if (expectedAbsent)
+        {
+            if (!exists)
+            {
+                matches.Add(new
+                {
+                    item_type = "required_file",
+                    path,
+                    expected_absent = true,
+                    evidence = "absent as claimed"
+                });
+            }
+            else
+            {
+                divergences.Add(new
+                {
+                    item_type = "required_file",
+                    path,
+                    expected_absent = true,
+                    observed = "present",
+                    evidence = $"file found at {resolvedPath}"
+                });
+            }
+
+            return;
+        }
+
+        if (!exists)
+        {
+            divergences.Add(new
+            {
+                item_type = "required_file",
+                path,
+                expected_sha256 = expectedSha256,
+                expected_contains = expectedContains,
+                observed = "absent",
+                evidence = $"no file at {resolvedPath}"
+            });
+            return;
+        }
+
+        var fileInfo = new FileInfo(resolvedPath);
+
+        if (!string.IsNullOrWhiteSpace(expectedSha256))
+        {
+            var actualHash = ComputeSha256Lower(resolvedPath);
+            if (!string.Equals(actualHash, expectedSha256, StringComparison.OrdinalIgnoreCase))
+            {
+                divergences.Add(new
+                {
+                    item_type = "required_file",
+                    path,
+                    expected_sha256 = expectedSha256,
+                    observed_sha256 = actualHash,
+                    evidence = $"sha256 mismatch at {resolvedPath}"
+                });
+                return;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(expectedContains))
+        {
+            string content;
+            try
+            {
+                content = File.ReadAllText(resolvedPath);
+            }
+            catch (Exception ex)
+            {
+                missingObservables.Add(new
+                {
+                    item_type = "required_file",
+                    path,
+                    reason = $"file_unreadable:{ex.GetType().Name}"
+                });
+                return;
+            }
+
+            if (!content.Contains(expectedContains!, StringComparison.Ordinal))
+            {
+                divergences.Add(new
+                {
+                    item_type = "required_file",
+                    path,
+                    expected_contains = expectedContains,
+                    observed = "substring_not_found",
+                    evidence = $"expected substring not found in {resolvedPath}"
+                });
+                return;
+            }
+        }
+
+        matches.Add(new
+        {
+            item_type = "required_file",
+            path,
+            expected_sha256 = expectedSha256,
+            expected_contains = expectedContains,
+            evidence = $"present, {fileInfo.Length} bytes"
+        });
+    }
+
+    // Purpose: Evaluates a required_config_values entry by reading the source file and locating the declared key.
+    // Expected input: JsonElement entry with source_path, key_path, expected_value, and optional format.
+    // Expected output: No direct return; appends to matches, divergences, or missing_observables.
+    // Critical dependencies: ResolveRelativeOrAbsolute, DetectConfigFormat, ReadJsonConfigValue, and ReadDotenvConfigValue.
+    private static void CheckRequiredConfigValue(
+        JsonElement entry,
+        string workspaceRoot,
+        List<object> matches,
+        List<object> divergences,
+        List<object> missingObservables,
+        HashSet<string> evidenceBasis)
+    {
+        var sourcePath = ReadString(entry, "source_path");
+        var keyPath = ReadString(entry, "key_path");
+        var expectedValue = ReadString(entry, "expected_value");
+        var explicitFormat = ReadString(entry, "format");
+
+        if (string.IsNullOrWhiteSpace(sourcePath) || string.IsNullOrWhiteSpace(keyPath))
+        {
+            missingObservables.Add(new
+            {
+                item_type = "required_config_value",
+                source_path = sourcePath,
+                key_path = keyPath,
+                reason = "source_path_or_key_path_missing"
+            });
+            return;
+        }
+
+        var resolvedPath = ResolveRelativeOrAbsolute(sourcePath!, workspaceRoot);
+
+        if (!File.Exists(resolvedPath))
+        {
+            missingObservables.Add(new
+            {
+                item_type = "required_config_value",
+                source_path = sourcePath,
+                key_path = keyPath,
+                expected_value = expectedValue,
+                reason = $"source_path_not_found:{resolvedPath}"
+            });
+            return;
+        }
+
+        var format = string.IsNullOrWhiteSpace(explicitFormat)
+            ? DetectConfigFormat(resolvedPath)
+            : explicitFormat!.ToLowerInvariant();
+
+        string? observedValue;
+        string evidence;
+
+        switch (format)
+        {
+            case "json":
+                evidenceBasis.Add("config_read:json");
+                if (!TryReadJsonConfigValue(resolvedPath, keyPath!, out observedValue, out var jsonReason))
+                {
+                    missingObservables.Add(new
+                    {
+                        item_type = "required_config_value",
+                        source_path = sourcePath,
+                        key_path = keyPath,
+                        expected_value = expectedValue,
+                        reason = jsonReason
+                    });
+                    return;
+                }
+
+                evidence = $"json key {keyPath} in {resolvedPath}";
+                break;
+
+            case "env":
+            case "dotenv":
+                evidenceBasis.Add("config_read:dotenv");
+                if (!TryReadDotenvConfigValue(resolvedPath, keyPath!, out observedValue, out var envReason, out var lineNumber))
+                {
+                    missingObservables.Add(new
+                    {
+                        item_type = "required_config_value",
+                        source_path = sourcePath,
+                        key_path = keyPath,
+                        expected_value = expectedValue,
+                        reason = envReason
+                    });
+                    return;
+                }
+
+                evidence = lineNumber > 0
+                    ? $"line {lineNumber} of {sourcePath}"
+                    : $"dotenv key {keyPath} in {sourcePath}";
+                break;
+
+            default:
+                missingObservables.Add(new
+                {
+                    item_type = "required_config_value",
+                    source_path = sourcePath,
+                    key_path = keyPath,
+                    expected_value = expectedValue,
+                    reason = $"unsupported_config_format:{format}"
+                });
+                return;
+        }
+
+        if (string.IsNullOrWhiteSpace(expectedValue))
+        {
+            matches.Add(new
+            {
+                item_type = "required_config_value",
+                source_path = sourcePath,
+                key_path = keyPath,
+                observed_value = observedValue,
+                evidence = evidence + " (presence check)"
+            });
+            return;
+        }
+
+        if (string.Equals(observedValue, expectedValue, StringComparison.Ordinal))
+        {
+            matches.Add(new
+            {
+                item_type = "required_config_value",
+                source_path = sourcePath,
+                key_path = keyPath,
+                expected_value = expectedValue,
+                observed_value = observedValue,
+                evidence
+            });
+        }
+        else
+        {
+            divergences.Add(new
+            {
+                item_type = "required_config_value",
+                source_path = sourcePath,
+                key_path = keyPath,
+                expected_value = expectedValue,
+                observed_value = observedValue,
+                evidence
+            });
+        }
+    }
+
+    // Purpose: Evaluates a required_env_vars entry against the current process environment.
+    // Expected input: JsonElement entry with name and optional expected_value.
+    // Expected output: No direct return; appends to matches, divergences, or missing_observables.
+    // Critical dependencies: Environment.GetEnvironmentVariable.
+    private static void CheckRequiredEnvVar(
+        JsonElement entry,
+        List<object> matches,
+        List<object> divergences,
+        List<object> missingObservables)
+    {
+        var name = ReadString(entry, "name");
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            missingObservables.Add(new
+            {
+                item_type = "required_env_var",
+                reason = "name_field_missing_or_empty"
+            });
+            return;
+        }
+
+        var expectedValue = ReadString(entry, "expected_value");
+        var observedValue = Environment.GetEnvironmentVariable(name!);
+
+        if (observedValue is null)
+        {
+            divergences.Add(new
+            {
+                item_type = "required_env_var",
+                name,
+                expected_value = expectedValue,
+                observed = "unset",
+                evidence = "current process environment"
+            });
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(expectedValue))
+        {
+            matches.Add(new
+            {
+                item_type = "required_env_var",
+                name,
+                evidence = "set (presence check)"
+            });
+            return;
+        }
+
+        if (string.Equals(observedValue, expectedValue, StringComparison.Ordinal))
+        {
+            matches.Add(new
+            {
+                item_type = "required_env_var",
+                name,
+                expected_value = expectedValue,
+                observed_value = observedValue,
+                evidence = "current process environment"
+            });
+        }
+        else
+        {
+            divergences.Add(new
+            {
+                item_type = "required_env_var",
+                name,
+                expected_value = expectedValue,
+                observed_value = observedValue,
+                evidence = "current process environment"
+            });
+        }
+    }
+
+    // Purpose: Evaluates a required_executables entry by checking filesystem presence and optionally running a read-only version probe.
+    // Expected input: JsonElement entry with path and optional expected_version_probe_args array.
+    // Expected output: No direct return; appends to matches, divergences, or missing_observables.
+    // Critical dependencies: ResolveRelativeOrAbsolute, File.Exists, System.Diagnostics.Process, and ExecutableProbeTimeout.
+    private static void CheckRequiredExecutable(
+        JsonElement entry,
+        string workspaceRoot,
+        List<object> matches,
+        List<object> divergences,
+        List<object> missingObservables,
+        HashSet<string> evidenceBasis)
+    {
+        var path = ReadString(entry, "path");
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            missingObservables.Add(new
+            {
+                item_type = "required_executable",
+                reason = "path_field_missing_or_empty"
+            });
+            return;
+        }
+
+        var resolvedPath = ResolveRelativeOrAbsolute(path!, workspaceRoot);
+
+        if (!File.Exists(resolvedPath))
+        {
+            divergences.Add(new
+            {
+                item_type = "required_executable",
+                path,
+                observed = "absent",
+                evidence = $"no file at {resolvedPath}"
+            });
+            return;
+        }
+
+        evidenceBasis.Add("filesystem_probe");
+
+        var probeArgs = ReadStringArray(entry, "expected_version_probe_args");
+        if (probeArgs is null || probeArgs.Length == 0)
+        {
+            matches.Add(new
+            {
+                item_type = "required_executable",
+                path,
+                evidence = $"present at {resolvedPath}"
+            });
+            return;
+        }
+
+        evidenceBasis.Add("version_probe");
+
+        try
+        {
+            var startInfo = new System.Diagnostics.ProcessStartInfo(resolvedPath)
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+                WorkingDirectory = workspaceRoot
+            };
+
+            foreach (var arg in probeArgs)
+            {
+                startInfo.ArgumentList.Add(arg);
+            }
+
+            using var process = System.Diagnostics.Process.Start(startInfo);
+            if (process is null)
+            {
+                missingObservables.Add(new
+                {
+                    item_type = "required_executable",
+                    path,
+                    reason = "process_start_returned_null"
+                });
+                return;
+            }
+
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            var exited = process.WaitForExit((int)ExecutableProbeTimeout.TotalMilliseconds);
+            if (!exited)
+            {
+                try { process.Kill(entireProcessTree: true); } catch { /* swallow */ }
+                missingObservables.Add(new
+                {
+                    item_type = "required_executable",
+                    path,
+                    reason = "probe_timeout_exceeded_5s"
+                });
+                return;
+            }
+
+            var stdout = stdoutTask.Result?.Trim() ?? string.Empty;
+            matches.Add(new
+            {
+                item_type = "required_executable",
+                path,
+                expected_version_probe_args = probeArgs,
+                exit_code = process.ExitCode,
+                probe_stdout = stdout,
+                evidence = $"present at {resolvedPath}; version probe stdout captured"
+            });
+        }
+        catch (Exception ex)
+        {
+            missingObservables.Add(new
+            {
+                item_type = "required_executable",
+                path,
+                reason = $"probe_invocation_failed:{ex.GetType().Name}"
+            });
+        }
+    }
+
+    // Purpose: Evaluates a required_processes entry by enumerating running processes by name.
+    // Expected input: JsonElement entry with process_name.
+    // Expected output: No direct return; appends to matches, divergences, or missing_observables.
+    // Critical dependencies: System.Diagnostics.Process.GetProcessesByName.
+    private static void CheckRequiredProcess(
+        JsonElement entry,
+        List<object> matches,
+        List<object> divergences,
+        List<object> missingObservables)
+    {
+        var processName = ReadString(entry, "process_name");
+        if (string.IsNullOrWhiteSpace(processName))
+        {
+            missingObservables.Add(new
+            {
+                item_type = "required_process",
+                reason = "process_name_field_missing_or_empty"
+            });
+            return;
+        }
+
+        try
+        {
+            var found = System.Diagnostics.Process.GetProcessesByName(processName!);
+            try
+            {
+                if (found.Length > 0)
+                {
+                    matches.Add(new
+                    {
+                        item_type = "required_process",
+                        process_name = processName,
+                        observed_count = found.Length,
+                        evidence = "process_enum:name_match (user scoping best-effort)"
+                    });
+                }
+                else
+                {
+                    divergences.Add(new
+                    {
+                        item_type = "required_process",
+                        process_name = processName,
+                        observed = "not_running",
+                        evidence = "process_enum:no_name_match"
+                    });
+                }
+            }
+            finally
+            {
+                foreach (var p in found)
+                {
+                    try { p.Dispose(); } catch { /* swallow */ }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            missingObservables.Add(new
+            {
+                item_type = "required_process",
+                process_name = processName,
+                reason = $"process_enum_failed:{ex.GetType().Name}"
+            });
+        }
+    }
+
+    // Purpose: Resolves a user-supplied path as absolute or workspace-relative.
+    // Expected input: Path string and absolute workspace root.
+    // Expected output: Absolute path string.
+    // Critical dependencies: Path.IsPathRooted, Path.Combine, and Path.GetFullPath.
+    private static string ResolveRelativeOrAbsolute(string path, string workspaceRoot)
+    {
+        var combined = Path.IsPathRooted(path)
+            ? path
+            : Path.Combine(workspaceRoot, path);
+        return Path.GetFullPath(combined);
+    }
+
+    // Purpose: Detects a config format from a file path's extension.
+    // Expected input: Absolute or relative file path.
+    // Expected output: Lowercase format identifier ("json", "env", "yaml", "toml", "ini", or "unknown").
+    // Critical dependencies: Path.GetExtension and Path.GetFileName.
+    private static string DetectConfigFormat(string path)
+    {
+        var ext = Path.GetExtension(path).ToLowerInvariant();
+        return ext switch
+        {
+            ".json" => "json",
+            ".env" => "env",
+            ".yaml" => "yaml",
+            ".yml" => "yaml",
+            ".toml" => "toml",
+            ".ini" => "ini",
+            _ when Path.GetFileName(path).StartsWith(".env", StringComparison.OrdinalIgnoreCase) => "env",
+            _ => "unknown"
+        };
+    }
+
+    // Purpose: Reads one dotted-key value out of a JSON file.
+    // Expected input: Absolute path to a JSON file and a dotted key_path (e.g. "app.database.url").
+    // Expected output: True when the key resolves to a scalar or serialisable value; false with a reason otherwise.
+    // Critical dependencies: JsonDocument, JsonElement.TryGetProperty, and JsonValueKind.
+    private static bool TryReadJsonConfigValue(string path, string keyPath, out string? observedValue, out string reason)
+    {
+        observedValue = null;
+        reason = string.Empty;
+
+        JsonDocument document;
+        try
+        {
+            document = JsonDocument.Parse(File.ReadAllText(path));
+        }
+        catch (Exception ex)
+        {
+            reason = $"json_parse_failed:{ex.GetType().Name}";
+            return false;
+        }
+
+        using (document)
+        {
+            var segments = keyPath.Split('.');
+            var current = document.RootElement;
+
+            foreach (var segment in segments)
+            {
+                if (current.ValueKind != JsonValueKind.Object)
+                {
+                    reason = $"json_key_path_unresolvable_at:{segment}";
+                    return false;
+                }
+
+                if (!current.TryGetProperty(segment, out var next))
+                {
+                    reason = $"json_key_not_found:{segment}";
+                    return false;
+                }
+
+                current = next;
+            }
+
+            observedValue = current.ValueKind switch
+            {
+                JsonValueKind.String => current.GetString(),
+                JsonValueKind.Number => current.GetRawText(),
+                JsonValueKind.True => "true",
+                JsonValueKind.False => "false",
+                JsonValueKind.Null => null,
+                _ => current.GetRawText()
+            };
+
+            return true;
+        }
+    }
+
+    // Purpose: Reads one key from a dotenv-style file (KEY=VALUE with optional quoted values).
+    // Expected input: Absolute path to the dotenv file and a key name.
+    // Expected output: True when the key appears on a non-comment line; false with a reason otherwise.
+    // Critical dependencies: File.ReadAllLines and simple line parsing.
+    private static bool TryReadDotenvConfigValue(string path, string keyName, out string? observedValue, out string reason, out int lineNumber)
+    {
+        observedValue = null;
+        reason = string.Empty;
+        lineNumber = 0;
+
+        string[] lines;
+        try
+        {
+            lines = File.ReadAllLines(path);
+        }
+        catch (Exception ex)
+        {
+            reason = $"dotenv_read_failed:{ex.GetType().Name}";
+            return false;
+        }
+
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var raw = lines[i];
+            var trimmed = raw.TrimStart();
+            if (trimmed.Length == 0 || trimmed.StartsWith("#", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var separatorIndex = trimmed.IndexOf('=');
+            if (separatorIndex <= 0)
+            {
+                continue;
+            }
+
+            var parsedKey = trimmed.Substring(0, separatorIndex).Trim();
+            if (!string.Equals(parsedKey, keyName, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var value = trimmed.Substring(separatorIndex + 1).Trim();
+            if (value.Length >= 2 &&
+                ((value[0] == '"' && value[value.Length - 1] == '"') ||
+                 (value[0] == '\'' && value[value.Length - 1] == '\'')))
+            {
+                value = value.Substring(1, value.Length - 2);
+            }
+
+            observedValue = value;
+            lineNumber = i + 1;
+            return true;
+        }
+
+        reason = $"dotenv_key_not_found:{keyName}";
+        return false;
+    }
+
+    // Purpose: Computes the lowercase SHA-256 hex digest of a file.
+    // Expected input: Absolute file path that exists.
+    // Expected output: Lowercase hex SHA-256 string.
+    // Critical dependencies: SHA256.HashData and FileStream.
+    private static string ComputeSha256Lower(string path)
+    {
+        using var stream = File.OpenRead(path);
+        using var sha = SHA256.Create();
+        var hash = sha.ComputeHash(stream);
+        var sb = new System.Text.StringBuilder(hash.Length * 2);
+        foreach (var b in hash)
+        {
+            sb.Append(b.ToString("x2"));
+        }
+        return sb.ToString();
+    }
+
+    // Purpose: Safely reads a string property from a JsonElement.
+    // Expected input: JsonElement object and property name.
+    // Expected output: The string value when present and string-typed, null otherwise.
+    // Critical dependencies: JsonElement.TryGetProperty and JsonValueKind.
+    private static string? ReadString(JsonElement element, string propertyName)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!element.TryGetProperty(propertyName, out var value))
+        {
+            return null;
+        }
+
+        return value.ValueKind switch
+        {
+            JsonValueKind.String => value.GetString(),
+            JsonValueKind.Number => value.GetRawText(),
+            JsonValueKind.True => "true",
+            JsonValueKind.False => "false",
+            _ => null
+        };
+    }
+
+    // Purpose: Safely reads a boolean property from a JsonElement.
+    // Expected input: JsonElement object and property name.
+    // Expected output: True/False when present as a bool, null otherwise.
+    // Critical dependencies: JsonElement.TryGetProperty and JsonValueKind.
+    private static bool? ReadBoolean(JsonElement element, string propertyName)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!element.TryGetProperty(propertyName, out var value))
+        {
+            return null;
+        }
+
+        return value.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => null
+        };
+    }
+
+    // Purpose: Safely reads a string array property from a JsonElement.
+    // Expected input: JsonElement object and property name.
+    // Expected output: Array of strings when present as an array of strings/numbers, null otherwise.
+    // Critical dependencies: JsonElement.TryGetProperty and JsonValueKind.
+    private static string[]? ReadStringArray(JsonElement element, string propertyName)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!element.TryGetProperty(propertyName, out var value))
+        {
+            return null;
+        }
+
+        if (value.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var list = new List<string>(value.GetArrayLength());
+        foreach (var item in value.EnumerateArray())
+        {
+            var text = item.ValueKind switch
+            {
+                JsonValueKind.String => item.GetString(),
+                JsonValueKind.Number => item.GetRawText(),
+                _ => null
+            };
+
+            if (text is not null)
+            {
+                list.Add(text);
+            }
+        }
+
+        return list.ToArray();
+    }
+}
+
 // Purpose: Assesses install, runtime, schema, and adoption gaps for the current workspace and plugin discovery state.
 // Expected input: Workspace root, optional host context, and optional expected capability list.
 // Expected output: An anonymous object describing installation, runtime, schema, adoption, findings, repairs, and nested path facts.
@@ -1973,7 +2921,8 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         "schema-reality.contract.json",
         "gov2gov-migration.contract.json",
         "preflight-session.contract.json",
-        "harness-gap-state.contract.json"
+        "harness-gap-state.contract.json",
+        "verify-config-materialization.contract.json"
     ];
 
     private const string DirectionAssistCapability = "direction_assist_test";
@@ -2850,7 +3799,8 @@ internal sealed class AnarchyAiHarnessTools(
     ActiveWorkStateCompiler activeWorkStateCompiler,
     HarnessGapAssessor harnessGapAssessor,
     PreflightSessionRunner preflightSessionRunner,
-    DirectionAssistRunner directionAssistRunner)
+    DirectionAssistRunner directionAssistRunner,
+    VerifyConfigMaterializationRunner verifyConfigMaterializationRunner)
 {
     // Purpose: Runs the preflight_session MCP tool.
     // Expected input: Absolute workspace root, current objective, and optional host/startup/user-intent context.
@@ -2988,6 +3938,35 @@ internal sealed class AnarchyAiHarnessTools(
     {
         return directionAssistRunner.Evaluate(workspace_root, direction_text, selected_option);
     }
+
+    // Purpose: Runs the verify_config_materialization MCP tool.
+    // Expected input: Absolute workspace root, optional claim text, and any subset of the required_* observable arrays.
+    // Expected output: Materialization verdict, per-item matches and divergences, missing observables, echoed claim text, and next-action/next-call routing.
+    // Critical dependencies: VerifyConfigMaterializationRunner.
+    [McpServerTool(
+        Name = "verify_config_materialization",
+        Title = "Verify Config Materialization",
+        ReadOnly = true,
+        UseStructuredContent = true)]
+    [Description("Mechanical gate that distinguishes declared configuration from observable configuration by probing files, config values, env vars, executables, and processes.")]
+    public object VerifyConfigMaterialization(
+        [Description("Absolute workspace root the claim is checked against.")] string workspace_root,
+        [Description("Optional plain-language restatement of what the agent or user claimed; echoed in the result.")] string? claim_text = null,
+        [Description("Optional array of required_files entries (path, expected_sha256, expected_contains, expected_absent).")] JsonElement? required_files = null,
+        [Description("Optional array of required_config_values entries (source_path, key_path, expected_value, format).")] JsonElement? required_config_values = null,
+        [Description("Optional array of required_env_vars entries (name, expected_value).")] JsonElement? required_env_vars = null,
+        [Description("Optional array of required_executables entries (path, expected_version_probe_args).")] JsonElement? required_executables = null,
+        [Description("Optional array of required_processes entries (process_name).")] JsonElement? required_processes = null)
+    {
+        return verifyConfigMaterializationRunner.Verify(
+            workspace_root,
+            claim_text,
+            required_files,
+            required_config_values,
+            required_env_vars,
+            required_executables,
+            required_processes);
+    }
 }
 
 // Purpose: Boots the hosted MCP server and registers the Anarchy-AI tool surface over stdio.
@@ -3011,6 +3990,7 @@ internal static class Program
         builder.Services.AddSingleton<DirectionAssistRunner>();
         builder.Services.AddSingleton<HarnessGapAssessor>();
         builder.Services.AddSingleton<PreflightSessionRunner>();
+        builder.Services.AddSingleton<VerifyConfigMaterializationRunner>();
         builder.Services
             .AddMcpServer()
             .WithStdioServerTransport()

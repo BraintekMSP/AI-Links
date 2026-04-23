@@ -78,6 +78,41 @@ This is not a style preference. Poetic language in governance files
 is a reliability risk.
 
 
+WHY THE SCHEMA IS JSON, NOT PROSE
+---------------------------------
+
+A governance document written in markdown is a polite ask. The agent
+reads it, interprets it, and then decides how much of it to honor.
+Even a clear markdown doc is just a description -- the agent can read
+it, nod, and still do something else.
+
+A JSON schema is not an ask. It is a puzzle with a fixed shape.
+An agent that understands the shape is drawn to fill it correctly,
+the same way a person is drawn to rotate the obvious piece of a
+jigsaw to match the one next to it. The shape itself is the
+instruction. Once the agent is inside the shape, the completions it
+is most likely to produce are the ones the shape allows.
+
+That pull is the delivery surface. Prose describes a rule.
+A field declares a slot. The slot is harder to skip.
+
+This is why the governance schema, the 1project schema, the narrative
+schema, and the migration schema are authored as JSON. They are not
+documents to be read and agreed with. They are structures to be
+filled in -- and the act of filling them in is the work.
+
+Markdown still earns its place: context, narrative, and documents
+you expect a human to read. But where an agent's behavior must be
+shaped -- gates, required fields, the authoritative state of
+governance -- JSON carries the weight.
+
+Corollary: when you see a place in your own governance where agents
+keep drifting, check whether you wrote it as prose. If you did, that
+is often enough to explain the drift. Moving the constraint into a
+structured field, or extending the schema, usually works better than
+writing a more emphatic paragraph.
+
+
 SCOPE IS A BOUNDARY, NOT A FOLDER
 ----------------------------------
 
