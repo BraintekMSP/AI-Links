@@ -274,6 +274,14 @@ Evidence:
 - `README-AGENTS-schema-gov2gov-migration.md`
 - `AGENTS-schema-comparison-matrix.md`
 
+Progress note (2026-04-22):
+
+- A prototype mechanical detector ships at `docs/scripts/test-semantic-compression-audit-compliance.ps1`, covering two of the three failure classes:
+  - Class 1 — stale date-anchored live-truth claims (`as of <Month Year>`, `latest <noun> -- <date>`, and forward-commitment dates now in the past), via regex plus freshness threshold.
+  - Class 3 — duplicate governance prose across files, via paragraph-level shingle + Jaccard similarity.
+- Class 2 — dated snapshot claims presented as live truth without an explicit date token — is deliberately tabled, not routed to a human review checklist. Routing to human review would relocate the failure, not close it: human review has its own failure modes (faulty heuristics, attention deficit) that are arguably as unreliable as a mechanical heuristic, just with different error distributions. Claiming "human reviews this" as a patch would repeat the mechanism-as-guarantee overclaim pattern the repo has already been critiqued for. Class 2 remains an acknowledged open gap until either a semantic-embedding-based detector or a bounded checklist with measured adherence lands.
+- Still outstanding from the PF-05 patch list: example before/after migrated surfaces, and validation of the prototype detector against a real post-migration corpus (e.g. Workorders after gov2gov). The detector is labeled `"prototype": true` in its JSON output until that validation lands; it must not be wired into `structured-commit` or `structured-review` before then.
+
 ### PF-06: The template layer under-transfers the strongest safety rules
 
 Severity: `High`
