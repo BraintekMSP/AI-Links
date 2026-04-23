@@ -524,7 +524,7 @@ function Update-GeneratedPluginManifest {
   $manifestPath = Resolve-CanonRelativePath -RootPath $RepoRoot -RelativePath ($pathCanon.relative_paths.repo_source_plugin_directory_relative_path + '/' + $pathCanon.relative_paths.bundle_plugin_manifest_file_relative_path)
   $manifestObject = [ordered]@{
     name = [string]$pathCanon.names.default_plugin_name
-    version = '0.1.7'
+    version = '0.1.8'
     description = [string]$branding.messaging.plugin_description
     author = [ordered]@{
       name = [string]$branding.metadata.author_name

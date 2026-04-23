@@ -1,12 +1,12 @@
 {
   "meta": {
-    "context-ordering-rule": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
-    "context-compression-warning": "acceptable context compression from your current context window in no way guarantees context fidelity in future context -- do not assume that what survives compression now will survive the next compression -- write durable state to files, not to context",
+    "context-ordering-rule": "past context CANNOT be reshaped by future context -- the direction of this relationship is critical",
+    "context-compression-warning": "acceptable context compression from your current context window in no way guarantees context fidelity in future context -- context is always ephemeral -- write durable state to files",
     "version": "1.0.0",
     "role": "universal schema -- portable across any workspace, not specific to any repo",
     "schema-path": "{{workspace}}/AGENTS-schema-governance.json",
     "intent": "AI is the maintainer of the agent operating system -- humans are the source of missing truth when needed",
-    "self-contained": "this schema is the sole context source for authoring its own AGENTS files -- do not consult external operating procedures, modes of action, or supplementary governance docs -- if something required for authoring is not declared here, ask the human rather than reaching outside this file",
+    "self-contained": "this schema is the sole context source for authoring its own AGENTS files -- consult only this schema for authoring -- if something required for authoring is missing, ask the human rather than reaching outside this file",
 
     "workspace": {
       "type": "string",
@@ -60,11 +60,11 @@
       "all-of": "every condition in the list must be true to trigger"
     },
 
-    "human-reported-issue-governance": "bug reports and feature requests are not governed by this schema -- they are owned by whatever system the project declares",
+    "human-reported-issue-governance": "bug reports and feature requests are owned by whatever system the project declares",
 
     "schema-family": "AGENTS-schema-governance.json is the full governance schema in the AGENTS-schema-* family -- AGENTS-schema-1project.json provides single-goal session continuity -- AGENTS-schema-narrative.json covers evolving narrative records for entities with multiple parties -- AGENTS-schema-gov2gov-migration.json governs migrations from one governance system into another",
 
-    "sibling-isolation": "if another AGENTS-schema-*.json file is present in the context window, do not merge, inherit, or cross-reference fields between schemas unless an explicit pointer field (narrative-ref, project-ref) declares the relationship -- each schema governs its own artifact set independently -- shared field names across schemas (e.g. observed-patterns) are structurally similar but operationally independent -- do not assume one schema's field definitions apply to another"
+    "sibling-isolation": "if another AGENTS-schema-*.json file is present in the context window, treat each schema as operationally independent -- shared field names across schemas (e.g. observed-patterns) are structurally similar but operationally independent -- verify each field against its own schema only -- explicit pointer fields (narrative-ref, project-ref) are the only valid cross-schema references"
   },
 
   "files": {
@@ -91,7 +91,7 @@
         "context-ordering-rule": {
           "type": "verbatim",
           "required": true,
-          "value": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
+          "value": "past context CANNOT be reshaped by future context -- the direction of this relationship is critical",
           "missing": "invalid -- resolve before continuing"
         },
         "plan-completion-directive": {
@@ -192,7 +192,7 @@
           "values": ["low", "medium", "high"],
           "default": "low",
           "role": "current complexity-density tier for this scope -- read at session open before any work begins",
-          "note": "do not set manually -- raised only by auto-trigger events recorded in AGENTS-Pitfalls.md tier-history"
+          "note": "raised only by auto-trigger events recorded in AGENTS-Pitfalls.md tier-history -- manual setting bypasses the evidence chain"
         },
         "environment": {
           "type": "object",
@@ -214,7 +214,7 @@
             "permission-error-behavior": {
               "type": "string",
               
-              "role": "how to interpret permission errors in this environment -- e.g. sandbox block not sync engine -- do not attempt permission changes unless human instructs"
+              "role": "how to interpret permission errors in this environment -- e.g. sandbox block, treat as environment constraint -- surface to human before attempting permission changes"
             },
             "known-constraints": {
               "type": "string[]",
@@ -227,7 +227,7 @@
           "type": "object",
           "required": true,
           "role": "precondition for acting -- evaluated before rules are relevant -- run measurement at session open and close, compare the results, and route discrepancies through the measurement gate",
-          "setup-note": "open and close commands must be configured by the human at authoring time -- what to measure is declared in migration.measurement-profile (docs-repo: file presence and field population; app-repo: DB state and route shapes; module: prefix-namespaced table state) -- if no commands are configured, the complexity-density tier system, auto-triggers, and measurement-discrepancy-count signal are all inert -- do not guess measurement commands, ask the human",
+          "setup-note": "open and close commands must be configured by the human at authoring time -- what to measure is declared in migration.measurement-profile (docs-repo: file presence and field population; app-repo: DB state and route shapes; module: prefix-namespaced table state) -- unconfigured commands leave the complexity-density tier system, auto-triggers, and measurement-discrepancy-count signal inert -- ask the human for measurement commands",
           "fields": {
             "open": {
               "type": "command",
@@ -266,7 +266,7 @@
           
           "role": "scope architecture declaration -- only present for app-repo and module scopes -- see architecture block in schema for field definitions",
           "active-when": "migration.measurement-profile is app-repo or module",
-          "missing": "omit entirely for docs-repo and platform scopes -- do not leave empty"
+          "missing": "omit entirely for docs-repo and platform scopes -- empty architecture blocks are invalid"
         }
       }
     },
@@ -347,7 +347,7 @@
           ]
         },
         "requires-before-generate": "AGENTS-Rules.md must be valid first",
-        "prompt": "ask human to describe failure trigger, what went wrong, and confirmed resolution before writing -- do not infer from session context alone",
+        "prompt": "ask human to describe failure trigger, what went wrong, and confirmed resolution before writing -- resolution must come from the human, session context alone is insufficient",
         "report-to-human": "human-confirms",
         "ask-if-ambiguous": true
       },
@@ -411,7 +411,7 @@
           "type": "rule[]",
           "required": true,
           "min": 1,
-          "role": "operating rules for this scope only -- must not restate parent rules",
+          "role": "operating rules for this scope only -- state only what is new to this scope",
           "constraint": "each rule must reference only terms defined in AGENTS-Terms.md at this scope or inherited"
         },
         "required-files-loaded-before-rules-are-valid": {
@@ -501,7 +501,7 @@
         "destructive-ops": "follow environment.destructive-ops-default",
         "file-ops": "execute without additional confirmation",
         "starter-context": ["AGENTS.md", "AGENTS-hello.md", "AGENTS-Terms.md", "AGENTS-Pitfalls.md"],
-        "note": "low tier does not mean low risk -- environment constraints always apply regardless of tier"
+        "note": "low tier still carries risk -- environment constraints always apply regardless of tier"
       },
       "medium": {
         "posture": "conservative -- no destructive operations without explicit human confirmation regardless of environment default",
@@ -524,19 +524,19 @@
         "condition": "same operation fails 2 times within a single attempt",
         "recovery": "ingest parent scope AGENTS files immediately -- retry the operation",
         "if-resolved": "raise current-tier one level in AGENTS-hello.md -- append entry to AGENTS-Pitfalls.md tier-history",
-        "else": "record new pitfall entry -- do not raise tier -- escalate to intra-session tracking"
+        "else": "record new pitfall entry -- keep tier as-is -- escalate to intra-session tracking"
       },
       "intra-session": {
         "condition": "3 distinct operation failures across the current session",
         "recovery": "ingest parent scope AGENTS files before each retry",
         "if-resolved": "raise current-tier one level -- append entry to tier-history",
-        "else": "record new pitfall or conflation entry depending on failure type -- do not raise tier"
+        "else": "record new pitfall or conflation entry depending on failure type -- keep tier as-is"
       },
       "cross-session": {
         "condition": "same pitfall session-count reaches 5 across unique sessions",
         "recovery": "ingest parent scope AGENTS files at session open -- front-load before any work begins",
         "if-resolved": "raise current-tier one level -- evaluate whether new rule or terms entry is warranted -- report-to-human before any rule or terms change",
-        "else": "flag for human review -- scope boundary problem, not a context problem -- do not raise tier"
+        "else": "flag for human review -- scope boundary problem, context ingestion alone will not resolve -- keep tier as-is"
       }
     }
   },
@@ -639,7 +639,7 @@
         "preserve mandatory reads from existing-authority until their content is fully migrated into the new structure",
         "classify conflict-surface files as active-control, active-bridge, or historical-supporting before updating them",
         "for docs-repo migrations, finish the conflict-surface migration and historical labeling before calling the migration complete",
-        "remove a mandatory read only when: its content is fully migrated AND the instruction cascades naturally through the new system AND it is not core to a standard repository",
+        "remove a mandatory read only when: its content is fully migrated AND the instruction cascades naturally through the new system AND the file is auxiliary to the standard repository",
         "remove redundant instructions that the new system already enforces -- retain only instructions that remain load-bearing after the schema absorbs the rest",
         "generate files in load-order (0 through 5) using templates as the starting point -- report-to-human at each file boundary before writing the next file",
         "declare edit mode before modifying governance files or conflict-surface files",
@@ -705,7 +705,7 @@
       {
         "term": "permission error",
         "default-load": "the target system or file is blocking access -- attempt to resolve via permission change or elevated privileges",
-        "workspace-meaning": "sandbox constraint in this environment -- do not attempt permission changes -- surface to human",
+        "workspace-meaning": "sandbox constraint in this environment -- surface to human before attempting permission changes",
         "not": ["an OneDrive sync conflict", "a file lock resolvable by the agent", "a credentials issue"],
         "context-cue": "if environment.sync-engine is set and a permission error occurs, treat as sandbox block first -- check environment.permission-error-behavior before acting"
       },
@@ -735,18 +735,18 @@
       "type": "enum",
       "values": ["truth", "constructor", "mutation", "consumer", "validator"],
       "definitions": {
-        "truth":       "the single authoritative record of a business fact -- may be generated once, never re-derived locally by another scope",
-        "constructor": "shapes truth into a transport or runtime form -- may not add business meaning, only structure",
-        "mutation":    "adds local evidence or a bounded override to truth -- may not restate or replace the source truth",
-        "consumer":    "reads truth or a constructor output -- may not store a local copy that diverges from the source",
-        "validator":   "asserts that a truth or constructor output conforms to a declared contract -- produces a pass/fail signal, not a new truth"
+        "truth":       "the single authoritative record of a business fact -- generated once, sourced from one owner scope only",
+        "constructor": "shapes truth into a transport or runtime form -- adds structure only, business meaning stays in the truth",
+        "mutation":    "adds local evidence or a bounded override to truth -- declares its scope of override explicitly",
+        "consumer":    "reads truth or a constructor output -- reads from the source, stores local state only through a mutation class",
+        "validator":   "asserts that a truth or constructor output conforms to a declared contract -- produces a pass/fail signal, truth stays with the owner"
       },
       "rules": [
         "truth may be generated by exactly one owner scope -- if two scopes claim truth for the same object, the architecture is already wrong",
         "constructors may only reference truth objects -- a constructor built on another constructor is a consumer in disguise",
         "mutations must declare the truth object they modify and the bounded scope of their override",
-        "consumers may not restate truth locally -- if a consumer needs to persist something, it needs a mutation class, not a copy",
-        "validators may not mutate -- a validator that writes is a constructor or mutation in disguise"
+        "consumers read from the source -- persistence requires a mutation class with declared scope",
+        "validators produce signals only -- a validator that writes belongs in a constructor or mutation class"
       ]
     },
 
@@ -815,8 +815,8 @@
   },
 
   "templates": {
-    "role": "minimal valid examples per file -- copy and fill, do not reconstruct from schema definition",
-    "note": "empty string means ask-if-ambiguous -- do not leave empty in a real file",
+    "role": "minimal valid examples per file -- copy and fill from these templates directly",
+    "note": "empty string means ask-if-ambiguous -- populate every field in a real file",
 
     "schema": {
       "role": "validation contract for the templates block -- governs what keys and field shapes are valid here",
@@ -831,12 +831,12 @@
       },
       "field-conformance": {
         "role": "each field in a template entry must be present in the corresponding file definition under files",
-        "invalid": "extra fields not declared in the matching files entry",
+        "invalid": "extra fields beyond the matching files entry are invalid",
         "valid": "omitting optional fields is allowed -- omitting required fields is not"
       },
       "empty-string-meaning": {
         "type": "verbatim",
-        "value": "ask-if-ambiguous -- do not leave empty in a real file"
+        "value": "ask-if-ambiguous -- populate every field in a real file"
       },
       "empty-array-meaning": {
         "type": "verbatim",
@@ -848,7 +848,7 @@
 
     "AGENTS.md": {
       "schema-path": "{{workspace}}/AGENTS-schema-governance.json",
-      "context-ordering-rule": "past context CANNOT be reshaped by future context -- do not reinterpret the direction of this relationship",
+      "context-ordering-rule": "past context CANNOT be reshaped by future context -- the direction of this relationship is critical",
       "plan-completion-directive": "the prompt requires plan completion",
       "plan-requirement-directive": "the prompt requires a plan",
       "file-list": [
@@ -927,7 +927,7 @@
 
     "architecture": {
       "role": "optional -- only populate when measurement-profile is app-repo or module",
-      "note": "copy this block into the relevant AGENTS-hello.md scope file -- do not add to docs-repo scopes",
+      "note": "copy this block into the relevant AGENTS-hello.md scope file -- applies only to app-repo and module scopes",
       "ownership-declaration": [
         {
           "durable-business-object-name": "",

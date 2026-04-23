@@ -194,7 +194,7 @@
     "AGENTS-Pitfalls.md": {
 
       "load-order": 3,
-      "role": "failure memory -- add when something went wrong so it is not rediscovered next session -- if the same pitfall reaches session-count 3, that is an exit-to-governance signal",
+      "role": "failure memory -- add when something went wrong so the next session starts with awareness -- if the same pitfall reaches session-count 3, that is an exit-to-governance signal",
       "generates": {
         "trigger": "agent encounters a failure worth recording",
         "requires-before-generate": "AGENTS-hello.md must exist and be valid",

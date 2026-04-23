@@ -1,27 +1,27 @@
 {
     "bundle_name":  "anarchy-ai-canonical-schema-bundle",
-    "bundle_version":  "0.1.0",
-    "generated_utc":  "2026-04-13T14:20:00Z",
+    "bundle_version":  "0.1.1",
+    "generated_utc":  "2026-04-22T15:44:45Z",
     "files":  [
                   {
                       "file_name":  "AGENTS-schema-governance.json",
-                      "sha256":  "50c8481f1345d505db3a7c1ee5e6a142bda0735a01f57f6d61843f75b2c9fbcf"
+                      "sha256":  "1bae443d498646a600945e5e710a2545a288a7515f0ca1c57d8b3f1e6f963103"
                   },
                   {
                       "file_name":  "AGENTS-schema-1project.json",
-                      "sha256":  "5a4c08c4a2d84507b7b59240ec0994dc8428331c850304edd800d676947407a0"
+                      "sha256":  "bd6a2b8bcc8d418fb458d4cbb3ad508129d4e5762f881d1e3ab0dea421443688"
                   },
                   {
                       "file_name":  "AGENTS-schema-narrative.json",
-                      "sha256":  "2ca3e9e9e4e67f951834033d2311e9c78200b2b9a34a88db79673e676298c8d7"
+                      "sha256":  "b1efd720e684c527de5275cf4f317edb1e4f461508eba9a499e04ffa7e3b9a36"
                   },
                   {
                       "file_name":  "AGENTS-schema-gov2gov-migration.json",
-                      "sha256":  "f8cd419e33dad2ca01addf2f6ac61daa3fbeb28e5381967a8ceccacc8eaa1591"
+                      "sha256":  "fafb83162933d7e158d471550b8e13b9e9c1268d33f008bea23b66d6efb486b1"
                   },
                   {
                       "file_name":  "AGENTS-schema-triage.md",
-                      "sha256":  "6bde3593b95f2ffdf6726cc690c96a544475339f7e43e56698c6f1c936981ef6"
+                      "sha256":  "307b3a3c7edc5c5add32a978d32cd76dab261f53868bfb1914e536da1add7f14"
                   },
                   {
                       "file_name":  "Getting-Started-For-Humans.txt",
