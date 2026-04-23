@@ -1,7 +1,7 @@
 {
     "bundle_name":  "anarchy-ai-canonical-schema-bundle",
-    "bundle_version":  "0.1.2",
-    "generated_utc":  "2026-04-22T22:00:00Z",
+    "bundle_version":  "0.1.3",
+    "generated_utc":  "2026-04-22T23:30:00Z",
     "files":  [
                   {
                       "file_name":  "AGENTS-schema-governance.json",
@@ -25,7 +25,7 @@
                   },
                   {
                       "file_name":  "Getting-Started-For-Humans.txt",
-                      "sha256":  "ccd18e1795a05472b517d2d12c856998545f040eb92ddeecfe935311e9f586b5"
+                      "sha256":  "9abbf7b855feab6f615368bee1efc64e41361434bf21fcbdd23f53b592018c3c"
                   }
               ]
 }

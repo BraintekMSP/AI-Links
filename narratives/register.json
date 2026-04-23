@@ -1,0 +1,19 @@
+{
+  "meta": {
+    "schema-ref": "AGENTS-schema-narrative.json",
+    "role": "index of narrative records in this workspace -- required by schema -- without this, records sprawl and go stale silently",
+    "last-updated": "2026-04-22"
+  },
+  "records": [
+    {
+      "id": "ai-links-arc",
+      "subject": "AI-Links -- the AGENTS Heuristic Underlay product itself",
+      "entity-type": "personal-project",
+      "record-path": "narratives/projects/ai-links.json",
+      "cadence": "monthly",
+      "last-updated": "2026-04-22",
+      "owner": "Mike Herring",
+      "status": "active"
+    }
+  ]
+}

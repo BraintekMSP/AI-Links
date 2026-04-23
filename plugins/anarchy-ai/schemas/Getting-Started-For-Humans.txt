@@ -195,6 +195,49 @@ You still make the call — agents cannot promote a pitfall to a rule without
 human confirmation.
 
 
+RATIONALE AS A GUARDRAIL AGAINST FUTURE YOU
+-------------------------------------------
+
+One of the loads the AGENTS family carries is holding you to decisions
+you made when you were thinking clearly, at moments when you are not.
+
+Humans have generous moods. Generous moods produce agreeable agents.
+An agreeable agent in front of a human in a generous mood will reopen
+decisions the team already closed, because the agent has no context
+for why the decision was closed, and the human has lost the context
+for why the agent's reframe is drifting. The reframe sounds reasonable,
+gets accepted, and the direction quietly reverses.
+
+The same failure happens in reverse: an agent reframes something to
+you without the context that the team steered away from that framing
+on purpose. You cannot assess the agent's full intention from the
+reframe alone, so the reframe looks clean, and the direction drifts
+without anyone noticing it drifted.
+
+This is the specific failure a written rationale prevents. Entries
+in narrative artifacts (the arc, the pitfall register, the locked
+list in vision) should be written so that a fresh agent in a future
+session can cite them back to you. The quality bar for a BECAUSE
+clause is:
+
+  Could a future agent, in a new session, use this rationale to
+  hold the current human to the standard the past human set,
+  and win the argument on the strength of the rationale alone?
+
+If yes, the rationale is strong enough to promote to a durable record.
+If no, the entry is still in scratchpad state and has not earned a
+permanent slot. "Because skills are optional by default and terms
+are load-bearing by reference, converting would fragment a working
+cross-referencing ontology" passes that test. "Because skills sucks"
+does not.
+
+This is not a replacement for your judgment. It is a record of your
+prior judgment, available for comparison against your current
+judgment when the two disagree. An agreeable agent plus a
+generous-mood human is a failure mode. The rationale record is
+the guardrail.
+
+
 WHAT AGENTS CANNOT DO
 ---------------------
 

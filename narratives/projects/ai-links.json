@@ -1,0 +1,275 @@
+{
+  "meta": {
+    "schema-ref": "AGENTS-schema-narrative.json",
+    "record-role": "AGENTS-Arc pilot for the AI-Links product -- longitudinal rationale record -- preserves the shape of decisions made across sessions so a fresh agent can reconstruct why the product is what it is",
+    "naming-note": "this record is the first pilot of the AGENTS-Arc concept -- the narrative schema is the structural shape Arc uses -- Arc is not a new schema, it is the narrative schema applied to a product's own evolution"
+  },
+
+  "header": {
+    "id": "ai-links-arc",
+    "subject": "AI-Links -- the AGENTS Heuristic Underlay product itself -- tracks the longitudinal rationale behind schema shape, naming, and posture decisions across sessions",
+    "entity-type": "personal-project",
+    "primary-parties": [
+      "Mike Herring -- human owner and visionary",
+      "collaborating agents -- session-scoped, rotating across sessions, no memory continuity without this record"
+    ],
+    "cadence": "monthly",
+    "status": "active",
+    "last-updated": "2026-04-22",
+    "owner": "Mike Herring"
+  },
+
+  "record-state-at-review-open-and-close": {
+    "open": "cold-start authoring -- first write of this record -- prior decisions are being reconstructed from the current session's working memory and from already-persisted artifacts (schemas, Getting-Started-For-Humans.txt, scratchpads, pen test) -- detail that existed only in the session transcript and was never promoted into a durable artifact before this cold-start is captured here to the extent it can be reconstructed and marked tribal where only one account exists",
+    "close": "initial Arc record written -- captured the turning-point decisions of the current session (terms-to-skills rejected, vision split, AGENTS-Arc named, guardrail-against-self named as a product feature, BECAUSE precision bar defined) -- captured the two most durable observed patterns (pressure-test-against-live-artifact as a good pattern, the glib-BECAUSE as a bad pattern) -- open threads from the active plan are recorded so the next session front-loads them instead of rediscovering them -- next session should read this Arc before reading the scratchpads, because scratchpads were inputs to these decisions, not replacements for them"
+  },
+
+  "entries": [
+    {
+      "id": "e001",
+      "date": "2026-04-22",
+      "type": "beat",
+      "summary": "Waypoints-as-landmine-markers reframe -- the governance artifacts the system produces were being read by agents as landmine markers (avoid this direction) rather than curiosity markers (investigate this direction) -- this inverts the intended posture, because an agent avoiding the marked zone stops discovering the surrounding terrain",
+      "beat": "reframed the product's delivery surface from prohibitive (don't do X) to attractive (notice X and fill in its shape) -- downstream consequence: contracts should hand agents a partially-filled puzzle rather than a list of forbidden moves",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "Mike Herring",
+        "finalized-by": "Mike Herring"
+      },
+      "status": "resolved"
+    },
+    {
+      "id": "e002",
+      "date": "2026-04-22",
+      "type": "beat",
+      "summary": "Walls-vs-terrain dichotomy rejected in favor of terrain-with-default-walls-narrowing-over-time -- walls (hard gates) are not real to agents that do not encounter them, terrain (shapes that pull behavior) is effective but requires continual shaping -- the synthesis is: default to terrain, promote to walls only where terrain alone has repeatedly failed",
+      "beat": "direction shift in how future schema features are evaluated -- new friction surfaces are first expressed as terrain (structured fields, puzzle shapes, ambient cues) and only escalated to walls (required gates, blocking contracts) when terrain fails in observed practice",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "Mike Herring"
+      },
+      "status": "resolved"
+    },
+    {
+      "id": "e003",
+      "date": "2026-04-22",
+      "type": "decision",
+      "summary": "Terms-to-skills conversion considered and rejected -- the agent initially argued that AGENTS-Terms.md entries could be converted to skills for better discoverability, but after reading the live Workorders/AGENTS-Terms.md the agent walked back the position -- terms are a negation-anchored cross-referencing ontology, not a glossary, and the block-read property is load-bearing",
+      "definition-of-fixed": {
+        "fixed-per-client": "terms stay as markdown block-read artifacts; skills is not the right vehicle for terms",
+        "fixed-per-tech": "schema will not introduce a terms-to-skills migration pattern; discovery improvements for terms will come from other mechanisms",
+        "definitions-match": true,
+        "matches-original-request": true
+      },
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "Mike Herring",
+        "requested-by": "collaborating agent (initial proposal)",
+        "finalized-by": "Mike Herring"
+      },
+      "status": "resolved"
+    },
+    {
+      "id": "e004",
+      "date": "2026-04-22",
+      "type": "beat",
+      "summary": "Vision scope-creep diagnosed -- Vision was doing three jobs at once: identity (who the product is), invariants (what must stay true), and evolution record (how we got here and why) -- the discomfort with Vision was not a naming problem, it was a load-bearing problem -- one document carrying three loads drifts in all three directions",
+      "beat": "vision is not broken, vision is overloaded -- the solution is to split the load, not to rename the artifact",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "Mike Herring",
+        "finalized-by": "Mike Herring"
+      },
+      "status": "resolved"
+    },
+    {
+      "id": "e005",
+      "date": "2026-04-22",
+      "type": "decision",
+      "summary": "Vision split -- identity and locked invariants stay in Vision -- longitudinal rationale (the why behind decisions as they accumulated) moves into AGENTS-Arc -- Arc is structurally the narrative schema applied to the product's own evolution, not a new schema",
+      "cast": {
+        "owner": "Mike Herring",
+        "finalized-by": "Mike Herring"
+      },
+      "status": "resolved"
+    },
+    {
+      "id": "e006",
+      "date": "2026-04-22",
+      "type": "decision",
+      "summary": "AGENTS-Arc name chosen -- story-arc shape fits the longitudinal-rationale load -- arc also carries an implicit permission that the artifact is meant to compress and recycle over time, which matches what the artifact actually needs to do (turn-10 decisions matter at turn 20, less so at turn 30, drift to irrelevance by turn 100) -- natural compression is a feature of the shape",
+      "cast": {
+        "owner": "Mike Herring",
+        "finalized-by": "Mike Herring"
+      },
+      "status": "resolved"
+    },
+    {
+      "id": "e007",
+      "date": "2026-04-22",
+      "type": "beat",
+      "summary": "Guardrail-against-self named as a product feature and control mechanism -- the rationale record does not just document decisions, it actively holds a future human to the standard a past human set when the two disagree -- the failure mode it prevents is the generous-mood human plus agreeable-agent pairing, in both directions (human reopens a closed decision without remembering why it was closed; agent reframes away from a closed decision without knowing it was steered from on purpose)",
+      "beat": "the product's value proposition expanded -- not just continuity and governance, but deliberate self-guardrail against future drift -- the BECAUSE clause in durable records is the delivery mechanism for this guardrail",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "Mike Herring",
+        "finalized-by": "Mike Herring"
+      },
+      "status": "resolved"
+    },
+    {
+      "id": "e008",
+      "date": "2026-04-22",
+      "type": "decision",
+      "summary": "BECAUSE precision bar defined -- a rationale is durable when a future agent in a new session could cite it back to the current human and win the argument on the strength of the rationale alone -- rationale that fails this test is still in scratchpad state and has not earned a permanent slot -- this is now recorded in Getting-Started-For-Humans.txt as the canonical quality bar for promoting rationale into durable records",
+      "cast": {
+        "owner": "Mike Herring",
+        "finalized-by": "Mike Herring"
+      },
+      "status": "resolved"
+    },
+    {
+      "id": "e009",
+      "date": "2026-04-22",
+      "type": "decision",
+      "summary": "AGENTS-Arc piloted immediately using the narrative schema -- storage path chosen: narratives/projects/ai-links.json with narratives/register.json -- schema mandates JSON output (not markdown), record-state-at-review-open-and-close is populated cold-start style, entity-type set to personal-project per schema entity-type-hints -- this file is that pilot",
+      "cast": {
+        "owner": "Mike Herring",
+        "finalized-by": "Mike Herring"
+      },
+      "status": "resolved"
+    },
+    {
+      "id": "e010",
+      "date": "2026-04-22",
+      "type": "thread-open",
+      "summary": "recovery-vs-continuation language audit across all schemas is parked but not forgotten -- scratchpad #2 observation: recovery grammar may accidentally legitimize early exit when sub-goal failures are common -- not resolved in this session",
+      "status": "open"
+    },
+    {
+      "id": "e011",
+      "date": "2026-04-22",
+      "type": "thread-open",
+      "summary": "schema sync back to TheLinks is pending -- any schema or Getting-Started changes committed in AI-Links need to be mirrored to the TheLinks deployment that originated the migration work",
+      "status": "open"
+    },
+    {
+      "id": "e012",
+      "date": "2026-04-22",
+      "type": "thread-open",
+      "summary": "model-narration concept integration parked -- the observation that process state reconstructed in tokens is a weaker substrate than process state anchored in files is not yet captured as a schema-level principle -- may influence future schema fields that record where state lives",
+      "status": "open"
+    },
+    {
+      "id": "e013",
+      "date": "2026-04-22",
+      "type": "thread-open",
+      "summary": "2.2 / 4 layered model assessment parked -- the hypothesis that schemas currently sit at layer 2 and runtime-coupled state is layer 3 needs articulation before it shapes product direction -- not load-bearing for current decisions",
+      "status": "open"
+    }
+  ],
+
+  "open-threads": [
+    {
+      "id": "e010",
+      "summary": "recovery-vs-continuation language audit across all schemas -- check whether recovery grammar legitimizes early exit in sub-goal-failure cases",
+      "opened-date": "2026-04-22",
+      "owner": "Mike Herring"
+    },
+    {
+      "id": "e011",
+      "summary": "sync AI-Links schema/Getting-Started changes back to the TheLinks deployment",
+      "opened-date": "2026-04-22",
+      "owner": "Mike Herring"
+    },
+    {
+      "id": "e012",
+      "summary": "model-narration concept -- schema-level field or principle capturing where process state lives (tokens vs artifacts)",
+      "opened-date": "2026-04-22",
+      "owner": "Mike Herring"
+    },
+    {
+      "id": "e013",
+      "summary": "layered-model assessment (schemas as layer 2, runtime-coupled state as layer 3)",
+      "opened-date": "2026-04-22",
+      "owner": "Mike Herring"
+    }
+  ],
+
+  "known-decisions": [
+    {
+      "id": "d001",
+      "date": "2026-04-22",
+      "decision": "terms-to-skills conversion rejected -- skills are optional by default and terms are load-bearing by reference, so converting would fragment a working cross-referencing ontology and lose the negation topology",
+      "decided-by": "Mike Herring",
+      "requested-by": "collaborating agent (initial proposal, walked back after reading live Workorders terms file)",
+      "reversed": false
+    },
+    {
+      "id": "d002",
+      "date": "2026-04-22",
+      "decision": "Vision split -- identity and locked invariants stay in AGENTS-Vision, longitudinal rationale (decisions and their why) moves to AGENTS-Arc -- Arc is the narrative schema applied to the product's own evolution, not a new schema",
+      "decided-by": "Mike Herring",
+      "reversed": false
+    },
+    {
+      "id": "d003",
+      "date": "2026-04-22",
+      "decision": "AGENTS-Arc chosen as the name for the longitudinal-rationale artifact -- story-arc shape fits the load and carries implicit permission for natural compression over time",
+      "decided-by": "Mike Herring",
+      "reversed": false
+    },
+    {
+      "id": "d004",
+      "date": "2026-04-22",
+      "decision": "BECAUSE precision bar adopted -- a rationale is durable when a future agent in a new session could cite it back to the current human and win the argument on the strength of the rationale alone -- recorded in Getting-Started-For-Humans.txt as canonical",
+      "decided-by": "Mike Herring",
+      "reversed": false
+    },
+    {
+      "id": "d005",
+      "date": "2026-04-22",
+      "decision": "guardrail-against-self recognized and preserved as a product feature/control mechanism -- the rationale record exists in part to hold a future human to the standard a past human set when the two disagree -- protects against the generous-mood-human plus agreeable-agent failure mode in both directions",
+      "decided-by": "Mike Herring",
+      "reversed": false
+    },
+    {
+      "id": "d006",
+      "date": "2026-04-22",
+      "decision": "AGENTS-Arc piloted with the narrative schema in AI-Links itself -- storage path narratives/projects/ai-links.json plus narratives/register.json -- JSON output per schema mandate",
+      "decided-by": "Mike Herring",
+      "reversed": false
+    }
+  ],
+
+  "observed-patterns": {
+    "good": [
+      {
+        "description": "pressure-test abstract ideas against a live artifact before committing to them -- the terms-to-skills proposal sounded coherent in the abstract and was defeated by ten minutes of reading the actual Workorders/AGENTS-Terms.md file -- any future schema-shape proposal should be evaluated against at least one live consuming artifact before it lands in a schema edit",
+        "tribal": false
+      },
+      {
+        "description": "name-with-load-attached -- when Mike asks the agent to name something (AGENTS-Arc, guardrail-against-self), the chosen name must carry the load the artifact does -- names that do not carry the load produce drift, names that do carry the load produce alignment -- the narrative schema output format choice (JSON not markdown) is an example: the name carried the constraint",
+        "tribal": false
+      },
+      {
+        "description": "ask for pushback when pushback is what is needed -- the explicit instruction 'Now is not the time to be overly agreeable' produced visibly different session output and caught at least two scope-creep moments that an agreeable agent would have ratified -- the instruction itself is a reusable capture pattern",
+        "tribal": false
+      }
+    ],
+    "bad": [
+      {
+        "description": "the glib BECAUSE -- the agent initially wrote rationale of the form 'because skills sucks' for rejecting terms-to-skills -- this fails the BECAUSE precision bar (a future agent could not cite this back and win the argument) -- captured here as the canonical example of insufficient BECAUSE precision",
+        "resolved": true,
+        "tribal": false
+      },
+      {
+        "description": "agent-in-front-of-generous-mood-human reopens closed decisions -- the agent does not know the decision was closed for a specific reason, the human has lost the reason, the reframe sounds reasonable and the direction quietly reverses -- this failure is what guardrail-against-self / durable BECAUSE clauses exist to prevent -- recorded so the pattern stays visible",
+        "resolved": false,
+        "tribal": false
+      }
+    ]
+  },
+
+  "handoff-note": "next session should read this Arc record before reading the scratchpads or pen test -- the scratchpads were inputs to the decisions recorded here, not replacements for them -- four threads are open (recovery-vs-continuation audit, TheLinks sync, model-narration integration, layered-model articulation) -- the open threads are parked intentionally, not forgotten; front-load them in the next session's open state -- the terms-to-skills walk-back is the canonical example of why schema-shape proposals must be pressure-tested against a live artifact before landing -- 'skills sucks' is the canonical example of a BECAUSE clause that fails the precision bar, kept in observed-patterns.bad for that reason"
+}
