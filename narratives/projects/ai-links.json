@@ -21,7 +21,7 @@
 
   "record-state-at-review-open-and-close": {
     "open": "cold-start authoring -- first write of this record -- prior decisions are being reconstructed from the current session's working memory and from already-persisted artifacts (schemas, Getting-Started-For-Humans.txt, scratchpads, pen test) -- detail that existed only in the session transcript and was never promoted into a durable artifact before this cold-start is captured here to the extent it can be reconstructed and marked tribal where only one account exists",
-    "close": "Arc extended in the same session with the shipment of in-session-capture-triggers (rules A and B) and the paired UserPromptSubmit hook at .claude/settings.json -- the render-inversion rule was violated in the turn after shipment and caught by the human, which is recorded as a beat (e021) and a bad-pattern for the class 'shipment-session enforcement gap' -- new open-threads e016-e020 captured the four push-readiness gaps plus the one push-blocking governance-schema fix (what-done-looks-like-at-this-scope role text) -- e020 was then resolved in the same session: governance role text tightened with affirmation-only language, root and plugin mirror synced, manifest bumped 0.1.4 to 0.1.5 with new governance sha256 79c387c5... -- known-decisions now d001-d009: d007 records the A+B+hook shipment, d008 records the narrative-schema structural promotion, d009 records the role-text fix -- baseline scan of WO2 (Workorders) before proposed push revealed missing schema files (narrative, 1project, triage, Getting-Started, narratives directory) and outdated governance/gov2gov hashes; Mike flagged this as a product-level observation about gov2gov verification reliability (e024 beat, e025 open-thread) -- remaining open-threads are e011-e013, e016-e019, and e025 -- next session inherits an active hook that injects the capture reminder every turn; whether the hook + schema rule together produce correct digest behavior is the pending test"
+    "close": "Arc extended in the same session with the shipment of in-session-capture-triggers (rules A and B) and the paired UserPromptSubmit hook at .claude/settings.json -- the render-inversion rule was violated in the turn after shipment and caught by the human, which is recorded as a beat (e021) and a bad-pattern for the class 'shipment-session enforcement gap' -- new open-threads e016-e020 captured the four push-readiness gaps plus the one push-blocking governance-schema fix (what-done-looks-like-at-this-scope role text) -- e020 was then resolved in the same session: governance role text tightened with affirmation-only language, root and plugin mirror synced, manifest bumped 0.1.4 to 0.1.5 with new governance sha256 79c387c5... -- known-decisions now d001-d009: d007 records the A+B+hook shipment, d008 records the narrative-schema structural promotion, d009 records the role-text fix -- baseline scan of WO2 (Workorders) before proposed push revealed missing schema files (narrative, 1project, triage, Getting-Started, narratives directory) and outdated governance/gov2gov hashes; Mike flagged this as a product-level observation about gov2gov verification reliability (e024 beat, e025 open-thread) -- GPT-5.5 external evaluation ingested (e026 beat): surfaced the harness-applying-consumer-checks-to-authoring-repo failure class (new bad-pattern), independently validated that what-done-looks-like-at-this-scope is the canonical example of scratchpad theory reaching schema language (retroactive confirmation of d009), and flagged templates under-transfer of safety ideas plus a small canon-and-truth sweep; three new open-threads e027-e029 follow -- Mike then reframed first-contact external-agent evaluations as the primary measurement instrument for pre-context-shaping efficacy, not noise to filter out -- captured as new observed-patterns.good entry plus e030 thread-open for the commission-and-archive practice -- three independent harness-scope-mismatch observations in one session (e021, e025, e027) all reduce to 'harness must declare its own scope, role, and provenance before its claims are trustworthy' -- Mike confirmed this emerging product principle; it is the session's largest durable signal -- remaining open-threads are e011-e013, e016-e019, e025, e027-e030 -- session closed under token pressure; next session inherits an active hook and a full Arc with clear handoff"
   },
 
   "entries": [
@@ -267,6 +267,48 @@
       "type": "thread-open",
       "summary": "gov2gov post-migration verification gap -- investigation needed to distinguish which of the three hypotheses explains WO2's missing schemas: (a) gov2gov migration silently underreported, (b) migrating agent bypassed or chose-not-to-transfer files and the harness did not catch it, (c) WO2 was last migrated before narrative and 1project existed and is simply stale -- method: check WO2 git history for the last schema-touching commit, check AI-Links history for when narrative/1project landed, and if the timelines say WO2 was migrated while those schemas existed in source, then hypothesis (a) or (b) is confirmed and gov2gov needs a post-migration verification contract -- outcome feeds either a bad-pattern entry (if a/b) or a staleness note (if c) and informs whether the WO2 push can trust gov2gov or needs manual verification this round",
       "status": "open"
+    },
+    {
+      "id": "e026",
+      "date": "2026-04-23",
+      "type": "beat",
+      "summary": "GPT-5.5 (released same day as this session) ran an independent end-to-end evaluation of AI-Links -- source surfaces, schemas, companion READMEs, scratchpads, samples, pen test, framework docs, Anarchy-AI docs, contracts, manifests, skills, templates, narrative record, validation scripts -- evaluation had two phases: a first pass with the inherited home-profile Anarchy-AI MCP active (which produced misleading copied_only findings on AI-Links itself because the home-profile plugin is stale relative to repo source and has no repo-role distinction), and a second pass filtered to avoid MCP calls after Mike diagnosed the stale-runtime issue -- the filtered second pass is the durable signal -- three durable findings: (1) a new named failure class 'harness applying consumer-adoption checks to its own authoring repo' captured as bad-pattern; (2) independent validation that scratchpad research has in fact reached schema language, with what-done-looks-like-at-this-scope named as the canonical example -- this is notable because d009 was committed earlier in this same session and the external evaluator independently flagged it as load-bearing, which confirms the role-text tightening was not marginal; (3) templates under-transfer the strongest safety ideas so downstream adopters of the portable 6 do not inherit the scratchpad research cleanly -- three new open-threads follow (e027 repo-role + runtime-provenance, e028 templates safety-transfer, e029 small canon sweep)",
+      "beat": "external read confirms the product's spine and surfaces a harness failure class that is kin to two already-captured classes: e021 (shipment-session enforcement gap -- rule shipped, hook not yet active, agent must self-enforce) and e025 (gov2gov post-migration verification gap -- harness claims delivery without post-state proof) -- the common spine across all three: the harness must declare its own scope, role, and provenance before its claims are trustworthy -- the repo is producing three independent instances of the same class in one session, which is itself a signal that the class is real and worth naming",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "Mike Herring",
+        "finalized-by": "Mike Herring",
+        "requested-by": "GPT-5.5 (external evaluator) -- observations ingested, not blindly adopted"
+      },
+      "status": "resolved"
+    },
+    {
+      "id": "e027",
+      "date": "2026-04-23",
+      "type": "thread-open",
+      "summary": "repo-role declaration + runtime-provenance surface in harness output -- the harness currently does not know whether it is running inside an authoring/distribution repo, a consumer workspace that has adopted the family, or a hybrid dev-delivery repo (which AI-Links itself is; Mike confirmed: 'This repository was never meant to self fulfill, it was already difficult enough to handle dev and delivery in one -- However, I think the harness being in the home profile has inadvertently introduced some application of itself on itself') -- the harness also does not declare its own provenance: which plugin root, which version, which schema bundle hash, which install lane (home-profile vs repo-local vs source checkout) -- two fixes stack: (1) repo-role field readable from harness entry, candidate values include authoring-distribution-repo, consumer-governed-repo, hybrid-dev-delivery-repo; in authoring or hybrid modes, skip consumer-adoption checks or scope them appropriately; (2) provenance block in every harness output so an agent can tell whether it is trusting stale home-profile cache or current repo source -- without (2), same class of failure recurs silently in any repo where the home-profile plugin diverges from source",
+      "status": "open"
+    },
+    {
+      "id": "e028",
+      "date": "2026-04-23",
+      "type": "thread-open",
+      "summary": "templates under-transfer the safety ideas -- downstream adopters who install the portable 6 and work from templates do not inherit the strongest research insights (negation/span-ambiguity awareness, affirmative-over-negation wording rule, separation of session state from durable scope state, proof-state-belongs-in-artifacts principle, no-duplicate-authority-without-source-generated-labeling) -- the research is alive in AI-Links itself but the packaging loses it -- fix direction: promote a small number of portable writing rules from scratchpad state into an explicit authored-rules document or as commented guidance within templates -- structurally similar to e018 (Arc use-case not documented in narrative schema meta) and e019 (.claude/settings.json needs adoption-friendly wording in Getting-Started) -- all three are variants of 'upstream knowledge does not survive the adoption step'",
+      "status": "open"
+    },
+    {
+      "id": "e029",
+      "date": "2026-04-23",
+      "type": "thread-open",
+      "summary": "small canon-and-truth sweep surfaced by GPT-5.5 evaluation -- individually minor but collectively they signal the doc-truth verifier scope is too narrow: (1) docs/README_ai_links.md says samples file has 10 entries, file currently has 18; (2) root README.md and startup template still use 'meaningful governed work' phrasing that the active doc-truth verifier does not cover -- expand verifier scope to include root README and templates; (3) mojibake (squiggly em-dash and similar) in several markdown surfaces including README/runbook -- small mechanically but hurts trust in a language-sensitive repo; (4) path-canon audit failing on 4 hardcoded path fragments; (5) no repo-local .agents/plugins/marketplace.json -- acceptable if user-profile is the intended live lane but docs must declare that explicitly",
+      "status": "open"
+    },
+    {
+      "id": "e030",
+      "date": "2026-04-23",
+      "type": "thread-open",
+      "summary": "commission-and-archive first-contact evaluations as a product practice -- first-contact reads from fresh external agents are the primary measurement instrument for whether pre-context shaping is doing its job (see observed-patterns.good entry 'first-contact evaluations are load-bearing product data') -- method: invite a fresh agent to read the repo cold with no corrections, preserve the first-contact read verbatim before offering any context, then optionally offer the standard context and preserve the second-pass read, archive the pair (candidate path: docs/first-contact-evaluations/) so the delta between readings is studyable -- the canonical 2026-04-23 GPT-5.5 pair is the first archive candidate -- deltas over time measure whether pre-context shaping reduces the gap between 'intended' and 'received' framing -- this is also the product's honest check against the guardrail-against-self failure mode, because a fresh evaluator has no prior investment in current directions",
+      "status": "open"
     }
   ],
 
@@ -316,6 +358,30 @@
     {
       "id": "e025",
       "summary": "gov2gov post-migration verification gap -- investigate whether WO2's missing schemas indicate a silent-harness failure, agent circumvention, or pre-narrative-schema staleness -- outcome determines whether the WO2 push can trust gov2gov or needs manual verification",
+      "opened-date": "2026-04-23",
+      "owner": "Mike Herring"
+    },
+    {
+      "id": "e027",
+      "summary": "repo-role declaration + runtime-provenance surface in harness output -- harness needs to know whether it is in an authoring, consumer, or hybrid repo, and must declare which plugin root, version, schema bundle hash, and install lane it ran from",
+      "opened-date": "2026-04-23",
+      "owner": "Mike Herring"
+    },
+    {
+      "id": "e028",
+      "summary": "templates under-transfer the safety ideas -- downstream adopters of the portable 6 do not inherit the strongest scratchpad insights -- promote portable writing rules from scratchpad into authored-rules or template-embedded guidance",
+      "opened-date": "2026-04-23",
+      "owner": "Mike Herring"
+    },
+    {
+      "id": "e029",
+      "summary": "small canon-and-truth sweep -- samples count drift, stale 'meaningful governed work' phrasing outside verifier scope, mojibake in multiple surfaces, path-canon audit findings, marketplace.json lane-declaration needed -- doc-truth verifier scope is too narrow",
+      "opened-date": "2026-04-23",
+      "owner": "Mike Herring"
+    },
+    {
+      "id": "e030",
+      "summary": "commission-and-archive first-contact external-agent evaluations as a product practice -- preserve first-contact reads verbatim before context correction, archive first-contact + corrected-read pairs, use the delta as the measurement instrument for pre-context-shaping efficacy -- GPT-5.5 2026-04-23 is the first archive candidate",
       "opened-date": "2026-04-23",
       "owner": "Mike Herring"
     }
@@ -401,6 +467,10 @@
       {
         "description": "ask for pushback when pushback is what is needed -- the explicit instruction 'Now is not the time to be overly agreeable' produced visibly different session output and caught at least two scope-creep moments that an agreeable agent would have ratified -- the instruction itself is a reusable capture pattern",
         "tribal": false
+      },
+      {
+        "description": "first-contact external-agent evaluations are load-bearing product data, not noise to filter out -- when a fresh evaluator (canonical example: GPT-5.5 on 2026-04-23) reads the repo cold with no context correction, their findings measure what the pre-context shaping actually communicates to a newcomer -- the gap between 'what the repo meant' and 'what the cold reader heard' is the scratchpad's pre-context-steering hypothesis being tested in the wild -- this reframes first-contact data from noisy-to-discard into the primary measurement instrument for pre-context efficacy -- in the GPT-5.5 case the first-contact read named 'AI-Links carries two identities' as a risk, which on a stale-runtime second look got recast as a harness-scope-mismatch failure class (e027); both readings were true at different layers, and only the first-contact one could have surfaced the identity-ambiguity as an adopter-perceivable risk because the second pass had been told the intended framing -- Mike's note: first-contact evaluations are important and should be documented as a great learning opportunity -- operationalization tracked as e030",
+        "tribal": false
       }
     ],
     "bad": [
@@ -417,6 +487,11 @@
       {
         "description": "shipment-session enforcement gap -- when a schema rule is added in the same session in which it becomes shippable, the paired harness hook does not fire until the next session starts -- this creates a window in which the rule is in effect but unenforced, and the agent that authored the rule must self-enforce it on the very next turn -- observed this session: A+B shipped, next turn rendered a four-item list without materializing to Arc, Mike caught it before the agent did -- the pattern is not an argument against shipping rules and hooks together, it is a reminder that the authoring session is the hardest session to follow the rule in, because the agent's attention is on shipment not on the rule's behavioral demand",
         "resolved": true,
+        "tribal": false
+      },
+      {
+        "description": "harness-applying-consumer-adoption-checks-to-authoring-repo -- observed when a schema-governance harness installed from the user profile was invoked inside AI-Links (the authoring and distribution repo for that same harness) and reported the root AGENTS family as copied_only because AGENTS-hello.md, AGENTS-Terms.md, AGENTS-Vision.md, AGENTS-Rules.md are absent -- they are absent on purpose because AI-Links is an authoring/distribution repo, not a consumer workspace that has adopted the family -- the harness has no repo-role distinction and no runtime provenance in its output, so it cannot tell it is applying consumer-adoption checks to its own source of truth -- the failure is not a repo gap, it is an observation gap created by the harness acting on the wrong repo role from a stale installation lane -- this is kin to shipment-session enforcement gap and to the gov2gov post-migration verification gap (e025): all three reduce to 'the harness must declare its own scope, role, and provenance before its claims are trustworthy' -- fix class tracked as e027 -- named here so future sessions can cite it when the same mistake recurs",
+        "resolved": false,
         "tribal": false
       }
     ]
