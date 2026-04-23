@@ -309,6 +309,20 @@
       "type": "thread-open",
       "summary": "commission-and-archive first-contact evaluations as a product practice -- first-contact reads from fresh external agents are the primary measurement instrument for whether pre-context shaping is doing its job (see observed-patterns.good entry 'first-contact evaluations are load-bearing product data') -- method: invite a fresh agent to read the repo cold with no corrections, preserve the first-contact read verbatim before offering any context, then optionally offer the standard context and preserve the second-pass read, archive the pair (candidate path: docs/first-contact-evaluations/) so the delta between readings is studyable -- the canonical 2026-04-23 GPT-5.5 pair is the first archive candidate -- deltas over time measure whether pre-context shaping reduces the gap between 'intended' and 'received' framing -- this is also the product's honest check against the guardrail-against-self failure mode, because a fresh evaluator has no prior investment in current directions",
       "status": "open"
+    },
+    {
+      "id": "e031",
+      "date": "2026-04-23",
+      "type": "beat",
+      "summary": "runtime-provenance-and-role-envelope implementation plan proposed by the other agent and evaluated -- plan adds runtime_provenance and workspace_role (machine_key + statement + evidence + claim_scope_effect + confidence) to four harness outputs (preflight_session, assess_harness_gap_state, is_schema_real_or_shadow_copied, run_gov2gov_migration), with a tight three-value machine_key enum (schema_authoring_and_plugin_delivery_workspace, material_governance_consumer_workspace, mixed_or_undetermined_workspace_role), labels user-profile plugin as user_profile_installed_runtime (convenient runtime, not source truth), marks consumer-adoption checks not_applicable in authoring workspaces, and adds non-gating post_migration_inventory (portable files presence + hash, governed AGENTS presence-only) -- no schema changes, no new MCP tool, no hard migration gates -- evaluation: direction approved; scoping discipline via explicit Assumptions block is the strongest feature; respects schemas-describe-harnesses-enforce split (pure harness-layer change) and d005 guardrail-without-blocking philosophy -- three sharpenings requested in review, not blockers: (A) clarify whether schema_authoring_and_plugin_delivery_workspace covers the stated hybrid dev+delivery framing (the 'and' is doing hybrid work implicitly, say so in the statement field, otherwise consider a fourth key), (B) specify whether workspace_role is auto-detected, declared via a file like .anarchy-ai/workspace-role.json, or both (declared-file-overrides-autodetect is more honest and the confidence field accommodates it naturally), (C) name what post_migration_inventory is compared against -- if only the current manifest, it cannot distinguish e025 hypothesis (a) silent-underreport from (c) pre-schema staleness; compare against the migration's own declared plan-of-delivery so the delta is visible -- when this ships, it closes e027 and makes e025's investigation cheap by producing the evidence inline",
+      "beat": "second operationalization pass on the emerging harness-must-declare-scope-role-provenance principle -- plan does not attempt to resolve all three kin observations (e021, e025, e027) at once; it resolves e027 directly and makes e025 tractable by adding evidence, leaving e021 for future work -- that scoping is correct and matches the repo's default-to-terrain posture",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "Mike Herring",
+        "finalized-by": "Mike Herring",
+        "requested-by": "other agent (implementation planner) -- plan reviewed and approved in this session with three sharpenings queued for review"
+      },
+      "status": "resolved"
     }
   ],
 
