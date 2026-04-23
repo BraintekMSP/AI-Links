@@ -21,7 +21,7 @@
 
   "record-state-at-review-open-and-close": {
     "open": "cold-start authoring -- first write of this record -- prior decisions are being reconstructed from the current session's working memory and from already-persisted artifacts (schemas, Getting-Started-For-Humans.txt, scratchpads, pen test) -- detail that existed only in the session transcript and was never promoted into a durable artifact before this cold-start is captured here to the extent it can be reconstructed and marked tribal where only one account exists",
-    "close": "Arc extended in the same session with the shipment of in-session-capture-triggers (rules A and B) and the paired UserPromptSubmit hook at .claude/settings.json -- the render-inversion rule was violated in the turn after shipment and caught by the human, which is recorded as a beat (e021) and a bad-pattern for the class 'shipment-session enforcement gap' -- new open-threads e016-e020 capture the four push-readiness gaps plus the one push-blocking governance-schema fix (what-done-looks-like-at-this-scope role text) -- known-decisions d007 records the A+B+hook shipment, d008 records the narrative-schema structural promotion -- next session inherits an active hook that injects the capture reminder every turn; whether the hook + schema rule together produce correct digest behavior is the pending test"
+    "close": "Arc extended in the same session with the shipment of in-session-capture-triggers (rules A and B) and the paired UserPromptSubmit hook at .claude/settings.json -- the render-inversion rule was violated in the turn after shipment and caught by the human, which is recorded as a beat (e021) and a bad-pattern for the class 'shipment-session enforcement gap' -- new open-threads e016-e020 captured the four push-readiness gaps plus the one push-blocking governance-schema fix (what-done-looks-like-at-this-scope role text) -- e020 was then resolved in the same session: governance role text tightened with affirmation-only language, root and plugin mirror synced, manifest bumped 0.1.4 to 0.1.5 with new governance sha256 79c387c5... -- known-decisions now d001-d009: d007 records the A+B+hook shipment, d008 records the narrative-schema structural promotion, d009 records the role-text fix -- remaining open-threads are e011-e013 and e016-e019 -- next session inherits an active hook that injects the capture reminder every turn; whether the hook + schema rule together produce correct digest behavior is the pending test"
   },
 
   "entries": [
@@ -240,6 +240,13 @@
       "type": "thread-close",
       "summary": "the recovery-vs-continuation language audit (e010) is closed -- audit completed this session, findings: the schemas are mostly continuation-grammar-safe; the one drift risk is what-done-looks-like-at-this-scope (now tracked as e020) -- audit itself is complete, the fix is tracked separately",
       "status": "resolved"
+    },
+    {
+      "id": "e023",
+      "date": "2026-04-23",
+      "type": "thread-close",
+      "summary": "what-done-looks-like-at-this-scope role-text tightening (e020) is closed -- the field name is unchanged (non-breaking, gov2gov-resilient) -- the role text now affirms what the field IS (observable state, scope-level invariant that holds across the continuing session loop, durable target the scope is steering toward) and delineates from session-close by naming the sibling field agent-session-open-close-measurement, rather than using negation (the earlier draft said 'this is NOT a session-end criterion' which defined by exclusion and was rejected as weaker terrain -- affirmation-only language was chosen instead) -- manifest bumped to 0.1.5 with new governance sha256 79c387c5...",
+      "status": "resolved"
     }
   ],
 
@@ -283,12 +290,6 @@
     {
       "id": "e019",
       "summary": ".claude/settings.json reference in Getting-Started needs adoption-friendly wording -- portable set does not include it, but the example points at it",
-      "opened-date": "2026-04-23",
-      "owner": "Mike Herring"
-    },
-    {
-      "id": "e020",
-      "summary": "what-done-looks-like-at-this-scope role-text tightening -- recommended pre-push fix, only known drift risk surfaced by audit",
       "opened-date": "2026-04-23",
       "owner": "Mike Herring"
     }
@@ -349,6 +350,13 @@
       "id": "d008",
       "date": "2026-04-23",
       "decision": "narrative schema promoted from reactive-stepchild to load-bearing upstream schema -- the promotion came from three concrete shifts: gained in-session triggers, got a harness companion, found a second use-case (Arc) -- not marketing, structural role change -- the narrative schema now governs rationale for changes to the other three schemas in any deployment that adopts the Arc pattern",
+      "decided-by": "Mike Herring",
+      "reversed": false
+    },
+    {
+      "id": "d009",
+      "date": "2026-04-23",
+      "decision": "what-done-looks-like-at-this-scope role text tightened in AGENTS-schema-governance.json -- role-text-only change chosen over a rename (rename would have broken gov2gov-resilience for existing deployments) -- new role text uses affirmation-only language: scope-level invariant that holds across the continuing session loop, durable target, delineated from session-close by naming the sibling field agent-session-open-close-measurement rather than by saying 'NOT a session-end criterion' -- negation-by-exclusion rejected as weaker terrain -- manifest bumped 0.1.4 to 0.1.5 to record the new governance sha256",
       "decided-by": "Mike Herring",
       "reversed": false
     }

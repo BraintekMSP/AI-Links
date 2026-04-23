@@ -321,7 +321,7 @@
         "what-done-looks-like-at-this-scope": {
           "type": "string",
           "required": true,
-          "role": "what done looks like at this scope",
+          "role": "the observable state that proves this scope's mission has been achieved -- a scope-level invariant that holds across the continuing session loop -- the value written here should still be readable and still true many sessions from now -- this is the durable target the scope is steering toward; per-session progress and session-close measurement live in agent-session-open-close-measurement",
           "ask-if-ambiguous": true
         },
         "commitments-that-must-survive-scope-evolution": {
