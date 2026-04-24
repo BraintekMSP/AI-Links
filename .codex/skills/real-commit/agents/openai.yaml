@@ -1,0 +1,6 @@
+interface:
+  display_name: "Real Commit"
+  short_description: "Verified structured commit workflow"
+  default_prompt: "Use $real-commit to verify, batch, and commit all pending changes."
+policy:
+  allow_implicit_invocation: true
