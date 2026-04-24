@@ -109,15 +109,19 @@
       "docs/CHANGELOG_ai_links.md",
       "docs/ANARCHY_AI_ENVIRONMENT_TRUTH_MATRIX.md",
       "docs/scripts/test-documentation-truth-compliance.ps1",
+      "docs/scripts/test-removal-safety-compliance.ps1",
+      "docs/scripts/test-schema-mirror-sync-compliance.ps1",
       "branding/**",
       "harness/branding/**",
       "harness/pathing/**",
       "harness/setup/tests/**",
       "harness/server/tests/**",
+      "narratives/projects/ai-links.json",
       "plugins/anarchy-ai/.mcp.json",
       "plugins/anarchy-ai/branding/**",
       "plugins/anarchy-ai/pathing/**",
       "plugins/anarchy-ai/README.md",
+      "plugins/anarchy-ai/scripts/remove-anarchy-ai-human.ps1",
       "docs/ANARCHY_AI_PLUGIN_README_SOURCE.md"
     ]
   }

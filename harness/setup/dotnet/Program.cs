@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using AnarchyAi.Branding;
@@ -20,7 +21,8 @@ internal enum OperationMode
 {
     Assess,
     Install,
-    Update
+    Update,
+    Status
 }
 
 // Purpose: Declares the two install lanes supported by the setup executable.
@@ -105,6 +107,7 @@ internal sealed class SetupOptions
 // Critical dependencies: SetupEngine, PathRoleCollection, and the published JSON contract.
 internal sealed class SetupResult
 {
+    public required string setup_operation { get; init; }
     public required string bootstrap_state { get; init; }
     public required string registration_mode { get; init; }
     public required string host_context { get; init; }
@@ -121,7 +124,31 @@ internal sealed class SetupResult
     public required string[] missing_components { get; init; }
     public required string[] safe_repairs { get; init; }
     public required string next_action { get; init; }
+    public required InstallStateReport install_state { get; init; }
     public required PathRoleCollection paths { get; init; }
+}
+
+// Purpose: Reports whether setup can see a durable install-state record for the selected install lane.
+// Expected input: Filesystem inspection of the state file written by setup install/update operations.
+// Expected output: A JSON-serializable lifecycle report that agents can use before guessing from plugin UI state.
+// Critical dependencies: SetupEngine install-state writer/reader and the versioned install-state JSON shape.
+internal sealed class InstallStateReport
+{
+    public required string schema_version { get; init; }
+    public required string state_path { get; init; }
+    public required bool state_present { get; init; }
+    public required bool state_written { get; init; }
+    public required bool state_valid { get; init; }
+    public required string[] findings { get; init; }
+    public string? recorded_at_utc { get; init; }
+    public string? recorded_install_scope { get; init; }
+    public string? recorded_host_context { get; init; }
+    public string[] recorded_host_targets { get; init; } = [];
+    public string? recorded_workspace_root { get; init; }
+    public string? recorded_plugin_root { get; init; }
+    public string? recorded_marketplace_path { get; init; }
+    public string? recorded_runtime_path { get; init; }
+    public string? recorded_mcp_server_name { get; init; }
 }
 
 // Purpose: Centralizes JSON serialization settings for setup output.
@@ -133,7 +160,8 @@ internal static class ProgramJson
     public static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver()
     };
 }
 
@@ -1181,6 +1209,12 @@ internal static class CliParser
                 case "update":
                     mode = OperationMode.Update;
                     break;
+                case "status":
+                case "doctor":
+                case "selfcheck":
+                case "self-check":
+                    mode = OperationMode.Status;
+                    break;
                 case "silent":
                     silent = true;
                     break;
@@ -1318,6 +1352,9 @@ internal sealed class SetupEngine
         "direction_assist_test"
     ];
 
+    private const string InstallStateSchemaVersion = "anarchy.install-state.v1";
+    private const string InstallStateFileRelativePath = ".anarchy-ai/install-state.json";
+
     // Purpose: Guesses a default repo root for CLI help and repo-local operations when /repo is omitted.
     // Expected input: Current executable location and current working directory.
     // Expected output: The detected repo root or null when no trustworthy repo marker is found.
@@ -1370,6 +1407,7 @@ internal sealed class SetupEngine
             installScope == InstallScope.UserProfile
                 ? $"- Uses the Codex-native plugin marketplace lane; it does not require a custom mcp_servers.{BuildMcpServerName()} block to count as ready."
                 : $"- Leaves {AnarchyPathCanon.BuildHomeLabelPath(AnarchyPathCanon.UserProfileCodexConfigFileRelativePath)} untouched in the repo-local lane.",
+            "- Writes a versioned install-state record inside the owned plugin bundle for later status/doctor inspection.",
             "- Current GUI install does not rewrite AGENTS.md."
         };
 
@@ -1449,6 +1487,7 @@ internal sealed class SetupEngine
             "  AnarchyAi.Setup.exe /assess [/repolocal|/userprofile] [/repo <path>] [/codex] [/claudecode] [/claudedesktop] [/allhosts] [/json] [/silent]",
             "  AnarchyAi.Setup.exe /install [/repolocal|/userprofile] [/repo <path>] [/codex] [/claudecode] [/claudedesktop] [/allhosts] [/refreshschemas] [/json] [/silent]",
             "  AnarchyAi.Setup.exe /update [/repolocal|/userprofile] [/repo <path>] [/codex] [/claudecode] [/claudedesktop] [/allhosts] [/sourcepath <path>] [/sourceurl <url>] [/refreshschemas] [/json] [/silent]",
+            "  AnarchyAi.Setup.exe /status [/repolocal|/userprofile] [/repo <path>] [/codex] [/claudecode] [/claudedesktop] [/allhosts] [/json] [/silent]",
             "  AnarchyAi.Setup.exe /? | -? | /h | -h | /help | -help | --help | --?",
             string.Empty,
             "Availability:",
@@ -1468,6 +1507,7 @@ internal sealed class SetupEngine
             $"- /claudecode adds an mcpServers.{BuildMcpServerName()} entry to ~/.claude.json at user scope (read-merge-write; creates a .bak on first modification). Requires a Claude Code restart. Unverified on this machine -- promotion pending.",
             $"- /claudedesktop auto-detects MSIX vs classic Claude Desktop and merges mcpServers.{BuildMcpServerName()} into the active claude_desktop_config.json (read-merge-write; creates a .bak on first modification; no-op when no install is detected). Requires a full app restart; older MSIX builds may ignore mcpServers (upstream issue) -- update and retry. Unverified on this machine -- promotion pending.",
             $"- Makes {CoreToolNames.Length} core + {ExperimentalToolNames.Length} test harness tool available to supported hosts.",
+            "- Writes and reads a versioned install-state record so later assess/status runs can inspect lifecycle state without trusting plugin UI visibility.",
             "- Does not rewrite AGENTS.md.",
             schemaSeedingLine,
             "- Leaves existing root schema files in place unless /refreshschemas is passed.",
@@ -1475,6 +1515,7 @@ internal sealed class SetupEngine
             "Flags:",
             "  /repolocal             Install or assess through the selected repo root.",
             "  /userprofile           Install or assess through the current user profile.",
+            "  /status                Read-only lifecycle status; /doctor, /selfcheck, and /self-check are aliases.",
             "  /repo <path>            Override repo auto-detection.",
             "  /sourcepath <path>      Refresh from a local AI-Links source path.",
             "  /sourceurl <url>        Refresh from a zip source URL.",
@@ -1509,6 +1550,7 @@ internal sealed class SetupEngine
         var skillPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleSkillFileRelativePath);
         var schemaManifestPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleSchemaManifestFileRelativePath);
         var updateSourceRoot = string.Empty;
+        var installStateWritten = false;
 
         var actionsTaken = new HashSet<string>(StringComparer.Ordinal);
         var missingComponents = new HashSet<string>(StringComparer.Ordinal);
@@ -1571,6 +1613,17 @@ internal sealed class SetupEngine
                 {
                     SeedMissingEmbeddedPortableSchemaFamily(workspaceRoot, actionsTaken);
                 }
+
+                WriteInstallState(
+                    options,
+                    normalizedHostContext,
+                    workspaceRoot,
+                    pluginRoot,
+                    marketplacePath,
+                    runtimePath,
+                    updateSourceRoot,
+                    actionsTaken);
+                installStateWritten = true;
             }
             catch (IOException ex) when (IsRuntimeLockException(ex))
             {
@@ -1626,6 +1679,16 @@ internal sealed class SetupEngine
                         actionsTaken: actionsTaken);
                 }
 
+                WriteInstallState(
+                    options,
+                    normalizedHostContext,
+                    workspaceRoot,
+                    pluginRoot,
+                    marketplacePath,
+                    runtimePath,
+                    updateSourceRoot,
+                    actionsTaken);
+                installStateWritten = true;
                 updateState = "completed";
             }
             catch (IOException ex) when (IsRuntimeLockException(ex))
@@ -1781,11 +1844,34 @@ internal sealed class SetupEngine
             safeRepairs.Add("inventory_and_remove_stale_codex_custom_mcp_entry");
         }
 
+        var installStateReport = InspectInstallState(
+            options,
+            normalizedHostContext,
+            workspaceRoot,
+            pluginRoot,
+            marketplacePath,
+            runtimePath,
+            installStateWritten);
+        if (options.Mode == OperationMode.Status)
+        {
+            missingComponents.UnionWith(installStateReport.findings);
+            if (!installStateReport.state_present)
+            {
+                safeRepairs.Add("run_install_to_write_install_state");
+            }
+            else if (!installStateReport.state_valid)
+            {
+                safeRepairs.Add("rerun_install_to_refresh_install_state");
+            }
+        }
+
         var hasLockedBundleSurfaceSkip = missingComponents.Contains("locked_bundle_surface_write_skipped");
         var hasBlockingLegacySurface = legacyUserProfileInspection.LegacyCodexCustomMcpEntryPresent;
+        var hasInstallStateStatusGap = options.Mode == OperationMode.Status && !installStateReport.state_valid;
         var bootstrapState = !hasLockedBundleSurfaceSkip
             && marketplaceRegistrationReady
             && !hasBlockingLegacySurface
+            && !hasInstallStateStatusGap
             ? "ready"
         : runtimeExists && marketplaceInspection.HasAnarchyPluginEntry && marketplaceInspection.InstalledByDefault
             ? "registration_refresh_needed"
@@ -1800,6 +1886,8 @@ internal sealed class SetupEngine
             ? "release_runtime_lock_and_retry_install"
             : hasBlockingLegacySurface
                 ? "inventory_legacy_home_install_and_run_user_profile_install"
+            : hasInstallStateStatusGap
+                ? (installStateReport.state_present ? "rerun_install_to_refresh_install_state" : "run_install_to_write_install_state")
             : bootstrapState switch
         {
             "ready" => "use_preflight_session",
@@ -1823,11 +1911,12 @@ internal sealed class SetupEngine
 
         return new SetupResult
         {
+            setup_operation = BuildSetupOperationLabel(options.Mode),
             bootstrap_state = bootstrapState,
             registration_mode = registrationMode,
             host_context = normalizedHostContext,
             host_targets = HostTargetLabels.ToLabelArray(options.HostTargets),
-            install_scope = options.InstallScope == InstallScope.UserProfile ? "user_profile" : "repo_local",
+            install_scope = BuildInstallScopeJsonLabel(options.InstallScope),
             update_requested = updateRequested,
             update_state = updateState,
             update_source_zip_url = options.UpdateSourceZipUrl,
@@ -1839,6 +1928,7 @@ internal sealed class SetupEngine
             missing_components = missingComponents.ToArray(),
             safe_repairs = safeRepairs.ToArray(),
             next_action = nextAction,
+            install_state = installStateReport,
             paths = resultPaths
         };
     }
@@ -2746,6 +2836,283 @@ internal sealed class SetupEngine
             : "repo_marketplace_missing_plugins_array";
     }
 
+    // Purpose: Resolves the setup-owned lifecycle state file inside the installed plugin bundle.
+    // Expected input: Absolute plugin root.
+    // Expected output: Absolute path to the versioned install-state JSON file.
+    // Critical dependencies: InstallStateFileRelativePath and plugin-root resolution.
+    internal static string ResolveInstallStatePath(string pluginRoot)
+    {
+        return AnarchyPathCanon.ResolveRelativePath(pluginRoot, InstallStateFileRelativePath);
+    }
+
+    // Purpose: Writes durable setup lifecycle state after an install or update materializes owned surfaces.
+    // Expected input: Current setup options, resolved paths, and the mutable action log.
+    // Expected output: No direct return value; writes install-state JSON and records an action marker.
+    // Critical dependencies: ProgramJson, UTF-8 without BOM, and later InspectInstallState validation.
+    private static void WriteInstallState(
+        SetupOptions options,
+        string normalizedHostContext,
+        string workspaceRoot,
+        string pluginRoot,
+        string marketplacePath,
+        string runtimePath,
+        string updateSourceRoot,
+        HashSet<string> actionsTaken)
+    {
+        var statePath = ResolveInstallStatePath(pluginRoot);
+        Directory.CreateDirectory(Path.GetDirectoryName(statePath)!);
+
+        var sourceKind = options.Mode == OperationMode.Update
+            ? string.IsNullOrWhiteSpace(options.UpdateSourcePath)
+                ? "public_update_source"
+                : "local_update_source"
+            : "embedded_payload";
+
+        var document = new JsonObject
+        {
+            ["schema_version"] = InstallStateSchemaVersion,
+            ["written_at_utc"] = DateTimeOffset.UtcNow.ToString("O"),
+            ["setup_operation"] = BuildSetupOperationLabel(options.Mode),
+            ["install_scope"] = BuildInstallScopeJsonLabel(options.InstallScope),
+            ["host_context"] = normalizedHostContext,
+            ["host_targets"] = CreateJsonStringArray(HostTargetLabels.ToLabelArray(options.HostTargets)),
+            ["workspace_root"] = workspaceRoot,
+            ["plugin_name"] = BuildPluginName(options.InstallScope, workspaceRoot),
+            ["plugin_directory_name"] = BuildPluginDirectoryName(options.InstallScope, workspaceRoot),
+            ["plugin_root"] = pluginRoot,
+            ["marketplace_name"] = BuildMarketplaceName(options.InstallScope, workspaceRoot),
+            ["marketplace_path"] = marketplacePath,
+            ["marketplace_plugin_source"] = BuildPluginRelativePath(options.InstallScope, workspaceRoot),
+            ["mcp_server_name"] = BuildMcpServerName(),
+            ["runtime_path"] = runtimePath,
+            ["runtime_relative_path"] = AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath,
+            ["source_kind"] = sourceKind,
+            ["source_root"] = updateSourceRoot,
+            ["schema_claim"] = "schemas_describe_route_shape_but_setup_records_materialized_state"
+        };
+
+        File.WriteAllText(statePath, document.ToJsonString(ProgramJson.Options), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        actionsTaken.Add("wrote_install_state");
+    }
+
+    // Purpose: Reads setup lifecycle state and compares recorded intent against observed destination paths.
+    // Expected input: Current setup lane and resolved destination facts.
+    // Expected output: An InstallStateReport with bounded findings rather than inferred plugin-trust claims.
+    // Critical dependencies: ResolveInstallStatePath, setup install-state JSON fields, and path comparison rules.
+    private static InstallStateReport InspectInstallState(
+        SetupOptions options,
+        string normalizedHostContext,
+        string workspaceRoot,
+        string pluginRoot,
+        string marketplacePath,
+        string runtimePath,
+        bool stateWritten)
+    {
+        var statePath = ResolveInstallStatePath(pluginRoot);
+        var findings = new List<string>();
+
+        if (!File.Exists(statePath))
+        {
+            findings.Add("install_state_missing");
+            return new InstallStateReport
+            {
+                schema_version = InstallStateSchemaVersion,
+                state_path = statePath,
+                state_present = false,
+                state_written = stateWritten,
+                state_valid = false,
+                findings = findings.ToArray()
+            };
+        }
+
+        JsonObject? state;
+        try
+        {
+            state = JsonNode.Parse(File.ReadAllText(statePath)) as JsonObject;
+        }
+        catch (JsonException)
+        {
+            findings.Add("install_state_invalid_json");
+            return new InstallStateReport
+            {
+                schema_version = InstallStateSchemaVersion,
+                state_path = statePath,
+                state_present = true,
+                state_written = stateWritten,
+                state_valid = false,
+                findings = findings.ToArray()
+            };
+        }
+
+        if (state is null)
+        {
+            findings.Add("install_state_invalid_json");
+            return new InstallStateReport
+            {
+                schema_version = InstallStateSchemaVersion,
+                state_path = statePath,
+                state_present = true,
+                state_written = stateWritten,
+                state_valid = false,
+                findings = findings.ToArray()
+            };
+        }
+
+        var schemaVersion = ReadJsonString(state, "schema_version");
+        var recordedInstallScope = ReadJsonString(state, "install_scope");
+        var recordedHostContext = ReadJsonString(state, "host_context");
+        var recordedWorkspaceRoot = ReadJsonString(state, "workspace_root");
+        var recordedPluginRoot = ReadJsonString(state, "plugin_root");
+        var recordedMarketplacePath = ReadJsonString(state, "marketplace_path");
+        var recordedRuntimePath = ReadJsonString(state, "runtime_path");
+        var recordedMcpServerName = ReadJsonString(state, "mcp_server_name");
+
+        if (!string.Equals(schemaVersion, InstallStateSchemaVersion, StringComparison.Ordinal))
+        {
+            findings.Add("install_state_schema_version_mismatch");
+        }
+
+        if (!string.Equals(recordedInstallScope, BuildInstallScopeJsonLabel(options.InstallScope), StringComparison.Ordinal))
+        {
+            findings.Add("install_state_scope_mismatch");
+        }
+
+        if (!PathStringsMatch(recordedWorkspaceRoot, workspaceRoot))
+        {
+            findings.Add("install_state_workspace_root_mismatch");
+        }
+
+        if (!PathStringsMatch(recordedPluginRoot, pluginRoot))
+        {
+            findings.Add("install_state_plugin_root_mismatch");
+        }
+
+        if (!PathStringsMatch(recordedMarketplacePath, marketplacePath))
+        {
+            findings.Add("install_state_marketplace_path_mismatch");
+        }
+
+        if (!PathStringsMatch(recordedRuntimePath, runtimePath))
+        {
+            findings.Add("install_state_runtime_path_mismatch");
+        }
+
+        if (!string.Equals(recordedMcpServerName, BuildMcpServerName(), StringComparison.Ordinal))
+        {
+            findings.Add("install_state_mcp_server_name_mismatch");
+        }
+
+        return new InstallStateReport
+        {
+            schema_version = string.IsNullOrWhiteSpace(schemaVersion) ? InstallStateSchemaVersion : schemaVersion,
+            state_path = statePath,
+            state_present = true,
+            state_written = stateWritten,
+            state_valid = findings.Count == 0,
+            findings = findings.ToArray(),
+            recorded_at_utc = ReadJsonString(state, "written_at_utc"),
+            recorded_install_scope = recordedInstallScope,
+            recorded_host_context = string.IsNullOrWhiteSpace(recordedHostContext) ? normalizedHostContext : recordedHostContext,
+            recorded_host_targets = ReadJsonStringArray(state, "host_targets"),
+            recorded_workspace_root = recordedWorkspaceRoot,
+            recorded_plugin_root = recordedPluginRoot,
+            recorded_marketplace_path = recordedMarketplacePath,
+            recorded_runtime_path = recordedRuntimePath,
+            recorded_mcp_server_name = recordedMcpServerName
+        };
+    }
+
+    // Purpose: Converts setup operation enum values into stable JSON labels.
+    // Expected input: OperationMode value.
+    // Expected output: Lowercase operation label.
+    // Critical dependencies: SetupResult.setup_operation and install-state document shape.
+    private static string BuildSetupOperationLabel(OperationMode mode) => mode switch
+    {
+        OperationMode.Install => "install",
+        OperationMode.Update => "update",
+        OperationMode.Status => "status",
+        _ => "assess"
+    };
+
+    // Purpose: Converts install-scope enum values into stable JSON labels.
+    // Expected input: InstallScope value.
+    // Expected output: repo_local or user_profile.
+    // Critical dependencies: SetupResult.install_scope and install-state validation.
+    private static string BuildInstallScopeJsonLabel(InstallScope installScope)
+    {
+        return installScope == InstallScope.UserProfile ? "user_profile" : "repo_local";
+    }
+
+    // Purpose: Reads a string field from a JsonObject without throwing on absent or wrong-shaped fields.
+    // Expected input: JSON object plus field key.
+    // Expected output: Field value or empty string.
+    // Critical dependencies: System.Text.Json.Nodes.
+    private static string ReadJsonString(JsonObject state, string key)
+    {
+        return state[key] is JsonValue value && value.TryGetValue<string>(out var text)
+            ? text
+            : string.Empty;
+    }
+
+    // Purpose: Reads a string-array field from a JsonObject without throwing on absent or wrong-shaped fields.
+    // Expected input: JSON object plus field key.
+    // Expected output: String array, empty when the field is absent or malformed.
+    // Critical dependencies: System.Text.Json.Nodes.
+    private static string[] ReadJsonStringArray(JsonObject state, string key)
+    {
+        if (state[key] is not JsonArray array)
+        {
+            return [];
+        }
+
+        return array
+            .Select(node => node is JsonValue value && value.TryGetValue<string>(out var text) ? text : null)
+            .Where(static text => !string.IsNullOrWhiteSpace(text))
+            .Select(static text => text!)
+            .ToArray();
+    }
+
+    // Purpose: Creates a JSON array from string values while avoiding caller-side JsonNode ceremony.
+    // Expected input: Strings to include.
+    // Expected output: JsonArray containing those strings.
+    // Critical dependencies: System.Text.Json.Nodes.
+    private static JsonArray CreateJsonStringArray(IEnumerable<string> values)
+    {
+        var array = new JsonArray();
+        foreach (var value in values)
+        {
+            array.Add(value);
+        }
+
+        return array;
+    }
+
+    // Purpose: Compares path strings after normalizing absolute forms when possible.
+    // Expected input: Recorded and expected path strings.
+    // Expected output: True when both paths describe the same filesystem target, including two empty values.
+    // Critical dependencies: Path.GetFullPath and Windows path comparison semantics.
+    private static bool PathStringsMatch(string? actual, string? expected)
+    {
+        if (string.IsNullOrWhiteSpace(actual) && string.IsNullOrWhiteSpace(expected))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(actual) || string.IsNullOrWhiteSpace(expected))
+        {
+            return false;
+        }
+
+        try
+        {
+            return string.Equals(Path.GetFullPath(actual), Path.GetFullPath(expected), StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     // Purpose: Aggregates the origin, source, and destination path roles for setup output.
     // Expected input: Setup options plus resolved workspace, bundle, marketplace, and update-source paths.
     // Expected output: A PathRoleCollection aligned with the nested setup JSON contract.
@@ -2899,6 +3266,7 @@ internal sealed class SetupEngine
                 CreatePathEntry("runtime_executable_file_path", runtimePath),
                 CreatePathEntry("skill_file_path", skillPath),
                 CreatePathEntry("schema_manifest_file_path", schemaManifestPath),
+                CreatePathEntry("install_state_file_path", ResolveInstallStatePath(pluginRoot)),
                 CreatePathEntry(
                     "codex_config_file_path",
                     options.InstallScope == InstallScope.UserProfile
@@ -2917,6 +3285,7 @@ internal sealed class SetupEngine
                 CreatePathEntry("mcp_declaration_file_relative_path", AnarchyPathCanon.BundleMcpFileRelativePath),
                 CreatePathEntry("runtime_executable_file_relative_path", AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath),
                 CreatePathEntry("schema_manifest_file_relative_path", AnarchyPathCanon.BundleSchemaManifestFileRelativePath),
+                CreatePathEntry("install_state_file_relative_path", InstallStateFileRelativePath),
                 CreatePathEntry("skill_file_relative_path", AnarchyPathCanon.BundleSkillFileRelativePath)
             ])!;
     }

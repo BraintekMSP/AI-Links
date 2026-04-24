@@ -128,6 +128,147 @@ public sealed class SetupEngineTests
     }
 
     /// <summary>
+    /// Confirms that the lifecycle status command is available through the expected agent-friendly aliases.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts parser results.</returns>
+    /// <remarks>Critical dependencies: <see cref="CliParser.Parse(string[])"/> and the setup lifecycle command vocabulary.</remarks>
+    [Theory]
+    [InlineData("/status")]
+    [InlineData("/doctor")]
+    [InlineData("/selfcheck")]
+    [InlineData("/self-check")]
+    public void CliParser_StatusAliases_MapToStatusMode(string statusSwitch)
+    {
+        var options = CliParser.Parse([statusSwitch, "/userprofile", "/silent", "/json"]);
+
+        Assert.Equal(OperationMode.Status, options.Mode);
+        Assert.Equal(InstallScope.UserProfile, options.InstallScope);
+    }
+
+    /// <summary>
+    /// Confirms that CLI help exposes the lifecycle status lane instead of forcing agents to infer install state from files.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts help content.</returns>
+    /// <remarks>Critical dependencies: <see cref="SetupEngine.BuildCommandLineHelp(string?)"/> and lifecycle-status wording.</remarks>
+    [Fact]
+    public void BuildCommandLineHelp_ReportsLifecycleStatusLane()
+    {
+        var help = SetupEngine.BuildCommandLineHelp(null);
+
+        Assert.Contains("/status", help, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("install-state", help, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/doctor", help, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Confirms that installing into a repo-local temp workspace writes a versioned install-state record.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts setup output and the on-disk state file.</returns>
+    /// <remarks>Critical dependencies: embedded setup payload resources, repo-local path resolution, and install-state writer.</remarks>
+    [Fact]
+    public void Execute_Install_RepoLocal_WritesInstallState()
+    {
+        using var tempRepo = CreateTempRepo();
+        var engine = new SetupEngine();
+        var result = engine.Execute(new SetupOptions
+        {
+            Mode = OperationMode.Install,
+            InstallScope = InstallScope.RepoLocal,
+            HostContext = "codex",
+            HostTargets = HostTargets.Codex,
+            RepoPath = tempRepo.Path,
+            Silent = true,
+            JsonOutput = true
+        });
+
+        Assert.Contains("wrote_install_state", result.actions_taken);
+        Assert.True(result.install_state.state_present);
+        Assert.True(result.install_state.state_written);
+        Assert.True(result.install_state.state_valid);
+
+        var pluginRoot = SetupEngine.ResolvePluginRoot(InstallScope.RepoLocal, tempRepo.Path);
+        var statePath = SetupEngine.ResolveInstallStatePath(pluginRoot);
+        Assert.True(File.Exists(statePath), $"Expected install-state file at {statePath}");
+
+        using var document = JsonDocument.Parse(File.ReadAllText(statePath));
+        var root = document.RootElement;
+        Assert.Equal("anarchy.install-state.v1", root.GetProperty("schema_version").GetString());
+        Assert.Equal("install", root.GetProperty("setup_operation").GetString());
+        Assert.Equal("repo_local", root.GetProperty("install_scope").GetString());
+        Assert.Equal(tempRepo.Path, root.GetProperty("workspace_root").GetString(), StringComparer.OrdinalIgnoreCase);
+        Assert.Equal("anarchy-ai", root.GetProperty("mcp_server_name").GetString());
+    }
+
+    /// <summary>
+    /// Confirms that a later status run can read the install-state file written by install and keep the lifecycle report valid.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts repeatable lifecycle inspection.</returns>
+    /// <remarks>Critical dependencies: install-state writer, status-mode reader, and repo-local path comparison.</remarks>
+    [Fact]
+    public void Execute_Status_RepoLocal_ReadsInstallStateAfterInstall()
+    {
+        using var tempRepo = CreateTempRepo();
+        var engine = new SetupEngine();
+        engine.Execute(new SetupOptions
+        {
+            Mode = OperationMode.Install,
+            InstallScope = InstallScope.RepoLocal,
+            HostContext = "codex",
+            HostTargets = HostTargets.Codex,
+            RepoPath = tempRepo.Path,
+            Silent = true,
+            JsonOutput = true
+        });
+
+        var status = engine.Execute(new SetupOptions
+        {
+            Mode = OperationMode.Status,
+            InstallScope = InstallScope.RepoLocal,
+            HostContext = "codex",
+            HostTargets = HostTargets.Codex,
+            RepoPath = tempRepo.Path,
+            Silent = true,
+            JsonOutput = true
+        });
+
+        Assert.Equal("status", status.setup_operation);
+        Assert.True(status.install_state.state_present);
+        Assert.True(status.install_state.state_valid);
+        Assert.Empty(status.install_state.findings);
+        Assert.DoesNotContain("install_state_missing", status.missing_components);
+        Assert.Equal("use_preflight_session", status.next_action);
+    }
+
+    /// <summary>
+    /// Confirms that status mode reports a missing install-state record as a repairable lifecycle gap.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts bounded missing-state findings.</returns>
+    /// <remarks>Critical dependencies: status-mode reader and missing-component routing for lifecycle gaps.</remarks>
+    [Fact]
+    public void Execute_Status_RepoLocal_ReportsMissingInstallState()
+    {
+        using var tempRepo = CreateTempRepo();
+        var engine = new SetupEngine();
+
+        var status = engine.Execute(new SetupOptions
+        {
+            Mode = OperationMode.Status,
+            InstallScope = InstallScope.RepoLocal,
+            HostContext = "codex",
+            HostTargets = HostTargets.Codex,
+            RepoPath = tempRepo.Path,
+            Silent = true,
+            JsonOutput = true
+        });
+
+        Assert.False(status.install_state.state_present);
+        Assert.False(status.install_state.state_valid);
+        Assert.Contains("install_state_missing", status.install_state.findings);
+        Assert.Contains("install_state_missing", status.missing_components);
+        Assert.Contains("run_install_to_write_install_state", status.safe_repairs);
+    }
+
+    /// <summary>
     /// Verifies that legacy home-local evidence is reported as a custom-MCP fallback mode instead of a ready marketplace lane.
     /// </summary>
     /// <returns>No direct return value; the method asserts the computed registration mode.</returns>
@@ -328,5 +469,17 @@ public sealed class SetupEngineTests
         }
 
         throw new DirectoryNotFoundException("Could not locate repo root for setup tests.");
+    }
+
+    /// <summary>
+    /// Creates a temporary repo root with a .git marker so setup repo-local auto-guards recognize it as a workspace.
+    /// </summary>
+    /// <returns>A temp directory that the caller owns and disposes.</returns>
+    /// <remarks>Critical dependencies: setup's repo-root trust rule requiring a .git marker.</remarks>
+    private static TempDirectory CreateTempRepo()
+    {
+        var tempRepo = new TempDirectory();
+        Directory.CreateDirectory(Path.Combine(tempRepo.Path, ".git"));
+        return tempRepo;
     }
 }
