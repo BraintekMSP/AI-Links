@@ -15,7 +15,7 @@
     ],
     "cadence": "monthly",
     "status": "active",
-    "last-updated": "2026-04-23",
+    "last-updated": "2026-04-24",
     "owner": "Mike Herring"
   },
 
@@ -351,6 +351,42 @@
         "requested-by": "Mike Herring (relayed GPT-5.5 second-pass evaluation; steered the provenance/vocabulary/restraint conclusions; corrected an earlier 'park as premature' read on narrative-provenance by naming the live multi-agent-relay example)"
       },
       "status": "resolved"
+    },
+    {
+      "id": "e037",
+      "date": "2026-04-24",
+      "type": "correction",
+      "summary": "open-thread framing corrected -- open threads always exist in a living product and are not themselves a quality failure -- the failure class is untraceable, invisible, or unowned open threads, because those become ambient residue that later agents cannot distinguish from forgotten work, abandoned direction, or closed decisions -- visible open threads are the opposite: they are the product's continuity surface",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "Mike Herring",
+        "finalized-by": "Mike Herring"
+      },
+      "status": "resolved"
+    },
+    {
+      "id": "e038",
+      "date": "2026-04-24",
+      "type": "correction",
+      "summary": "ECC positioning corrected -- ECC should not be framed as the same product class as Anarchy-AI -- ECC is a different class of product and an inspiration surface; Anarchy-AI can still aspire to complement ECC and other systems like it by supplying proof, provenance, and schema-shaped-cognition substrate rather than competing inside ECC's lifecycle/installer/hook/repair class",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "Mike Herring",
+        "finalized-by": "Mike Herring"
+      },
+      "status": "resolved"
+    },
+    {
+      "id": "e039",
+      "date": "2026-04-24",
+      "type": "correction",
+      "summary": "harness boundary corrected after the ECC review and current Codex plugin breakage -- current installed plugin state is an adapter problem, not source truth; schemas cannot self-fulfill; the harness should provide easy terrain, observable state, proof/materialization checks, and repairable lifecycle surfaces rather than stronger prose walls -- this reframes install discipline as manifests/adapters/install-state/doctor/repair/catalog validation while keeping the setup executable as carrier/operator surface, not sole authority",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "Codex",
+        "finalized-by": "Mike Herring"
+      },
+      "status": "resolved"
     }
   ],
 
@@ -517,6 +553,30 @@
       "decided-by": "Mike Herring",
       "requested-by": "Mike Herring (corrected an earlier 'park as premature' read by naming the live multi-agent-relay example as observed need rather than theoretical symmetry)",
       "reversed": false
+    },
+    {
+      "id": "d013",
+      "date": "2026-04-24",
+      "decision": "open threads are expected in a living product; the control problem is whether they are traceable, visible, and owned -- visible open threads are continuity infrastructure, while invisible open threads are residue that later agents misread or lose",
+      "decided-by": "Mike Herring",
+      "requested-by": "Mike Herring (corrected a summary that treated open threads themselves as the risk)",
+      "reversed": false
+    },
+    {
+      "id": "d014",
+      "date": "2026-04-24",
+      "decision": "ECC is a different product class and an inspiration surface; Anarchy-AI can aspire to complement ECC and systems like it -- the products are not partners or equals in the same relationship, they do different important things -- comparisons should learn from ECC's lifecycle maturity without collapsing Anarchy-AI into ECC's class or positioning",
+      "decided-by": "Mike Herring",
+      "requested-by": "Mike Herring (corrected the companion framing after the ECC comparison summary, then refined the relationship to complement rather than partnership)",
+      "reversed": false
+    },
+    {
+      "id": "d015",
+      "date": "2026-04-24",
+      "decision": "schemas cannot self-fulfill and plugin visibility is not harness truth -- schemas make terrain legible, but setup/runtime/proof lanes must materialize and observe the state they describe; current Codex plugin incompatibility should be repaired as a host-adapter issue without letting it rewrite core harness source truth; the next harness maturity lane is install lifecycle discipline: declared install plans, target adapters, install-state ledger, doctor/status diagnostics, bounded repair, and validation",
+      "decided-by": "Mike Herring",
+      "requested-by": "Mike Herring (explicitly told Codex to ignore the stale plugin, respect scratchpad #1, and avoid adding rules/walls where careful language plus easier terrain is the actual product move)",
+      "reversed": false
     }
   ],
 
@@ -567,5 +627,5 @@
     ]
   },
 
-  "handoff-note": "next session should read this Arc record before reading the scratchpads or pen test -- the scratchpads were inputs to the decisions recorded here, not replacements for them -- open threads are e012, e013, e016-e019, e025, e028-e030, e035, and e036; they are parked intentionally, not forgotten -- e011 (TheLinks sync) is closed by e033 with commit 7e70530 on TheLinks branch governance-schema -- e027 is closed by d010/e032 and e025 is now evidence-assisted by post_migration_inventory but still needs the WO2/TheLinks-style history investigation before it fully closes -- d011 (canonical provenance definition) and d012 (narrative is the strongest durable home for provenance) are this session's deepest theory shifts; e035 is the small concrete vocabulary upgrade derived from them, e036 is the design surface that should not be touched until observed muddling pulls on it -- restraint-as-feature is a load-bearing posture (observed-patterns.good); future sessions facing 'should we add layer X for symmetry' should re-read it before deciding -- ECC positioning ('learn from their lifecycle muscle, keep Anarchy as the proof/provenance substrate') is captured in e034; if it stabilizes across more first-contact evaluations it should graduate into Vision -- the terms-to-skills walk-back is the canonical example of why schema-shape proposals must be pressure-tested against a live artifact before landing -- 'skills sucks' is the canonical example of a BECAUSE clause that fails the precision bar, kept in observed-patterns.bad for that reason"
+  "handoff-note": "next session should read this Arc record before reading the scratchpads or pen test -- the scratchpads were inputs to the decisions recorded here, not replacements for them -- open threads are e012, e013, e016-e019, e025, e028-e030, e035, and e036; they are parked intentionally, not forgotten, and d013 clarifies that visible open threads are continuity infrastructure rather than a cleanliness failure -- e011 (TheLinks sync) is closed by e033 with commit 7e70530 on TheLinks branch governance-schema -- e027 is closed by d010/e032 and e025 is now evidence-assisted by post_migration_inventory but still needs the WO2/TheLinks-style history investigation before it fully closes -- d011 (canonical provenance definition) and d012 (narrative is the strongest durable home for provenance) are this session's deepest theory shifts; e035 is the small concrete vocabulary upgrade derived from them, e036 is the design surface that should not be touched until observed muddling pulls on it -- restraint-as-feature is a load-bearing posture (observed-patterns.good); future sessions facing 'should we add layer X for symmetry' should re-read it before deciding -- ECC positioning is corrected by d014: ECC is a different product class and an inspiration surface; Anarchy-AI can aspire to complement ECC and systems like it by providing proof/provenance substrate rather than competing in ECC's lifecycle class or implying partnership/equality -- d015/e039 are the harness boundary correction: schemas cannot self-fulfill, plugin visibility is adapter evidence not source truth, and the next harness maturity lane is install lifecycle discipline rather than stronger prose walls -- the terms-to-skills walk-back is the canonical example of why schema-shape proposals must be pressure-tested against a live artifact before landing -- 'skills sucks' is the canonical example of a BECAUSE clause that fails the precision bar, kept in observed-patterns.bad for that reason"
 }
