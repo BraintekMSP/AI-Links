@@ -47,7 +47,6 @@ Apply when relevant:
 
 - API layer: if business logic crosses domains or modules, verify calls go through API/service layers instead of direct database writes.
 - Contract layer: if public entry points changed, verify explicit input types, explicit output types, and meaningful verbs.
-- Workorders repo: verify every changed function uses API layers across domains/modules, correct direct database writes, and ensure each function has a contract layer with explicit input/output data types and meaningful verbs.
 - Schema mirrors: if schema or mirrored bundle surfaces changed, run the repo's schema/mirror verifier when one exists.
 - Setup/runtime: if setup, installer, plugin payload, or runtime surfaces changed, build or smoke-test the deployable path when practical.
 
@@ -77,7 +76,7 @@ Deferred:
 - None
 
 Skipped:
-- Workorders API-layer: not a workorders repo
+- API-layer: no cross-domain or module business logic touched
 - Contract-layer: no public entry points touched
 ```
 
