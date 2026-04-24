@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Commits"
+  short_description: "Structured review for recent commits"
+  default_prompt: "Use $review-commits to review recent git changes in structured batches."
+policy:
+  allow_implicit_invocation: true
