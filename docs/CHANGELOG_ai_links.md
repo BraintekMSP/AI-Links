@@ -1,6 +1,25 @@
 ﻿# Changelog - AI-Links
 
 
+## 2026-04-24
+
+### Anarchy-AI install language and lifecycle discipline
+
+- Re-anchored Anarchy-AI harness docs on the scratchpad distinction between influence, materialization, and proof instead of host-level enforcement claims.
+- Updated the repo install process to describe the harness as operational enough to influence work, not enforced by the host, and to mark Claude Code/Desktop lanes as implemented but still inferred until truth-matrix promotion.
+- Updated the harness architecture note so `AnarchyAi.Setup.exe` is framed as a delivery/operator surface, while install truth moves toward manifests, target adapters, install-state records, diagnostics, repair actions, and catalog validation.
+- Recorded `AA-BUG-017` for product-language overclaim so future docs and setup disclosures do not drift back into guarantee/enforcement wording without a real blocking mechanism.
+- Marked current Codex plugin compatibility as a separate stale adapter lane so plugin visibility no longer drives core harness conclusions while the plugin repair is in progress.
+- Added the schema self-fulfillment boundary to harness architecture, delivery/install docs, and the implementation gap register: schemas make terrain legible, but setup/runtime/proof lanes must materialize and observe the state they describe.
+
+### Anarchy-AI setup lifecycle status
+
+- Added `/status` plus `/doctor`, `/selfcheck`, and `/self-check` aliases to the setup executable CLI.
+- Added `setup_operation` and `install_state` to setup JSON output.
+- Added versioned `.anarchy-ai/install-state.json` writing on setup install/update so later assess/status runs can inspect lifecycle state without trusting plugin UI visibility.
+- Added status-mode findings and repair guidance for missing or drifted install-state records.
+- Added setup tests for status aliases, install-state creation, repeatable status reads, and missing-state repair guidance.
+
 ## 2026-04-15
 
 ### Codex plugin manifest encoding repair

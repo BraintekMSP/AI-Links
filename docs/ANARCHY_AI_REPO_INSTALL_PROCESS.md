@@ -10,15 +10,16 @@ This process makes the harness:
 
 - delivered
 - accessible
-- enforced enough to matter
+- operational enough to influence work
 - real enough to trust
 
 Current reality:
 
 - packaged delivery is Windows-first
 - Codex is the current first-class packaged host
-- Claude shares the contract model and MCP direction; packaged adapter is future work
+- Claude Code and Claude Desktop host-target lanes are implemented as opt-in setup targets, but remain inferred until the truth-matrix promotion tests are captured
 - Cursor is future work for first-class install targeting
+- current Codex plugin compatibility is being repaired separately; do not treat plugin visibility as the source of harness truth during that repair
 - environment truth separation for Codex install/mount behavior is tracked in:
   - `ANARCHY_AI_ENVIRONMENT_TRUTH_MATRIX.md`
 
@@ -125,7 +126,7 @@ Marketplace naming note:
 - current Codex plugin surfaces can still expose the top-level marketplace `name`
 - keep that `name` branded and stable across devices rather than leaking a path-derived hash
 
-It enforces this plugin entry shape:
+Setup writes and maintains this plugin entry shape:
 
 ```json
 {
@@ -160,7 +161,9 @@ That set is:
 - `Getting-Started-For-Humans.txt`
 
 Keep harness delivery separate from schema reality.
-Material governance requires the harness to be installed and enforced - copied schema files alone are delivery evidence, governance requires the harness running against them.
+Material governance requires the harness to be installed, callable, and used in the work path - copied schema files alone are delivery evidence, not proof of operative governance.
+
+Schemas do not self-fulfill. They make the desired route legible, but setup, runtime tools, proof files, or human-confirmed verification must still materialize and observe the intended state.
 
 ## Exact installation steps in another repo
 
@@ -450,11 +453,11 @@ For the current Codex-first path, accessibility requires all of the following:
 
 When any of those are missing, the harness remains partially delivered â€” files present, accessibility incomplete. Count the harness as accessible only when every item above is satisfied.
 
-## How to make the system enforced enough to matter
+## How to make the system operational enough to matter
 
-Installed and enforced are separate states. Installed covers delivery and accessibility; enforced covers behavior change.
+Installed and operational are separate states. Installed covers delivery and accessibility; operational covers whether the harness actually shapes how work begins and how gaps stay visible.
 
-For the current architecture, enforcement means the harness changes how work begins.
+For the current architecture, operational influence means the harness changes the terrain before work hardens into action. It does not mean the host is compelled to obey every instruction.
 
 ### 1. Agent startup expectation
 
@@ -575,9 +578,9 @@ Current scope:
 - install scope covers repo-bootstrap and user-profile lanes; machine-level install is future work
 - user-profile install is supported; true device-local install is future work
 - packaged delivery is Windows-first
-- Claude packaged adapter is future work; the contract model and MCP direction are shared today
+- Claude Code and Claude Desktop packaged lanes are implemented as opt-in host targets and remain inferred until fresh-session/fresh-app verification is captured
 - Cursor first-class delivery is future work
-- host-native install suggestion chips fall outside the guaranteed install story â€” they exist when the host offers them, through a separate optional path
+- host-native install suggestion chips fall outside the declared install story - they exist when the host offers them, through a separate optional path
 - GUI mode covers `Assess` and `Install` today; GUI `Update` is future work
 - reflection (`assess the last exchange and do better`) remains a secondary workflow â€” first-class install targeting is future work
 - public update depends on outbound access to the configured source zip and a working local trust/TLS path
@@ -588,7 +591,7 @@ Current scope:
 
 1. Copy `plugins/AnarchyAi.Setup.exe` into the target repo `plugins/` folder.
 2. Run `AnarchyAi.Setup.exe /install /repolocal` or `AnarchyAi.Setup.exe /install /userprofile`, or double-click it and choose the lane in the GUI.
-3. Require install to provision or update the matching marketplace root with `INSTALLED_BY_DEFAULT`.
+3. Use install to provision or update the matching marketplace root with `INSTALLED_BY_DEFAULT`.
 4. Run `AnarchyAi.Setup.exe /assess` with the same lane and require `bootstrap_state = ready`.
 5. Install now seeds missing portable schema-family files by default; use `/refreshschemas` only when repo-root schema copies should be overwritten from the embedded payload.
 6. Use `AnarchyAi.Setup.exe /update` when the carried bundle needs to be refreshed.
@@ -596,7 +599,7 @@ Current scope:
 8. Verify schema reality before trusting copied schema presence.
 9. Use gov2gov planning where existing authority surfaces must be reconciled.
 
-When every one of those nine items is true, the system counts as fully delivered, accessible, enforced, and real in the target repo. Any gap keeps the system in partial adoption.
+When every one of those nine items is true, the system counts as fully delivered, accessible, operational, and real in the target repo. Any gap keeps the system in partial adoption.
 
 ## Portability evidence checklist
 

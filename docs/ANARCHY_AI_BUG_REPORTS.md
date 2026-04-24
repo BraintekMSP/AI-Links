@@ -97,7 +97,7 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
 ### AA-BUG-005: Missing setup `self-check` command for active mount diagnostics
 
 - Severity: Medium
-- Status: Open
+- Status: Partially patched in setup source; host surfacing proof still pending
 - Component: Setup / Diagnostics
 - Repro:
   - Attempt to diagnose lane confusion across sessions.
@@ -109,6 +109,11 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
   - Multiple manual checks were required (`config.toml`, marketplace, plugin roots, manifests).
 - Acceptance:
   - `AnarchyAi.Setup.exe /selfcheck /json` returns bounded diagnostics for mount truth.
+  - Local patch notes:
+    - setup parser now accepts `/status`, `/doctor`, `/selfcheck`, and `/self-check`
+    - setup install/update now writes a versioned `.anarchy-ai/install-state.json` record into the owned plugin bundle
+    - setup JSON now includes `install_state` with bounded missing/drift findings
+    - current status output is lifecycle evidence, not proof that a given host has surfaced the plugin or MCP tools
 
 ### AA-BUG-006: Runtime lock recovery is not first-class in setup retry flow
 
@@ -352,6 +357,32 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
   - Repo-source `plugin.json`, `.mcp.json`, and `schema-bundle.manifest.json` are emitted as UTF-8 without BOM.
   - The rebuilt setup EXE carries those normalized files into the home-local install.
   - Codex can open the Anarchy-AI plugin detail page without the `missing or invalid .codex-plugin/plugin.json` error.
+
+### AA-BUG-017: Product language can overclaim enforcement where the harness only provides influence, materialization, or proof
+
+- Severity: Medium
+- Status: Open
+- Component: Documentation / Product language / Setup disclosure
+- Repro:
+  - Rapidly update setup, harness, schema, and plugin docs during install-lane work.
+  - Reuse terms such as `enforced`, `guaranteed`, or `default` after live host behavior proves weaker than the wording.
+- Expected:
+  - Product language distinguishes:
+    - influence surfaces such as skills, startup prompts, and AGENTS guidance
+    - materialization surfaces such as files, manifests, marketplace entries, and installed bundles
+    - proof surfaces such as fresh-session reachability, tool calls, install-state records, and diagnostics
+- Actual:
+  - Older docs can imply host-level enforcement or guaranteed install behavior when the proven state is narrower.
+- Evidence:
+  - Codex plugin registration changed across app versions and broke previously working assumptions.
+  - Skills and startup instructions remained useful for consistent team experience but did not guarantee behavior.
+  - Repo-local install remains documented and writable, while Codex-native plugin surfacing for repo-local remains unproven in the truth matrix.
+  - Earlier install docs used `enforced enough to matter` and `guaranteed install story` language despite the scratchpad doctrine that the underlay conditions rather than compels.
+- Acceptance:
+  - Docs and setup disclosures use `operational`, `callable`, `materialized`, `proven`, `inferred`, or `influence` instead of enforcement language unless a real blocking mechanism exists.
+  - Architecture docs state that the setup EXE is a carrier/operator surface, not the sole install truth authority.
+  - Future installer lifecycle work adds declared install plans, target adapters, install-state records, doctor/status diagnostics, repair actions, and catalog validation before claiming lifecycle maturity.
+  - Truth matrix promotion remains the only path from inferred host behavior to proven host behavior.
 
 ## Notes
 

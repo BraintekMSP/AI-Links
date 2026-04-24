@@ -18,6 +18,14 @@ That means:
 - host translation lives in adapters
 - canonical harness truth stays in the shared contracts â€” SDK, App Server, and skills consume those contracts, the contracts own harness truth
 
+Current operating boundary:
+
+- the installed Codex plugin is an adapter surface, not the source of harness truth
+- current plugin incompatibility should be repaired in the plugin lane, not worked around by weakening core harness claims
+- schemas do not self-fulfill; they describe route shape, authority, vocabulary, and desired state, but the harness must materialize, verify, reconcile, and record operative state
+- careful language is product behavior here: the harness should make the correct path easy to traverse rather than adding rules that the host cannot actually enforce
+- when the harness needs consequence, it should create observable state, a callable check, or a next action item instead of only adding stronger prose
+
 ## Shared Core
 
 The shared core owns:
@@ -161,8 +169,26 @@ Preferred next delivery direction:
 - `AnarchyAi.Mcp.Server.exe` remains the long-running runtime
 - argument-free launch opens a simple Windows GUI installer
 - switch-driven launch remains machine-readable and agent-friendly
-- repo-local install remains the default target
+- Codex user-profile install is the current proven packaged lane
+- repo-local install remains supported, but its Codex-native plugin surfacing stays unproven until the truth matrix promotion test is captured
 - explicit alternate repo targeting remains available through `/repo`
+
+Install lifecycle direction:
+
+- the setup executable is the delivery and operator surface, not the sole source of install truth
+- install truth should move toward declared manifests, target adapters, install-state records, doctor/status diagnostics, repair actions, and catalog validation
+- host adapters should translate the same declared harness intent into Codex, Claude Code, Claude Desktop, and later Cursor surfaces without changing shared harness logic
+- claims about host behavior should be graded through the truth matrix; file presence alone is not proof of plugin materialization or session reachability
+- skills and startup instructions are influence surfaces, not enforcement surfaces; they improve consistency and discoverability but do not guarantee behavior
+- schema adoption claims should not close on file copy, schema presence, or startup text alone; they close only when a harness or verification lane observes the intended materialized state
+
+Lifecycle state implemented in setup source:
+
+- install/update writes a versioned `.anarchy-ai/install-state.json` record inside the owned plugin bundle
+- setup JSON now includes `setup_operation` and `install_state`
+- `/status`, `/doctor`, `/selfcheck`, and `/self-check` perform read-only lifecycle inspection
+- status mode compares recorded install intent against the currently resolved destination paths and returns bounded `install_state_*` findings
+- repair is still a separate future lane; current status output tells the actor which bounded repair is needed without performing it
 
 Pass 2 implemented (pending promotion through the truth matrix):
 

@@ -697,36 +697,167 @@ Desired future helper surfaces:
 
 ---
 
+### 15. Harness Lifecycle Needs Install-State And Doctor/Repair Surfaces
+
+#### Gap
+
+The current harness delivery story still leans too much on:
+
+- setup success messages
+- copied files
+- plugin visibility
+- prose instructions
+
+Those are useful evidence, but they are not lifecycle truth.
+
+ECC demonstrates a more durable pattern worth adapting without copying its product philosophy:
+
+- declared install plans
+- target adapters
+- install-state records
+- doctor/status diagnostics
+- repair actions
+- catalog or contract validation
+
+#### Why it matters
+
+- current Codex plugin behavior has changed enough that plugin visibility cannot be treated as stable proof
+- a single setup executable is useful as a carrier, but dangerous if it becomes the only authority about what happened
+- agents need one easy diagnostic path instead of reconstructing state from plugin files, marketplaces, config, runtime paths, and chat history
+- future install lanes should be provable without relying on a currently working plugin UI
+
+#### What this points toward
+
+- add a versioned install-state ledger written by setup
+- add a read-only status/doctor command that compares declared install intent against observed destination state
+- add a bounded repair command that can restore only Anarchy-owned surfaces from source truth
+- keep target adapters responsible for Codex, Claude Code, Claude Desktop, and later Cursor translation
+- keep the setup executable as delivery/operator surface, not the sole install truth authority
+
+#### Current source status
+
+- Implemented in setup source:
+  - `/status`
+  - `/doctor`
+  - `/selfcheck`
+  - `/self-check`
+  - versioned `.anarchy-ai/install-state.json` writing on install/update
+  - `install_state` reporting in setup JSON
+  - status-mode repair guidance for missing or drifted install-state records
+- Still pending:
+  - a bounded repair command that rematerializes only Anarchy-owned surfaces
+  - catalog validation beyond the current embedded payload/path-canon checks
+  - truth-matrix promotion tests for host-specific surfacing after install
+
+#### Problem being solved
+
+- moving from "files exist and setup said ready" to "declared intent, observed state, drift, and repair path are all visible"
+
+---
+
+### 16. Schemas Cannot Self-Fulfill
+
+#### Gap
+
+Some product language and adoption flows can still imply that schema presence or startup text completes the behavior the schema describes.
+
+That is wrong.
+
+Schemas can:
+
+- make terrain legible
+- provide vocabulary
+- reduce composition depth
+- route attention
+- preserve recovery residue
+
+Schemas cannot, by themselves:
+
+- prove install state
+- keep an active proof lane alive
+- verify config materialization
+- prevent local exit-condition failures
+- guarantee host plugin surfacing
+
+#### Why it matters
+
+- treating schema presence as fulfillment recreates the same failure class as treating config acknowledgement as config materialization
+- agents can still locally decide they have enough to stop unless active state and next actions are anchored outside narration
+- migrations can appear complete while missing surfaces or unverified schema reality remain
+
+#### What this points toward
+
+- every schema adoption claim should name the observable state that closes it
+- active proof work needs runtime-adjacent state when continuation matters
+- schema-reality outputs should keep copy, materialization, integrity, and adoption axes separate
+- setup and runtime tools should make the next correct move obvious instead of requiring agents to infer it from broad rules
+
+#### Problem being solved
+
+- preventing schema language from being mistaken for schema fulfillment
+
+---
+
+### 17. Plugin Adapter Breakage Must Not Drive Core Harness Truth
+
+#### Gap
+
+The installed Codex plugin surface is currently out of date and incompatible with current Codex behavior while a separate adapter repair is underway.
+
+The core harness docs and implementation direction still mention plugin delivery enough that later agents may accidentally treat plugin state as harness truth.
+
+#### Why it matters
+
+- plugin visibility can break because of host indexing, app-version behavior, cache state, manifest parsing, or marketplace registration
+- those failures are real delivery bugs, but they do not invalidate the source contracts, runtime model, or schema/harness doctrine
+- conflating adapter breakage with core truth leads to noisy rewrites and half-migrations
+
+#### What this points toward
+
+- treat plugin compatibility as a host-adapter lane with its own proof tests
+- keep MCP/runtime contracts, setup lifecycle, and schema materialization work independent from plugin UI state
+- update truth docs whenever a host update invalidates prior proven plugin observations
+- do not use plugin resources/templates discovery as a presence check unless that endpoint is explicitly implemented
+
+#### Problem being solved
+
+- preserving harness source progress while current host plugin mechanics are repaired separately
+
+---
+
 ## Current Priority Order
 
 Highest practical friction:
 
-1. plugin trust surfaces
-2. deprecated launch-path documentation
-3. stale maturity framing
-4. missing architecture sentence
+1. install-state / doctor / repair lifecycle gap
+2. schema self-fulfillment gap
+3. plugin adapter breakage contaminating core harness truth
+4. plugin trust surfaces
+5. deprecated launch-path documentation
+6. stale maturity framing
+7. missing architecture sentence
 
 Highest canonical consistency pressure:
 
-5. governance residual exit grammar
-6. required-field `missing` abort grammar
-7. skill result-axis ambiguity
+8. governance residual exit grammar
+9. required-field `missing` abort grammar
+10. skill result-axis ambiguity
 
 Evidence / theory discipline:
 
-8. scratchpad working-claim strength
+11. scratchpad working-claim strength
 
 Platform clarity:
 
-9. Windows-first vs host-agnostic delivery language
+12. Windows-first vs host-agnostic delivery language
 
 Schema-family review pressure:
 
-10. dedicated narrative-schema review
+13. dedicated narrative-schema review
 
 Future expansion guardrail:
 
-11. preserve the journal/accounting capture distinction without introducing a new schema yet
+14. preserve the journal/accounting capture distinction without introducing a new schema yet
 
 ---
 

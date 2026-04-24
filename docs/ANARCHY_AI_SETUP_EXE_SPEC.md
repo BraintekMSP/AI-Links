@@ -190,6 +190,8 @@ Primary operations:
 - `/assess`
 - `/install`
 - `/update`
+- `/status`
+- `/doctor`, `/selfcheck`, and `/self-check` as status aliases
 - `/repolocal`
 - `/userprofile`
 - `/?`, `-?`, `/h`, `-h`, `/help`, `-help`, `--help`, `--?`
@@ -210,6 +212,7 @@ Recommended Windows-style usage:
 AnarchyAi.Setup.exe /install /repolocal /silent /json
 AnarchyAi.Setup.exe /install /userprofile /silent /json
 AnarchyAi.Setup.exe /assess /userprofile /silent /json
+AnarchyAi.Setup.exe /status /userprofile /silent /json
 AnarchyAi.Setup.exe /update /userprofile /silent /json /sourcepath "C:\path\to\AI-Links"
 AnarchyAi.Setup.exe /install /repolocal /repo "C:\path\to\other-repo" /silent /json
 ```
@@ -221,6 +224,8 @@ AnarchyAi.Setup.exe /install /repolocal /repo "C:\path\to\other-repo" /silent /j
 - `/repo` overrides repo auto-detection
 - `/repolocal` installs or assesses through the selected repo root
 - `/userprofile` installs or assesses through the current user profile
+- `/status` is read-only lifecycle inspection
+- `/doctor`, `/selfcheck`, and `/self-check` are aliases for `/status`
 - `/sourcepath` allows local source refresh without depending on public TLS
 - install seeds missing portable root schema files when a workspace root is targeted (`/repolocal`, or `/userprofile` with explicit `/repo`)
 - `/refreshschemas` means force-refresh the portable root schema family only when a workspace root is targeted
@@ -233,6 +238,7 @@ CLI output should remain consistent with the current bootstrap lane.
 
 Expected result shape:
 
+- `setup_operation`
 - `bootstrap_state`
 - `host_context`
 - `install_scope`
@@ -248,6 +254,14 @@ Expected result shape:
 - `missing_components`
 - `safe_repairs`
 - `next_action`
+- `install_state`
+  - `schema_version`
+  - `state_path`
+  - `state_present`
+  - `state_written`
+  - `state_valid`
+  - `findings`
+  - `recorded_*` fields when a valid or readable install-state file exists
 - `paths`
   - `paths.origin`
   - `paths.source`
@@ -266,6 +280,7 @@ Path-shape rules:
 - destination-relative file and directory facts now live under `paths.destination`
 - update-source facts now live under `paths.source` when update actually pulled from a local path or downloaded extract root
 - repo-authored source facts live under `paths.origin` only when that source is actually available to the current operation
+- `paths.destination.files.install_state_file_path` points at the setup-owned lifecycle state file
 
 Install lock semantics:
 
@@ -274,6 +289,16 @@ Install lock semantics:
   - `missing_components` includes `locked_bundle_surface_write_skipped`
   - `next_action = release_runtime_lock_and_retry_install`
 - this presents a bounded repair path instead of a hard crash and keeps `ready` state honest
+
+Lifecycle state semantics:
+
+- install/update writes `.anarchy-ai/install-state.json` inside the owned plugin bundle
+- the install-state record is versioned as `anarchy.install-state.v1`
+- the record captures install scope, host context, host targets, workspace root, plugin root, marketplace path, plugin source path, MCP server name, runtime path, source kind, and write timestamp
+- `/status` reads that record and compares it to the current resolved destination paths
+- when `/status` cannot find the record, it reports `install_state_missing` and `next_action = run_install_to_write_install_state`
+- when `/status` finds a mismatched or invalid record, it reports bounded `install_state_*` findings and points to `rerun_install_to_refresh_install_state`
+- this is lifecycle evidence, not host UI proof; fresh-session tool reachability still belongs in the truth matrix
 
 The setup exe preserves these semantics so:
 
@@ -288,6 +313,7 @@ Agent use of the setup exe should remain operationally similar to the current bo
 That means:
 
 - agents can assess readiness
+- agents can inspect lifecycle status without trusting plugin UI visibility
 - agents can install when the repo needs bootstrapping
 - agents can update from a local source path
 - agents can read bounded repair guidance instead of improvising from raw failures

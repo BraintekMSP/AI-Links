@@ -6,10 +6,14 @@ what-done-looks-like-at-this-scope: the repo carries a stable harness-core visio
 commitments-that-must-survive-scope-evolution:
 - Shared harness logic remains authoritative in shared contracts and runtime implementation, not in App Server, SDK orchestration, skills, or host-specific prompts.
 - The first-class harness contract set is explicit and bounded: `preflight_session`, `compile_active_work_state`, `is_schema_real_or_shadow_copied`, `assess_harness_gap_state`, and `run_gov2gov_migration`.
-- `preflight_session` exists to decide whether complex changes should continue, bootstrap, inspect schema reality, or stop for human direction.
+- `preflight_session` exists to decide whether complex changes should continue, bootstrap, inspect schema reality, or return to the human for direction.
 - `assess_harness_gap_state` exists to report install, runtime, schema, startup, and adoption gaps as one bounded environment-facing result rather than as scattered tool outputs.
 - The shared core owns workspace inspection, canonical bundle checks, preflight rules, active-work compilation, schema-reality classification, non-destructive reconciliation, and gap-assessment logic.
 - The shared core does not own Codex-only lifecycle behavior, Claude-only install mechanics, App Server protocol handling, SDK orchestration policy, host-native UI prompts, or schema authorship.
 - The reflection lane (`assess the last exchange against schema rules and do better`) is preserved as a secondary workflow and must not be misrepresented as a first-class v1 contract.
 - The harness remains a runtime framework harness and must not become a second source of schema truth.
 - The current architecture sentence remains stable: schema family = canonical layer; AGENTS Heuristic Underlay = operative layer; Anarchy-AI = runtime framework harness.
+- Harness language must distinguish influence, materialization, and proof from enforcement; skills and startup prompts shape trajectories but do not guarantee host behavior.
+- Install lifecycle truth belongs in declared install plans, adapter outputs, install-state records, diagnostics, and repeatable proof artifacts rather than in the setup executable's success message alone.
+- Schemas cannot self-fulfill: they can make terrain legible, but a harness, helper, or human-confirmed verification lane must materialize and observe the state they describe.
+- When a schema or startup surface needs stronger behavior, the first product move should be an easier path, clearer wording, or observable harness state, not another unbacked wall.

@@ -5,6 +5,7 @@ scope-statement: define how Anarchy-AI should be delivered, exposed, and assesse
 what-done-looks-like-at-this-scope: the repo carries a stable delivery and accessibility vision that makes User, Agent, and Environment responsibilities explicit, identifies Codex and Claude as first-class compatibility targets, preserves repo bootstrap as the first install lane, and keeps machine-level rollout as a later extension instead of a rewrite
 commitments-that-must-survive-scope-evolution:
 - Codex and Claude are the first-class compatibility targets for the harness; Cursor remains compatibility-ready rather than first-class in v1.
+- Compatibility targets are host-adapter goals, not proof that the current plugin surface works in every current host build.
 - MCP remains the common callable transport layer for shared contracts and must stay usable across hosts.
 - App Server remains the Codex-native lifecycle adapter and must not become the source of canonical harness logic.
 - SDK remains a valid and important programmatic control surface for orchestration, reflection workflows, bootstrap helpers, and preflight control, but it is not the canonical logic layer.
@@ -17,3 +18,5 @@ commitments-that-must-survive-scope-evolution:
 - Host-native install suggestion chips are opportunistic and must not be treated as a safe architectural dependency.
 - The harness should feel like one coherent surface rather than a pile of exposed utilities; default presence alone is not enough.
 - Windows-first runtime delivery is the honest current packaged posture and should remain explicit until a broader host/runtime story is actually proven.
+- If a host plugin surface breaks, the harness should preserve source truth and lifecycle discipline while the host adapter is repaired separately.
+- Delivery should make successful use easy to discover and repeat; it should not depend on users or agents reconstructing install state from scattered plugin files.

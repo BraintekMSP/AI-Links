@@ -22,6 +22,18 @@ Install surfaces are then resolved relative to the destination:
 - the installer is a published carrier
 - observed installed machine state is separate evidence, not a replacement source of truth
 
+## Current Plugin Compatibility Override
+
+As of `2026-04-24`, the installed Anarchy-AI Codex plugin surface is treated as stale and incompatible with current Codex behavior until the plugin adapter repair is completed and re-proven.
+
+Implications:
+
+- do not use current Codex plugin visibility as evidence for or against harness source correctness
+- do not let plugin mount failures drive schema or core harness design changes
+- keep the April 15 Codex plugin observations as historical evidence for the old app/plugin boundary, not as current proof
+- current source work should target the harness, setup lifecycle, contracts, docs, and proof discipline directly
+- promotion back to `proven` requires the same identifiable-change plus fresh-session repeatability standard defined below
+
 ## Evidence Qualification Model
 
 Use these evidence levels for environment claims.
