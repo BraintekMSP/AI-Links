@@ -1,6 +1,6 @@
 {
   "contract_name": "gov2gov_migration_contract",
-  "contract_version": "0.1.0",
+  "contract_version": "0.1.1",
   "function_name": "run_gov2gov_migration",
   "purpose": "Non-destructively reconcile a partial or copied-only schema package using the AGENTS-schema-gov2gov-migration model, then return the resulting schema reality state.",
   "input_contract": {
@@ -45,6 +45,23 @@
     }
   },
   "output_contract": {
+    "workspace_role": {
+      "type": "object",
+      "description": "Role envelope declaring whether this workspace is schema/plugin source-delivery, a material governance consumer, or mixed/undetermined before migration claims are interpreted."
+    },
+    "runtime_provenance": {
+      "type": "object",
+      "description": "Runtime provenance envelope declaring whether the callable harness came from user profile install, repo-local install, source checkout, or an unknown/external runtime lane."
+    },
+    "consumer_material_governance_check": {
+      "type": "enum",
+      "values": [
+        "applicable",
+        "not_applicable",
+        "undetermined"
+      ],
+      "description": "Whether governed AGENTS materialization checks apply to this workspace role."
+    },
     "migration_result_state": {
       "type": "enum",
       "values": [
@@ -104,6 +121,10 @@
         "unknown"
       ],
       "description": "Derived possession label after the migration lane completes."
+    },
+    "post_migration_inventory": {
+      "type": "object",
+      "description": "Non-gating evidence inventory after the migration pass. Portable schema files are presence and hash checked against the current canonical bundle and this run's plan/action lists; governed AGENTS and GOV2GOV structure are presence-only because workspace-specific divergence is expected."
     }
   },
   "gov2gov_alignment_targets": [
@@ -120,6 +141,22 @@
     "historical_lane_preservation_for_demoted_surfaces"
   ],
   "result_example": {
+    "workspace_role": {
+      "machine_key": "material_governance_consumer_workspace",
+      "statement": "This workspace carries a material governed AGENTS family. Consumer material-governance checks are applicable because AGENTS.md and the governed AGENTS authority files are present as workspace-specific operating context.",
+      "evidence": [
+        "startup_surface_present:AGENTS.md"
+      ],
+      "claim_scope_effect": [
+        "consumer_material_governance_check:applicable"
+      ],
+      "confidence": "inferred_from_workspace"
+    },
+    "runtime_provenance": {
+      "machine_key": "user_profile_installed_runtime",
+      "statement": "This callable harness is running from the current user's installed plugin bundle. It is convenient and valid as an installed runtime, but it is not source truth for the workspace being evaluated."
+    },
+    "consumer_material_governance_check": "applicable",
     "migration_result_state": "planned",
     "planned_actions": [
       "refresh_package_surface",
@@ -139,6 +176,30 @@
     ],
     "resulting_schema_reality_state": "partial",
     "resulting_integrity_state": "aligned",
-    "resulting_possession_state": "unpossessed"
+    "resulting_possession_state": "unpossessed",
+    "post_migration_inventory": {
+      "inventory_state": "non_gating_evidence_only",
+      "comparison_basis": [
+        "current_canonical_schema_bundle_manifest",
+        "this_run_planned_actions",
+        "this_run_actions_taken"
+      ],
+      "portable_schema_family": [
+        {
+          "path": "AGENTS-schema-narrative.json",
+          "presence_state": "missing",
+          "hash_mode": "canonical_hash_checked",
+          "hash_alignment": "missing",
+          "delivery_plan_state": "planned_to_deliver"
+        }
+      ],
+      "governed_agents_structure": [
+        {
+          "path": "AGENTS.md",
+          "presence_state": "present",
+          "hash_mode": "presence_only_workspace_specific_divergence_expected"
+        }
+      ]
+    }
   }
 }

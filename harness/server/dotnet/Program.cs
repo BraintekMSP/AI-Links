@@ -88,10 +88,13 @@ internal sealed class CanonicalSchemaBundle
             AnarchyPathCanon.ResolveBundleFilePath(Environment.CurrentDirectory, AnarchyPathCanon.BundleSchemasDirectoryRelativePath),
             AnarchyPathCanon.ResolveBundleFilePath(AppContext.BaseDirectory, AnarchyPathCanon.BundleSchemasDirectoryRelativePath),
             Path.Combine(AppContext.BaseDirectory, "..", "..", AnarchyPathCanon.BundleSchemasDirectoryRelativePath),
+            Path.Combine(Environment.CurrentDirectory, AnarchyPathCanon.RepoSourcePluginDirectoryRelativePath, AnarchyPathCanon.BundleSchemasDirectoryRelativePath),
             Path.Combine(Environment.CurrentDirectory, "..", "..", "..", AnarchyPathCanon.RepoSourcePluginDirectoryRelativePath, AnarchyPathCanon.BundleSchemasDirectoryRelativePath),
             Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", AnarchyPathCanon.RepoSourcePluginDirectoryRelativePath, AnarchyPathCanon.BundleSchemasDirectoryRelativePath),
             AnarchyPathCanon.ResolveBundleFilePath(HarnessInstallDiscovery.TryResolveInstalledPluginRoot() ?? string.Empty, AnarchyPathCanon.BundleSchemasDirectoryRelativePath)
         }
+        .Concat(FindAncestorSourceSchemaDirectories(Environment.CurrentDirectory))
+        .Concat(FindAncestorSourceSchemaDirectories(AppContext.BaseDirectory))
         .Where(static path => !string.IsNullOrWhiteSpace(path))
         .Select(Path.GetFullPath)
         .Distinct(StringComparer.OrdinalIgnoreCase);
@@ -125,6 +128,28 @@ internal sealed class CanonicalSchemaBundle
         }
 
         return new CanonicalSchemaBundle { IsAvailable = false };
+    }
+
+    // Purpose: Finds repo-source plugin schema bundle candidates by walking ancestors from a runtime path.
+    // Expected input: Current directory or runtime base directory.
+    // Expected output: Candidate plugins/anarchy-ai/schemas directories beneath ancestor repo roots.
+    // Critical dependencies: RepoSourcePluginDirectoryRelativePath and local filesystem path traversal.
+    private static IEnumerable<string> FindAncestorSourceSchemaDirectories(string startPath)
+    {
+        if (string.IsNullOrWhiteSpace(startPath))
+        {
+            yield break;
+        }
+
+        var current = new DirectoryInfo(Path.GetFullPath(startPath));
+        while (current is not null)
+        {
+            yield return Path.Combine(
+                current.FullName,
+                AnarchyPathCanon.RepoSourcePluginDirectoryRelativePath,
+                AnarchyPathCanon.BundleSchemasDirectoryRelativePath);
+            current = current.Parent;
+        }
     }
 
     // Purpose: Resolves the on-disk file path for one canonical schema file in the loaded bundle.
@@ -356,6 +381,382 @@ internal static class HarnessInstallDiscovery
     }
 }
 
+// Purpose: Builds the runtime provenance and workspace-role envelope attached to harness claims.
+// Expected input: Workspace root plus the plugin root selected by discovery when available.
+// Expected output: Stable machine keys paired with human/agent-readable statements, evidence, and claim-scope effects.
+// Critical dependencies: AnarchyPathCanon, plugin manifest JSON, schema-bundle manifest JSON, and workspace source-shape heuristics.
+internal static class RuntimeEnvelopeBuilder
+{
+    public const string SchemaAuthoringAndPluginDeliveryWorkspace = "schema_authoring_and_plugin_delivery_workspace";
+    public const string MaterialGovernanceConsumerWorkspace = "material_governance_consumer_workspace";
+    public const string MixedOrUndeterminedWorkspaceRole = "mixed_or_undetermined_workspace_role";
+
+    private const string UserProfileInstalledRuntime = "user_profile_installed_runtime";
+    private const string RepoLocalInstalledRuntime = "repo_local_installed_runtime";
+    private const string SourceCheckoutRuntime = "source_checkout_runtime";
+    private const string ExternalOrUnknownRuntime = "external_or_unknown_runtime";
+
+    private static readonly string[] PortableSchemaFiles =
+    [
+        "AGENTS-schema-governance.json",
+        "AGENTS-schema-1project.json",
+        "AGENTS-schema-narrative.json",
+        "AGENTS-schema-gov2gov-migration.json",
+        "AGENTS-schema-triage.md",
+        "Getting-Started-For-Humans.txt"
+    ];
+
+    private static readonly string[] GovernedAuthorityFiles =
+    [
+        "AGENTS-hello.md",
+        "AGENTS-Terms.md",
+        "AGENTS-Vision.md",
+        "AGENTS-Rules.md"
+    ];
+
+    private static readonly string[] Gov2GovStructureFiles =
+    [
+        "GOV2GOV-hello.md",
+        "GOV2GOV-source-target-map.md",
+        "GOV2GOV-registry.json",
+        "GOV2GOV-rules.md",
+        "GOV2GOV-pitfalls.md"
+    ];
+
+    public static IReadOnlyList<string> PortableSchemaFamily => PortableSchemaFiles;
+    public static IReadOnlyList<string> GovernedAgentsStructure => GovernedAuthorityFiles.Prepend("AGENTS.md").ToArray();
+    public static IReadOnlyList<string> Gov2GovStructure => Gov2GovStructureFiles;
+
+    public static WorkspaceRoleEnvelope BuildWorkspaceRole(string workspaceRoot)
+    {
+        var resolvedWorkspaceRoot = Path.GetFullPath(workspaceRoot);
+        var evidence = new List<string>();
+        if (TryBuildDeclaredWorkspaceRole(resolvedWorkspaceRoot, out var declaredRole, out var declaredRoleFinding))
+        {
+            return declaredRole;
+        }
+
+        if (!string.IsNullOrWhiteSpace(declaredRoleFinding))
+        {
+            evidence.Add(declaredRoleFinding);
+        }
+
+        if (IsSchemaAuthoringAndPluginDeliveryWorkspace(resolvedWorkspaceRoot, evidence))
+        {
+            return new WorkspaceRoleEnvelope(
+                MachineKey: SchemaAuthoringAndPluginDeliveryWorkspace,
+                Statement: "This workspace deliberately combines schema/harness development with plugin delivery in one source repo. It authors the portable schema family, harness source, contracts, plugin bundle, and delivery docs. It is not expected to materialize the governed AGENTS runtime family for itself, so missing AGENTS-hello.md / AGENTS-Terms.md / AGENTS-Vision.md / AGENTS-Rules.md is not by itself a consumer-adoption failure.",
+                Evidence: evidence.ToArray(),
+                ClaimScopeEffect:
+                [
+                    "consumer_material_governance_check:not_applicable_unless_explicitly_requested",
+                    "source_integrity_and_delivery_bundle_checks:applicable",
+                    "runtime_install_observations:must_be_read_with_runtime_provenance"
+                ],
+                Confidence: "inferred_from_workspace");
+        }
+
+        evidence.Clear();
+        if (IsMaterialGovernanceConsumerWorkspace(resolvedWorkspaceRoot, evidence))
+        {
+            return new WorkspaceRoleEnvelope(
+                MachineKey: MaterialGovernanceConsumerWorkspace,
+                Statement: "This workspace carries a material governed AGENTS family. Consumer material-governance checks are applicable because AGENTS.md and the governed AGENTS authority files are present as workspace-specific operating context.",
+                Evidence: evidence.ToArray(),
+                ClaimScopeEffect:
+                [
+                    "consumer_material_governance_check:applicable",
+                    "workspace_specific_AGENTS_content:presence_only_not_hash_compared",
+                    "source_integrity_checks:only_apply_to_portable_schema_files"
+                ],
+                Confidence: "inferred_from_workspace");
+        }
+
+        evidence.Clear();
+        AddIfExists(evidence, resolvedWorkspaceRoot, "AGENTS.md", "startup_surface_present:AGENTS.md");
+        foreach (var fileName in PortableSchemaFiles)
+        {
+            AddIfExists(evidence, resolvedWorkspaceRoot, fileName, $"portable_schema_file_present:{fileName}");
+        }
+
+        return new WorkspaceRoleEnvelope(
+            MachineKey: MixedOrUndeterminedWorkspaceRole,
+            Statement: "This workspace does not clearly resolve as either the schema/harness authoring and delivery workspace or a material governed AGENTS consumer workspace. Harness claims should stay qualified to the exact evidence observed.",
+            Evidence: evidence.Count == 0 ? ["no_role_deciding_surfaces_detected"] : evidence.ToArray(),
+            ClaimScopeEffect:
+            [
+                "consumer_material_governance_check:undetermined",
+                "source_integrity_checks:apply_only_when_source_surfaces_are_observed",
+                "migration_or_adoption_claims:require_explicit_inventory_evidence"
+            ],
+            Confidence: "inferred_from_workspace_low_confidence");
+    }
+
+    private static bool TryBuildDeclaredWorkspaceRole(
+        string workspaceRoot,
+        out WorkspaceRoleEnvelope workspaceRole,
+        out string? finding)
+    {
+        workspaceRole = default!;
+        finding = null;
+
+        var rolePath = Path.Combine(workspaceRoot, ".anarchy-ai", "workspace-role.json");
+        if (!File.Exists(rolePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(rolePath));
+            var machineKey = document.RootElement.TryGetProperty("machine_key", out var machineKeyElement)
+                ? machineKeyElement.GetString()
+                : null;
+            var statement = document.RootElement.TryGetProperty("statement", out var statementElement)
+                ? statementElement.GetString()
+                : null;
+
+            if (string.IsNullOrWhiteSpace(machineKey) ||
+                string.IsNullOrWhiteSpace(statement) ||
+                !IsAllowedWorkspaceRoleMachineKey(machineKey))
+            {
+                finding = "declared_workspace_role_invalid_or_incomplete:.anarchy-ai/workspace-role.json";
+                return false;
+            }
+
+            workspaceRole = new WorkspaceRoleEnvelope(
+                MachineKey: machineKey,
+                Statement: statement,
+                Evidence: ReadOptionalStringArray(document.RootElement, "evidence")
+                    .Append("declared_workspace_role_file:.anarchy-ai/workspace-role.json")
+                    .Distinct(StringComparer.Ordinal)
+                    .ToArray(),
+                ClaimScopeEffect: ReadOptionalStringArray(document.RootElement, "claim_scope_effect"),
+                Confidence: "declared_by_workspace");
+            return true;
+        }
+        catch (JsonException)
+        {
+            finding = "declared_workspace_role_json_invalid:.anarchy-ai/workspace-role.json";
+            return false;
+        }
+    }
+
+    public static RuntimeProvenanceEnvelope BuildRuntimeProvenance(string workspaceRoot, string? pluginRoot = null)
+    {
+        var resolvedWorkspaceRoot = Path.GetFullPath(workspaceRoot);
+        var resolvedPluginRoot = string.IsNullOrWhiteSpace(pluginRoot)
+            ? HarnessInstallDiscovery.ResolveWorkspacePluginRoot(resolvedWorkspaceRoot)
+            : Path.GetFullPath(pluginRoot);
+
+        var sourceDetected = IsSchemaAuthoringAndPluginDeliveryWorkspace(resolvedWorkspaceRoot, []);
+        var sourcePluginRoot = AnarchyPathCanon.ResolveSourcePluginDirectory(resolvedWorkspaceRoot);
+        var pluginManifestPath = AnarchyPathCanon.ResolveBundleFilePath(resolvedPluginRoot, AnarchyPathCanon.BundlePluginManifestFileRelativePath);
+        var schemaManifestPath = AnarchyPathCanon.ResolveBundleFilePath(resolvedPluginRoot, AnarchyPathCanon.BundleSchemaManifestFileRelativePath);
+        var runtimeExecutablePath = AnarchyPathCanon.ResolveBundleFilePath(resolvedPluginRoot, AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath);
+
+        var machineKey = DetermineRuntimeMachineKey(resolvedWorkspaceRoot, resolvedPluginRoot, sourcePluginRoot);
+        var statement = machineKey switch
+        {
+            UserProfileInstalledRuntime => "This callable harness is running from the current user's installed plugin bundle. It is convenient and valid as an installed runtime, but it is not source truth for the workspace being evaluated.",
+            RepoLocalInstalledRuntime => "This callable harness is running from a repo-local installed plugin bundle. Its runtime and bundle claims apply to that installed bundle; repo-authored source files remain source truth when they are present separately.",
+            SourceCheckoutRuntime => "This callable harness appears to be running from the source checkout. Runtime claims are closest to repo source, but installed-bundle and marketplace claims still require explicit install evidence.",
+            _ => "This callable harness could not resolve a first-class installed or source-checkout runtime lane. Treat runtime claims as qualified by the observed paths."
+        };
+
+        return new RuntimeProvenanceEnvelope(
+            MachineKey: machineKey,
+            Statement: statement,
+            PluginRoot: resolvedPluginRoot,
+            PluginManifestVersion: TryReadJsonString(pluginManifestPath, "version"),
+            SchemaBundleVersion: TryReadJsonString(schemaManifestPath, "bundle_version"),
+            SchemaBundleManifestPath: File.Exists(schemaManifestPath) ? schemaManifestPath : null,
+            RuntimeExecutablePath: File.Exists(runtimeExecutablePath) ? runtimeExecutablePath : null,
+            WorkspaceSourceDetected: sourceDetected,
+            WorkspaceSourceAlignment: DetermineWorkspaceSourceAlignment(sourceDetected, resolvedPluginRoot, sourcePluginRoot, machineKey),
+            ClaimScopeEffect: machineKey == UserProfileInstalledRuntime
+                ? [
+                    "runtime_and_install_observations_apply_to_installed_user_profile_bundle",
+                    "installed_user_profile_bundle_is_not_workspace_source_truth",
+                    "workspace_source_claims_require_source_alignment_evidence"
+                ]
+                : [
+                    "runtime_and_install_observations_apply_to_discovered_plugin_root",
+                    "workspace_source_claims_require_source_alignment_evidence"
+                ],
+            Confidence: File.Exists(pluginManifestPath) ? "direct_path_evidence" : "inferred_from_runtime_path");
+    }
+
+    public static string ConsumerMaterialGovernanceCheck(WorkspaceRoleEnvelope workspaceRole)
+    {
+        return workspaceRole.MachineKey switch
+        {
+            SchemaAuthoringAndPluginDeliveryWorkspace => "not_applicable",
+            MaterialGovernanceConsumerWorkspace => "applicable",
+            _ => "undetermined"
+        };
+    }
+
+    private static bool IsSchemaAuthoringAndPluginDeliveryWorkspace(string workspaceRoot, List<string> evidence)
+    {
+        var portablePresent = PortableSchemaFiles.All(fileName => File.Exists(Path.Combine(workspaceRoot, fileName)));
+        var pluginSourcePresent = Directory.Exists(AnarchyPathCanon.ResolveSourcePluginDirectory(workspaceRoot));
+        var harnessSourcePresent = File.Exists(Path.Combine(workspaceRoot, "harness", "server", "dotnet", "Program.cs"));
+        var runbookPresent = File.Exists(Path.Combine(workspaceRoot, "docs", "README_ai_links.md"));
+
+        if (portablePresent) { evidence.Add("root_portable_schema_family_present"); }
+        if (pluginSourcePresent) { evidence.Add("plugin_source_bundle_present:plugins/anarchy-ai"); }
+        if (harnessSourcePresent) { evidence.Add("harness_source_present:harness/server/dotnet/Program.cs"); }
+        if (runbookPresent) { evidence.Add("runbook_present:docs/README_ai_links.md"); }
+
+        return portablePresent && pluginSourcePresent && harnessSourcePresent && runbookPresent;
+    }
+
+    private static bool IsMaterialGovernanceConsumerWorkspace(string workspaceRoot, List<string> evidence)
+    {
+        var agentsMdExists = File.Exists(Path.Combine(workspaceRoot, "AGENTS.md"));
+        var governedFilesPresent = GovernedAuthorityFiles
+            .Where(fileName => File.Exists(Path.Combine(workspaceRoot, fileName)))
+            .ToArray();
+
+        if (agentsMdExists) { evidence.Add("startup_surface_present:AGENTS.md"); }
+        evidence.AddRange(governedFilesPresent.Select(static fileName => $"governed_authority_file_present:{fileName}"));
+        return agentsMdExists && governedFilesPresent.Length == GovernedAuthorityFiles.Length;
+    }
+
+    private static string DetermineRuntimeMachineKey(string workspaceRoot, string pluginRoot, string sourcePluginRoot)
+    {
+        var userProfilePluginParent = AnarchyPathCanon.ResolveRelativePath(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            AnarchyPathCanon.UserProfilePluginParentDirectoryRelativePath);
+        var workspacePluginParent = AnarchyPathCanon.ResolveRelativePath(
+            workspaceRoot,
+            AnarchyPathCanon.RepoLocalPluginParentDirectoryRelativePath);
+
+        if (IsSameOrChildPath(pluginRoot, userProfilePluginParent))
+        {
+            return UserProfileInstalledRuntime;
+        }
+
+        if (IsSameOrChildPath(pluginRoot, sourcePluginRoot) ||
+            IsSameOrChildPath(AppContext.BaseDirectory, workspaceRoot))
+        {
+            return SourceCheckoutRuntime;
+        }
+
+        if (IsSameOrChildPath(pluginRoot, workspacePluginParent))
+        {
+            return RepoLocalInstalledRuntime;
+        }
+
+        return ExternalOrUnknownRuntime;
+    }
+
+    private static string DetermineWorkspaceSourceAlignment(bool sourceDetected, string pluginRoot, string sourcePluginRoot, string runtimeMachineKey)
+    {
+        if (!sourceDetected)
+        {
+            return "not_applicable_no_workspace_source_detected";
+        }
+
+        if (IsSameOrChildPath(pluginRoot, sourcePluginRoot))
+        {
+            return "runtime_points_at_workspace_source";
+        }
+
+        return runtimeMachineKey == UserProfileInstalledRuntime
+            ? "not_checked_installed_user_profile_runtime_is_not_source_truth"
+            : "not_checked_runtime_not_proven_aligned_to_workspace_source";
+    }
+
+    private static void AddIfExists(List<string> evidence, string workspaceRoot, string relativePath, string evidenceValue)
+    {
+        if (File.Exists(Path.Combine(workspaceRoot, relativePath)))
+        {
+            evidence.Add(evidenceValue);
+        }
+    }
+
+    private static string? TryReadJsonString(string path, string propertyName)
+    {
+        if (!File.Exists(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(path));
+            return document.RootElement.TryGetProperty(propertyName, out var property) &&
+                   property.ValueKind == JsonValueKind.String
+                ? property.GetString()
+                : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string[] ReadOptionalStringArray(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property) ||
+            property.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        return property
+            .EnumerateArray()
+            .Where(static item => item.ValueKind == JsonValueKind.String)
+            .Select(static item => item.GetString())
+            .Where(static value => !string.IsNullOrWhiteSpace(value))
+            .Cast<string>()
+            .ToArray();
+    }
+
+    private static bool IsAllowedWorkspaceRoleMachineKey(string machineKey)
+    {
+        return machineKey is SchemaAuthoringAndPluginDeliveryWorkspace
+            or MaterialGovernanceConsumerWorkspace
+            or MixedOrUndeterminedWorkspaceRole;
+    }
+
+    private static bool IsSameOrChildPath(string candidatePath, string parentPath)
+    {
+        if (string.IsNullOrWhiteSpace(candidatePath) || string.IsNullOrWhiteSpace(parentPath))
+        {
+            return false;
+        }
+
+        var candidate = Path.GetFullPath(candidatePath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var parent = Path.GetFullPath(parentPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return string.Equals(candidate, parent, StringComparison.OrdinalIgnoreCase) ||
+               candidate.StartsWith(parent + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+               candidate.StartsWith(parent + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+internal sealed record WorkspaceRoleEnvelope(
+    [property: JsonPropertyName("machine_key")] string MachineKey,
+    [property: JsonPropertyName("statement")] string Statement,
+    [property: JsonPropertyName("evidence")] string[] Evidence,
+    [property: JsonPropertyName("claim_scope_effect")] string[] ClaimScopeEffect,
+    [property: JsonPropertyName("confidence")] string Confidence);
+
+internal sealed record RuntimeProvenanceEnvelope(
+    [property: JsonPropertyName("machine_key")] string MachineKey,
+    [property: JsonPropertyName("statement")] string Statement,
+    [property: JsonPropertyName("plugin_root")] string PluginRoot,
+    [property: JsonPropertyName("plugin_manifest_version")] string? PluginManifestVersion,
+    [property: JsonPropertyName("schema_bundle_version")] string? SchemaBundleVersion,
+    [property: JsonPropertyName("schema_bundle_manifest_path")] string? SchemaBundleManifestPath,
+    [property: JsonPropertyName("runtime_executable_path")] string? RuntimeExecutablePath,
+    [property: JsonPropertyName("workspace_source_detected")] bool WorkspaceSourceDetected,
+    [property: JsonPropertyName("workspace_source_alignment")] string WorkspaceSourceAlignment,
+    [property: JsonPropertyName("claim_scope_effect")] string[] ClaimScopeEffect,
+    [property: JsonPropertyName("confidence")] string Confidence);
+
 // Purpose: Evaluates whether a workspace has materially real Anarchy schema surfaces or only partial/copied traces.
 // Expected input: Workspace root, expected schema-package label, and optional startup-surface list.
 // Expected output: An anonymous object describing schema reality, integrity, possession, reasons, repairs, and inspection facts.
@@ -444,9 +845,17 @@ internal sealed class SchemaRealityInspector
             packageSurfaceAligned,
             folderTopologyAligned,
             startupSurfaceAligned);
+        var workspaceRole = RuntimeEnvelopeBuilder.BuildWorkspaceRole(resolvedWorkspaceRoot);
+        var runtimeProvenance = RuntimeEnvelopeBuilder.BuildRuntimeProvenance(resolvedWorkspaceRoot);
+        var consumerMaterialGovernanceCheck = RuntimeEnvelopeBuilder.ConsumerMaterialGovernanceCheck(workspaceRole);
+        var safeRepairs = BuildSafeRepairs(state, startupSurfaceExists, integrityResult.IntegrityState, consumerMaterialGovernanceCheck);
+        var recommendedNextAction = DetermineRecommendedNextAction(state, integrityResult.IntegrityState, consumerMaterialGovernanceCheck);
 
         return new
         {
+            workspace_role = workspaceRole,
+            runtime_provenance = runtimeProvenance,
+            consumer_material_governance_check = consumerMaterialGovernanceCheck,
             schema_reality_state = state,
             integrity_state = integrityResult.IntegrityState,
             possession_state = BuildPossessionState(state, integrityResult.IntegrityState),
@@ -483,10 +892,8 @@ internal sealed class SchemaRealityInspector
             },
             active_reasons = activeReasons,
             integrity_findings = integrityResult.Findings,
-            recommended_next_action = state is "partial" or "copied_only" || integrityResult.IntegrityState == "diverged"
-                ? "run_gov2gov_migration"
-                : "none",
-            safe_repairs = BuildSafeRepairs(state, startupSurfaceExists, integrityResult.IntegrityState),
+            recommended_next_action = recommendedNextAction,
+            safe_repairs = safeRepairs,
             inspection = new
             {
                 workspace_root = resolvedWorkspaceRoot,
@@ -642,7 +1049,11 @@ internal sealed class SchemaRealityInspector
     // Expected input: Schema reality state, startup-surface presence map, and integrity state.
     // Expected output: Distinct safe-repair actions for the caller.
     // Critical dependencies: MissingStartupSurfaceRepairs and the schema repair vocabulary.
-    private static string[] BuildSafeRepairs(string state, IReadOnlyDictionary<string, bool> startupSurfaceExists, string integrityState)
+    private static string[] BuildSafeRepairs(
+        string state,
+        IReadOnlyDictionary<string, bool> startupSurfaceExists,
+        string integrityState,
+        string consumerMaterialGovernanceCheck)
     {
         var repairs = state switch
         {
@@ -675,7 +1086,40 @@ internal sealed class SchemaRealityInspector
             repairs.Add("audit_for_schema_tampering");
         }
 
+        if (consumerMaterialGovernanceCheck == "not_applicable")
+        {
+            repairs.RemoveAll(static repair => repair is
+                "complete_missing_governed_surfaces" or
+                "materialize_governed_AGENTS_family" or
+                "refresh_package_surface" or
+                "realign_startup_discovery_paths" or
+                "update_stale_companion_artifacts" or
+                "materialize_startup_surface" or
+                "copy_schema_package");
+        }
+
         return repairs.Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    // Purpose: Chooses the next safe action while respecting source/delivery workspace role boundaries.
+    // Expected input: Schema reality, integrity, and the consumer material-governance applicability result.
+    // Expected output: A bounded action string for the MCP caller.
+    // Critical dependencies: RuntimeEnvelopeBuilder.ConsumerMaterialGovernanceCheck and migration action vocabulary.
+    private static string DetermineRecommendedNextAction(
+        string state,
+        string integrityState,
+        string consumerMaterialGovernanceCheck)
+    {
+        if (consumerMaterialGovernanceCheck == "not_applicable")
+        {
+            return integrityState == "diverged"
+                ? "audit_canonical_divergence_before_continuing"
+                : "none";
+        }
+
+        return state is "partial" or "copied_only" || integrityState == "diverged"
+            ? "run_gov2gov_migration"
+            : "none";
     }
 
     // Purpose: Compares workspace schema files against the canonical schema bundle hashes.
@@ -843,6 +1287,10 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
             throw new DirectoryNotFoundException($"Workspace root not found: {resolvedWorkspaceRoot}");
         }
 
+        var workspaceRole = RuntimeEnvelopeBuilder.BuildWorkspaceRole(resolvedWorkspaceRoot);
+        var runtimeProvenance = RuntimeEnvelopeBuilder.BuildRuntimeProvenance(resolvedWorkspaceRoot);
+        var consumerMaterialGovernanceCheck = RuntimeEnvelopeBuilder.ConsumerMaterialGovernanceCheck(workspaceRole);
+
         var preEvaluation = JsonSerializer.SerializeToElement(
             schemaRealityInspector.Evaluate(resolvedWorkspaceRoot, expectedSchemaPackage, startupSurfaces));
         var preIntegrityState = preEvaluation.GetProperty("integrity_state").GetString() ?? "unknown";
@@ -947,9 +1395,13 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
             auditNeeded,
             postRealityState,
             postIntegrityState);
+        var postMigrationInventory = BuildPostMigrationInventory(resolvedWorkspaceRoot, plannedActions, actionsTaken);
 
         return new
         {
+            workspace_role = workspaceRole,
+            runtime_provenance = runtimeProvenance,
+            consumer_material_governance_check = consumerMaterialGovernanceCheck,
             migration_result_state = migrationResultState,
             planned_actions = plannedActions.Distinct(StringComparer.Ordinal).ToArray(),
             actions_taken = actionsTaken.Distinct(StringComparer.Ordinal).ToArray(),
@@ -958,8 +1410,142 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
             remaining_findings = remainingFindings.Distinct(StringComparer.Ordinal).ToArray(),
             resulting_schema_reality_state = postRealityState,
             resulting_integrity_state = postIntegrityState,
-            resulting_possession_state = postPossessionState
+            resulting_possession_state = postPossessionState,
+            post_migration_inventory = postMigrationInventory
         };
+    }
+
+    // Purpose: Builds a non-gating post-migration inventory for human/agent verification.
+    // Expected input: Workspace root plus this run's plan/action lists.
+    // Expected output: Portable schema hash evidence and governed-structure presence evidence.
+    // Critical dependencies: CanonicalSchemaBundle, RuntimeEnvelopeBuilder file families, and ComputeSha256.
+    private object BuildPostMigrationInventory(
+        string workspaceRoot,
+        IEnumerable<string> plannedActions,
+        IEnumerable<string> actionsTaken)
+    {
+        var plannedActionSet = plannedActions.ToHashSet(StringComparer.Ordinal);
+        var actionTakenSet = actionsTaken.ToHashSet(StringComparer.Ordinal);
+
+        return new
+        {
+            inventory_state = "non_gating_evidence_only",
+            comparison_basis = new[]
+            {
+                "current_canonical_schema_bundle_manifest",
+                "this_run_planned_actions",
+                "this_run_actions_taken"
+            },
+            portable_schema_family = RuntimeEnvelopeBuilder.PortableSchemaFamily
+                .Select(fileName => BuildPortableSchemaInventoryEntry(workspaceRoot, fileName, plannedActionSet, actionTakenSet))
+                .ToArray(),
+            governed_agents_structure = RuntimeEnvelopeBuilder.GovernedAgentsStructure
+                .Select(fileName => BuildPresenceOnlyInventoryEntry(workspaceRoot, fileName))
+                .ToArray(),
+            gov2gov_structure = RuntimeEnvelopeBuilder.Gov2GovStructure
+                .Select(fileName => BuildPresenceOnlyInventoryEntry(workspaceRoot, fileName))
+                .ToArray(),
+            notes = new[]
+            {
+                "portable_schema_family_hashes_compare_against_the_current_canonical_schema_bundle_manifest",
+                "delivery_plan_state_compares_each_portable_schema_file_against_this_run_planned_actions_and_actions_taken",
+                "governed_agents_and_gov2gov_structure_are_presence_only_because_workspace_specific_content_is_expected_to_diverge",
+                "inventory_does_not_fail_or_block_migration"
+            }
+        };
+    }
+
+    // Purpose: Builds one hash-aware portable schema inventory row.
+    // Expected input: Workspace root, file name, and this run's delivery plan/action sets.
+    // Expected output: Presence, hash, alignment, and plan-state fields for one portable schema file.
+    // Critical dependencies: CanonicalSchemaBundle and ComputeSha256.
+    private object BuildPortableSchemaInventoryEntry(
+        string workspaceRoot,
+        string fileName,
+        IReadOnlySet<string> plannedActions,
+        IReadOnlySet<string> actionsTaken)
+    {
+        var workspaceFilePath = Path.Combine(workspaceRoot, fileName);
+        var exists = File.Exists(workspaceFilePath);
+        var observedHash = exists ? ComputeSha256(workspaceFilePath) : null;
+        var expectedHash = _canonicalSchemaBundle.FileHashes.TryGetValue(fileName, out var manifestHash)
+            ? manifestHash
+            : null;
+        var hashAlignment = DetermineHashAlignment(exists, observedHash, expectedHash);
+
+        return new
+        {
+            path = fileName,
+            presence_state = exists ? "present" : "missing",
+            hash_mode = "canonical_hash_checked",
+            observed_sha256 = observedHash,
+            expected_sha256 = expectedHash,
+            hash_alignment = hashAlignment,
+            delivery_plan_state = DetermineDeliveryPlanState(fileName, exists, plannedActions, actionsTaken)
+        };
+    }
+
+    // Purpose: Builds one presence-only inventory row for workspace-specific governed surfaces.
+    // Expected input: Workspace root and governed file path.
+    // Expected output: Presence-only evidence with no hash comparison fields.
+    // Critical dependencies: RuntimeEnvelopeBuilder governed file lists.
+    private static object BuildPresenceOnlyInventoryEntry(string workspaceRoot, string fileName)
+    {
+        return new
+        {
+            path = fileName,
+            presence_state = File.Exists(Path.Combine(workspaceRoot, fileName)) ? "present" : "missing",
+            hash_mode = "presence_only_workspace_specific_divergence_expected"
+        };
+    }
+
+    // Purpose: Determines portable schema hash alignment without treating missing files as a thrown error.
+    // Expected input: File presence, observed hash, and canonical manifest hash.
+    // Expected output: aligned, diverged, missing, or canonical_unavailable.
+    // Critical dependencies: CanonicalSchemaBundle manifest availability.
+    private static string DetermineHashAlignment(bool exists, string? observedHash, string? expectedHash)
+    {
+        if (!exists)
+        {
+            return "missing";
+        }
+
+        if (string.IsNullOrWhiteSpace(expectedHash))
+        {
+            return "canonical_unavailable";
+        }
+
+        return string.Equals(observedHash, expectedHash, StringComparison.OrdinalIgnoreCase)
+            ? "aligned"
+            : "diverged";
+    }
+
+    // Purpose: Relates one portable schema file to the migration's own delivery plan for this run.
+    // Expected input: File name, final presence, and this run's planned/applied actions.
+    // Expected output: A bounded delivery-plan-state string.
+    // Critical dependencies: Gov2gov planned/action string vocabulary.
+    private static string DetermineDeliveryPlanState(
+        string fileName,
+        bool exists,
+        IReadOnlySet<string> plannedActions,
+        IReadOnlySet<string> actionsTaken)
+    {
+        if (actionsTaken.Contains($"copied_canonical_schema_file:{fileName}"))
+        {
+            return "delivered_this_run";
+        }
+
+        if (plannedActions.Contains($"copy_missing_canonical_schema_file:{fileName}"))
+        {
+            return "planned_to_deliver";
+        }
+
+        if (plannedActions.Contains($"audit_diverged_canonical_schema_file:{fileName}"))
+        {
+            return "planned_for_audit";
+        }
+
+        return exists ? "already_present_not_targeted" : "missing_not_in_delivery_plan";
     }
 
     // Purpose: Classifies the outcome of a gov2gov migration run.
@@ -2949,6 +3535,9 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         var normalizedExpectedCapabilities = NormalizeExpectedCapabilities(expectedCapabilities);
 
         var pluginRoot = HarnessInstallDiscovery.ResolveWorkspacePluginRoot(resolvedWorkspaceRoot);
+        var workspaceRole = RuntimeEnvelopeBuilder.BuildWorkspaceRole(resolvedWorkspaceRoot);
+        var runtimeProvenance = RuntimeEnvelopeBuilder.BuildRuntimeProvenance(resolvedWorkspaceRoot, pluginRoot);
+        var consumerMaterialGovernanceCheck = RuntimeEnvelopeBuilder.ConsumerMaterialGovernanceCheck(workspaceRole);
         var pluginManifestPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundlePluginManifestFileRelativePath);
         var mcpDeclarationPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleMcpFileRelativePath);
         var runtimePath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath);
@@ -3078,6 +3667,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
             schemaRealityState,
             integrityState,
             possessionState,
+            consumerMaterialGovernanceCheck,
             normalizedHostContext,
             missingComponents);
 
@@ -3119,7 +3709,8 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
             adminActions.Add("defer_cursor_to_later_adapter_pass");
         }
 
-        if (schemaRecommendedAction == "run_gov2gov_migration")
+        if (schemaRecommendedAction == "run_gov2gov_migration" &&
+            consumerMaterialGovernanceCheck != "not_applicable")
         {
             agentActions.Add("run_gov2gov_migration:plan_only");
         }
@@ -3139,6 +3730,9 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
 
         return new
         {
+            workspace_role = workspaceRole,
+            runtime_provenance = runtimeProvenance,
+            consumer_material_governance_check = consumerMaterialGovernanceCheck,
             installation_state = installationState,
             runtime_state = runtimeState,
             schema_state = new
@@ -3254,6 +3848,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         string schemaRealityState,
         string integrityState,
         string possessionState,
+        string consumerMaterialGovernanceCheck,
         string hostContext,
         List<string> missingComponents)
     {
@@ -3268,9 +3863,13 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
             return "bootstrap_required";
         }
 
-        if (schemaRealityState == "real" &&
-            integrityState == "aligned" &&
-            possessionState == "unpossessed" &&
+        var schemaHealthyForWorkspaceRole = consumerMaterialGovernanceCheck == "not_applicable"
+            ? integrityState == "aligned"
+            : schemaRealityState == "real" &&
+              integrityState == "aligned" &&
+              possessionState == "unpossessed";
+
+        if (schemaHealthyForWorkspaceRole &&
             missingComponents.Count == 0 &&
             installationState is "repo_bootstrapped" or "user_profile_bootstrapped")
         {
@@ -3662,6 +4261,10 @@ internal sealed class PreflightSessionRunner(
 
         var schemaElement = JsonSerializer.SerializeToElement(
             schemaRealityInspector.Evaluate(workspaceRoot, "AGENTS-schema-family", startupSurfaces));
+        var resolvedWorkspaceRoot = Path.GetFullPath(workspaceRoot);
+        var workspaceRole = RuntimeEnvelopeBuilder.BuildWorkspaceRole(resolvedWorkspaceRoot);
+        var runtimeProvenance = RuntimeEnvelopeBuilder.BuildRuntimeProvenance(resolvedWorkspaceRoot);
+        var consumerMaterialGovernanceCheck = RuntimeEnvelopeBuilder.ConsumerMaterialGovernanceCheck(workspaceRole);
 
         var currentStatus = GetString(activeWorkElement, "current_status");
         var evidenceStatus = GetString(activeWorkElement, "evidence_status");
@@ -3677,11 +4280,12 @@ internal sealed class PreflightSessionRunner(
 
         var missingComponents = GetStringArray(gapElement, "missing_components");
         var schemaReasons = GetStringArray(schemaElement, "active_reasons");
+        var schemaReasonsForActiveGaps = FilterSchemaReasonsForConsumerCheck(schemaReasons, consumerMaterialGovernanceCheck);
         var degradationSignals = GetStringArray(activeWorkElement, "session_degradation_signals");
         var measurementBasis = GetStringArray(activeWorkElement, "measurement_basis");
 
         var activeGaps = missingComponents
-            .Concat(schemaReasons.Select(static value => $"schema:{value}"))
+            .Concat(schemaReasonsForActiveGaps.Select(static value => $"schema:{value}"))
             .Concat(degradationSignals.Select(static value => $"session:{value}"))
             .Distinct(StringComparer.Ordinal)
             .ToArray();
@@ -3689,8 +4293,14 @@ internal sealed class PreflightSessionRunner(
         string preflightState;
         string recommendedPath;
 
+        var schemaMissingRequiresBootstrap = consumerMaterialGovernanceCheck != "not_applicable" &&
+            schemaRealityState == "fully_missing";
+        var schemaRequiresInspection = consumerMaterialGovernanceCheck == "not_applicable"
+            ? integrityState != "aligned" || possessionState == "possessed"
+            : schemaRealityState != "real" || integrityState != "aligned" || possessionState == "possessed" || adoptionState != "fully_adopted";
+
         var bootstrapNeeded = installationState is "bootstrap_needed" or "external_runtime_only" or "repo_bundle_present_unregistered"
-            || schemaRealityState == "fully_missing"
+            || schemaMissingRequiresBootstrap
             || adoptionState == "bootstrap_required";
 
         if (bootstrapNeeded)
@@ -3703,7 +4313,7 @@ internal sealed class PreflightSessionRunner(
             preflightState = "manual_review_required";
             recommendedPath = "stop_for_human";
         }
-        else if (schemaRealityState != "real" || integrityState != "aligned" || possessionState == "possessed" || adoptionState != "fully_adopted")
+        else if (schemaRequiresInspection)
         {
             preflightState = "ready_with_gaps";
             recommendedPath = "inspect_schema_reality";
@@ -3723,7 +4333,9 @@ internal sealed class PreflightSessionRunner(
         {
             "bootstrap_harness" => "run_repo_bootstrap_script",
             "stop_for_human" => "report_to_human_and_clarify_blockers",
-            "inspect_schema_reality" => schemaRealityState is "partial" or "copied_only"
+            "inspect_schema_reality" => consumerMaterialGovernanceCheck == "not_applicable"
+                ? "audit_canonical_divergence_before_continuing"
+                : schemaRealityState is "partial" or "copied_only"
                 ? "inspect_schema_reality_and_choose_safe_repair"
                 : "audit_canonical_divergence_before_continuing",
             _ => nextRequiredAction
@@ -3731,6 +4343,9 @@ internal sealed class PreflightSessionRunner(
 
         return new
         {
+            workspace_role = workspaceRole,
+            runtime_provenance = runtimeProvenance,
+            consumer_material_governance_check = consumerMaterialGovernanceCheck,
             preflight_state = preflightState,
             recommended_path = recommendedPath,
             active_gaps = activeGaps,
@@ -3753,6 +4368,28 @@ internal sealed class PreflightSessionRunner(
                 possession_state = possessionState
             }
         };
+    }
+
+    // Purpose: Removes consumer-materialization reasons from source/delivery workspace preflight gaps.
+    // Expected input: Schema reason codes and consumer material-governance applicability.
+    // Expected output: Reason codes that remain applicable to this workspace role.
+    // Critical dependencies: RuntimeEnvelopeBuilder.ConsumerMaterialGovernanceCheck and schema reason vocabulary.
+    private static string[] FilterSchemaReasonsForConsumerCheck(string[] schemaReasons, string consumerMaterialGovernanceCheck)
+    {
+        if (consumerMaterialGovernanceCheck != "not_applicable")
+        {
+            return schemaReasons;
+        }
+
+        return schemaReasons
+            .Where(static reason => reason is not
+                "schema_files_present_without_materialization" and not
+                "copied_without_package_alignment" and not
+                "folder_topology_mismatch" and not
+                "schema_present_not_governing" and not
+                "folder_topology_partial" and not
+                "startup_discovery_path_weakened")
+            .ToArray();
     }
 
     // Purpose: Reads a string property from a JsonElement and falls back to an empty string when absent.

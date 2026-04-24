@@ -21,7 +21,7 @@
 
   "record-state-at-review-open-and-close": {
     "open": "cold-start authoring -- first write of this record -- prior decisions are being reconstructed from the current session's working memory and from already-persisted artifacts (schemas, Getting-Started-For-Humans.txt, scratchpads, pen test) -- detail that existed only in the session transcript and was never promoted into a durable artifact before this cold-start is captured here to the extent it can be reconstructed and marked tribal where only one account exists",
-    "close": "Arc extended in the same session with the shipment of in-session-capture-triggers (rules A and B) and the paired UserPromptSubmit hook at .claude/settings.json -- the render-inversion rule was violated in the turn after shipment and caught by the human, which is recorded as a beat (e021) and a bad-pattern for the class 'shipment-session enforcement gap' -- new open-threads e016-e020 captured the four push-readiness gaps plus the one push-blocking governance-schema fix (what-done-looks-like-at-this-scope role text) -- e020 was then resolved in the same session: governance role text tightened with affirmation-only language, root and plugin mirror synced, manifest bumped 0.1.4 to 0.1.5 with new governance sha256 79c387c5... -- known-decisions now d001-d009: d007 records the A+B+hook shipment, d008 records the narrative-schema structural promotion, d009 records the role-text fix -- baseline scan of WO2 (Workorders) before proposed push revealed missing schema files (narrative, 1project, triage, Getting-Started, narratives directory) and outdated governance/gov2gov hashes; Mike flagged this as a product-level observation about gov2gov verification reliability (e024 beat, e025 open-thread) -- GPT-5.5 external evaluation ingested (e026 beat): surfaced the harness-applying-consumer-checks-to-authoring-repo failure class (new bad-pattern), independently validated that what-done-looks-like-at-this-scope is the canonical example of scratchpad theory reaching schema language (retroactive confirmation of d009), and flagged templates under-transfer of safety ideas plus a small canon-and-truth sweep; three new open-threads e027-e029 follow -- Mike then reframed first-contact external-agent evaluations as the primary measurement instrument for pre-context-shaping efficacy, not noise to filter out -- captured as new observed-patterns.good entry plus e030 thread-open for the commission-and-archive practice -- three independent harness-scope-mismatch observations in one session (e021, e025, e027) all reduce to 'harness must declare its own scope, role, and provenance before its claims are trustworthy' -- Mike confirmed this emerging product principle; it is the session's largest durable signal -- remaining open-threads are e011-e013, e016-e019, e025, e027-e030 -- session closed under token pressure; next session inherits an active hook and a full Arc with clear handoff"
+    "close": "Arc extended in the same session with the shipment of in-session-capture-triggers (rules A and B) and the paired UserPromptSubmit hook at .claude/settings.json -- the render-inversion rule was violated in the turn after shipment and caught by the human, which is recorded as a beat (e021) and a bad-pattern for the class 'shipment-session enforcement gap' -- new open-threads e016-e020 captured the four push-readiness gaps plus the one push-blocking governance-schema fix (what-done-looks-like-at-this-scope role text) -- e020 was then resolved in the same session: governance role text tightened with affirmation-only language, root and plugin mirror synced, manifest bumped 0.1.4 to 0.1.5 with new governance sha256 79c387c5... -- known-decisions now d001-d009: d007 records the A+B+hook shipment, d008 records the narrative-schema structural promotion, d009 records the role-text fix -- baseline scan of WO2 (Workorders) before proposed push revealed missing schema files (narrative, 1project, triage, Getting-Started, narratives directory) and outdated governance/gov2gov hashes; Mike flagged this as a product-level observation about gov2gov verification reliability (e024 beat, e025 open-thread) -- GPT-5.5 external evaluation ingested (e026 beat): surfaced the harness-applying-consumer-checks-to-authoring-repo failure class (new bad-pattern), independently validated that what-done-looks-like-at-this-scope is the canonical example of scratchpad theory reaching schema language (retroactive confirmation of d009), and flagged templates under-transfer of safety ideas plus a small canon-and-truth sweep; three new open-threads e027-e029 follow -- Mike then reframed first-contact external-agent evaluations as the primary measurement instrument for pre-context-shaping efficacy, not noise to filter out -- captured as new observed-patterns.good entry plus e030 thread-open for the commission-and-archive practice -- three independent harness-scope-mismatch observations in one session (e021, e025, e027) all reduce to 'harness must declare its own scope, role, and provenance before its claims are trustworthy' -- Mike confirmed this emerging product principle; it is the session's largest durable signal -- e027 is now resolved by the runtime provenance and workspace-role envelope implementation (d010/e032): four harness outputs declare workspace_role and runtime_provenance, AI-Links/source-style workspaces mark consumer materialization checks not_applicable, user-profile runtime is labeled installed-runtime not source truth, and gov2gov returns non-gating post_migration_inventory evidence -- e025 remains open but cheaper because every migration now carries portable-schema hash/plan-state inventory inline -- TheLinks sync (e011) executed and closed (e033): governance, narrative, and Getting-Started copied to TheLinks (commit 7e70530 on branch governance-schema), scoped to avoid bundling with in-flight TheLinks work; .claude/settings.json hook propagation deferred under e019 -- second-pass GPT-5.5 evaluation captured as e034 with three follow-on entries: d011 adopts the canonical provenance definition ('who said what to whom, from where, using what source of truth, and why?'), d012 names narrative as the strongest durable home for provenance with the multi-agent-relay example as observed need, and a new good-pattern (restraint-as-feature when consumers are contextual beings) makes the yes-form of terrain-default explicit at the whole-system level -- two new open-threads opened: e035 (speaker/audience vocabulary upgrade in harness output) and e036 (narrative-provenance design, deliberately undesigned until observed muddling pulls on it) -- the symmetric three-layer provenance formalization is parked, not killed -- remaining open-threads are e012, e013, e016-e019, e025, e028-e030, e035, e036 -- session closed under token pressure; next session inherits an active hook, a synced TheLinks deployment, sharpened external positioning vs ECC ('learn from their lifecycle muscle, keep Anarchy as the proof/provenance substrate'), and a full Arc with clear handoff"
   },
 
   "entries": [
@@ -323,16 +323,38 @@
         "requested-by": "other agent (implementation planner) -- plan reviewed and approved in this session with three sharpenings queued for review"
       },
       "status": "resolved"
+    },
+    {
+      "id": "e032",
+      "date": "2026-04-23",
+      "type": "thread-close",
+      "summary": "repo-role declaration + runtime-provenance surface (e027) is closed by implementation -- the harness now attaches workspace_role, runtime_provenance, and consumer_material_governance_check to preflight_session, assess_harness_gap_state, is_schema_real_or_shadow_copied, and run_gov2gov_migration outputs -- workspace_role uses exactly three machine keys (schema_authoring_and_plugin_delivery_workspace, material_governance_consumer_workspace, mixed_or_undetermined_workspace_role) with a long human-facing statement, evidence, claim_scope_effect, and confidence -- .anarchy-ai/workspace-role.json can declare a role and override auto-detection; invalid declarations surface as evidence rather than silently disappearing -- schema_authoring_and_plugin_delivery_workspace explicitly covers the deliberate hybrid dev+delivery framing and marks consumer materialization checks not_applicable unless explicitly requested -- runtime_provenance labels user-profile installs as user_profile_installed_runtime and states they are convenient installed runtime, not source truth -- run_gov2gov_migration now returns non-gating post_migration_inventory with portable schema files compared against both the current canonical schema bundle manifest and this run's planned/actions-taken delivery record, while governed AGENTS and GOV2GOV structures are presence-only because workspace-specific divergence is expected -- external Claude review verified the three sharpenings landed and found one small test gap; follow-up tests now cover both complete governed consumers carrying portable schemas and incomplete straddled signals resolving as mixed_or_undetermined -- server tests pass 17/17",
+      "status": "resolved"
+    },
+    {
+      "id": "e033",
+      "date": "2026-04-23",
+      "type": "thread-close",
+      "summary": "TheLinks deployment sync (e011) closed -- AGENTS-schema-governance.json (sha256 79c387c5...), AGENTS-schema-narrative.json, and Getting-Started-For-Humans.txt copied from AI-Links to TheLinks; all three files now match AI-Links hashes -- committed as 7e70530 'Sync schema family + Getting-Started from AI-Links' on TheLinks branch governance-schema -- commit was scoped via 'git commit <paths>' so it did not bundle with Mike's pre-existing in-flight work in the TheLinks index (Vision, docs, AR mapping) -- .claude/settings.json hook propagation is intentionally deferred and tracked under e019 (adoption-friendly wording still pending) -- this sync brings TheLinks current on the governance role-text fix from d009, the in-session-capture-triggers narrative meta from d007, and the schemas-describe-harnesses-enforce framing in Getting-Started -- the runtime-provenance/workspace-role harness changes from d010 are AI-Links-only by construction (harness layer, not schema layer) and do not need to travel to TheLinks",
+      "status": "resolved"
+    },
+    {
+      "id": "e034",
+      "date": "2026-04-23",
+      "type": "beat",
+      "summary": "second-pass GPT-5.5 evaluation of Anarchy-AI vs ECC plus live provenance design conversation -- GPT-5.5 distinguished ECC's lifecycle/installer/hook/repair maturity from Anarchy's governance/provenance/schema-shaped-cognition theory and surfaced 'don't out-ECC ECC -- learn from their lifecycle muscle, keep Anarchy as the proof/provenance substrate' as cleaner external positioning than any earlier framing in this Arc -- GPT-5.5 independently arrived at path-building-before-hooks ordering that already lives as terrain-default in d005 (groove-vs-jumping-the-groove was offered as alternate vocabulary and declined; wall/terrain stays primary because it is more immediately clear to Mike) -- the conversation surfaced provenance as the answer to 'who said what to whom, from where, using what source of truth, and why?' which Mike noted is the human-native framing he wanted years ago and scrapped as too token-expensive when imagined in narrative-prose form -- the compressed claim-label form already shipped in d010 is cheap enough to no longer trigger that concern -- Mike preferred 'audience' over 'target' (target tilts toward target-repo or migration-target meanings); vocabulary upgrade tracked as e035 -- Mike then named narrative as the strongest durable home for provenance with a live example from this very conversation: 'GPT5.5 says one thing, you say another, I say yet another, I'm relaying, and it's easy to muddle the source' -- this is observed muddling in flight, not theoretical symmetry, and it updates an earlier 'park as premature' read into 'this is the next surface to design carefully' (tracked as e036) -- GPT-5.5's self-reflective answer to 'how did you know to look for other categories' (the repo's ambient affordances made the categories salient before the task arrived) is itself the underlay thesis performing during the second-pass interaction; first in-the-wild evidence under e030's first-contact archive frame -- Mike explicitly declined to bolt on the full three-layer provenance formalization (typed speaker/audience/basis/disposition shapes across harness, schema, and narrative as a structural symmetry) with the reasoning 'we didn't get to magic by bolting on every idea that seemed right at the time -- it's elegant for a program, but not for contextual beings that misremember like humans and AI agents' -- the three-layer formalization is parked, not killed; harness-layer is shipped (d010), schema-layer is partial via manifest sha256 with no observed failure yet pulling on richer metadata, narrative-layer has the live observed need (e036)",
+      "beat": "positioning, vocabulary, and provenance theory all sharpened in one pass -- positioning is 'governance/proof substrate, not Claude-productivity catalog' (avoids competing with ECC's installer/hook maturity); vocabulary gains the speaker/audience pair as the primary attribution shape; provenance theory locates its strongest durable home in narrative because narrative is where multi-speaker context muddles without explicit attribution -- the restraint-not-to-bolt-on-elegance-for-its-own-sake is itself promoted to a good-pattern because it is a positive heuristic (the system says yes to specific things), not just the absence of a bad one (terrain-default already covers schema-feature promotion; this covers whole-system additions)",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "Mike Herring",
+        "finalized-by": "Mike Herring",
+        "requested-by": "Mike Herring (relayed GPT-5.5 second-pass evaluation; steered the provenance/vocabulary/restraint conclusions; corrected an earlier 'park as premature' read on narrative-provenance by naming the live multi-agent-relay example)"
+      },
+      "status": "resolved"
     }
   ],
 
   "open-threads": [
-    {
-      "id": "e011",
-      "summary": "sync AI-Links schema/Getting-Started changes back to the TheLinks deployment",
-      "opened-date": "2026-04-22",
-      "owner": "Mike Herring"
-    },
     {
       "id": "e012",
       "summary": "model-narration concept -- schema-level field or principle capturing where process state lives (tokens vs artifacts) -- candidate rule: declare-fields must name their anchor artifact",
@@ -376,12 +398,6 @@
       "owner": "Mike Herring"
     },
     {
-      "id": "e027",
-      "summary": "repo-role declaration + runtime-provenance surface in harness output -- harness needs to know whether it is in an authoring, consumer, or hybrid repo, and must declare which plugin root, version, schema bundle hash, and install lane it ran from",
-      "opened-date": "2026-04-23",
-      "owner": "Mike Herring"
-    },
-    {
       "id": "e028",
       "summary": "templates under-transfer the safety ideas -- downstream adopters of the portable 6 do not inherit the strongest scratchpad insights -- promote portable writing rules from scratchpad into authored-rules or template-embedded guidance",
       "opened-date": "2026-04-23",
@@ -396,6 +412,18 @@
     {
       "id": "e030",
       "summary": "commission-and-archive first-contact external-agent evaluations as a product practice -- preserve first-contact reads verbatim before context correction, archive first-contact + corrected-read pairs, use the delta as the measurement instrument for pre-context-shaping efficacy -- GPT-5.5 2026-04-23 is the first archive candidate",
+      "opened-date": "2026-04-23",
+      "owner": "Mike Herring"
+    },
+    {
+      "id": "e035",
+      "summary": "speaker/audience vocabulary upgrade in harness output and docs -- avoid introducing 'target' as the receiver of a claim; use 'audience' and surface the speaker/audience pair explicitly so claim-attachment is legible without inference -- workspace_role is audience-side, runtime_provenance is speaker-side; the pairing should be visible without code-reading -- small naming/docs change around d010-shipped code, real legibility win",
+      "opened-date": "2026-04-23",
+      "owner": "Mike Herring"
+    },
+    {
+      "id": "e036",
+      "summary": "narrative-provenance design -- when ready, design how speaker/audience/basis attribution surfaces inside narrative entries that record multi-speaker conversation -- live observed need is multi-agent relay (GPT/Claude/Mike statements muddle without labels) -- existing cast block (owner, context-holder, finalized-by, requested-by) approximates this at entry-ownership level but does not attribute per-claim within an entry -- do not formalize prematurely; let observed muddling pull on the design rather than chasing structural symmetry with d010's harness-layer envelope",
       "opened-date": "2026-04-23",
       "owner": "Mike Herring"
     }
@@ -465,6 +493,30 @@
       "decision": "what-done-looks-like-at-this-scope role text tightened in AGENTS-schema-governance.json -- role-text-only change chosen over a rename (rename would have broken gov2gov-resilience for existing deployments) -- new role text uses affirmation-only language: scope-level invariant that holds across the continuing session loop, durable target, delineated from session-close by naming the sibling field agent-session-open-close-measurement rather than by saying 'NOT a session-end criterion' -- negation-by-exclusion rejected as weaker terrain -- manifest bumped 0.1.4 to 0.1.5 to record the new governance sha256",
       "decided-by": "Mike Herring",
       "reversed": false
+    },
+    {
+      "id": "d010",
+      "date": "2026-04-23",
+      "decision": "runtime provenance and workspace-role envelope implemented as a harness-layer feature, not an AGENTS schema change -- every install/schema/migration claim from the four core harness outputs must first declare the speaker's workspace role and runtime provenance -- user-profile plugin runtime remains useful as convenience runtime but is explicitly not source truth -- AI-Links/source-style workspaces do not receive consumer AGENTS materialization pressure unless explicitly requested -- gov2gov migration now emits post-migration inventory evidence instead of hard gates, preserving migration flexibility while making underdelivery visible",
+      "decided-by": "Mike Herring",
+      "requested-by": "Mike Herring; sharpened by external-agent review; implemented by Codex",
+      "reversed": false
+    },
+    {
+      "id": "d011",
+      "date": "2026-04-23",
+      "decision": "canonical provenance definition adopted for explanatory surfaces: 'provenance is the answer to who said what to whom, from where, using what source of truth, and why?' -- this is the human-native form Mike has wanted since early sessions but originally judged too token-expensive when imagined as narrative prose -- the compressed claim-label form (speaker, audience, claim, source-of-truth/confidence, reason-for-trust) is cheap enough to no longer trigger that concern and can be read through the d010 envelope without forcing every layer into identical fields -- the question line itself is the durable canon and belongs in Getting-Started or other explanatory surfaces; field naming follows from it",
+      "decided-by": "Mike Herring",
+      "requested-by": "Mike Herring (originally years ago in narrative-prose form, returned to in this session in compressed envelope form during the second-pass GPT-5.5 conversation captured in e034)",
+      "reversed": false
+    },
+    {
+      "id": "d012",
+      "date": "2026-04-23",
+      "decision": "narrative is the strongest durable home for provenance because it is where multi-speaker context muddles without explicit attribution -- live example named by Mike: 'GPT5.5 says one thing, you say another, I say yet another, I'm relaying, and it's easy to muddle the source' -- harness-layer provenance (d010) addresses a different problem (claim trust at the moment of harness output) and is shipped; schema-layer provenance is partial via manifest sha256 and has not yet shown observed failure pressure -- the symmetric three-layer formalization (typed speaker/audience/basis/disposition shapes across harness, schema, and narrative as a structural symmetry) is parked, not killed -- Mike's reasoning: 'elegance for a program is not the right test for contextual beings that misremember like humans and AI agents' -- formalization should follow observed failures, not structural symmetry -- design work for the narrative-layer surface is tracked as e036",
+      "decided-by": "Mike Herring",
+      "requested-by": "Mike Herring (corrected an earlier 'park as premature' read by naming the live multi-agent-relay example as observed need rather than theoretical symmetry)",
+      "reversed": false
     }
   ],
 
@@ -485,6 +537,10 @@
       {
         "description": "first-contact external-agent evaluations are load-bearing product data, not noise to filter out -- when a fresh evaluator (canonical example: GPT-5.5 on 2026-04-23) reads the repo cold with no context correction, their findings measure what the pre-context shaping actually communicates to a newcomer -- the gap between 'what the repo meant' and 'what the cold reader heard' is the scratchpad's pre-context-steering hypothesis being tested in the wild -- this reframes first-contact data from noisy-to-discard into the primary measurement instrument for pre-context efficacy -- in the GPT-5.5 case the first-contact read named 'AI-Links carries two identities' as a risk, which on a stale-runtime second look got recast as a harness-scope-mismatch failure class (e027); both readings were true at different layers, and only the first-contact one could have surfaced the identity-ambiguity as an adopter-perceivable risk because the second pass had been told the intended framing -- Mike's note: first-contact evaluations are important and should be documented as a great learning opportunity -- operationalization tracked as e030",
         "tribal": false
+      },
+      {
+        "description": "restraint-as-feature when consumers are contextual beings -- when the system will be consumed by humans and AI agents who misremember (rather than by programs), structural elegance and symmetry are the wrong correctness tests -- bolting on every idea that 'seems right at the time' produces internal coherence the consumers cannot hold -- canonical example from this session: declining the symmetric three-layer provenance formalization (harness/schema/narrative as a typed structural symmetry) even though the symmetry was clean, because only the narrative layer had observed pressure (d012) -- Mike's framing: 'we didn't get to magic by bolting on every idea that seemed right at the time -- it's elegant for a program, but not for contextual beings that misremember like humans and AI agents' -- this is the positive form of the existing terrain-default-promote-only-on-failure posture (e002, d005) lifted from individual schema features to whole-system additions -- a yes-rule for restraint, not just absence of a no-rule",
+        "tribal": false
       }
     ],
     "bad": [
@@ -504,12 +560,12 @@
         "tribal": false
       },
       {
-        "description": "harness-applying-consumer-adoption-checks-to-authoring-repo -- observed when a schema-governance harness installed from the user profile was invoked inside AI-Links (the authoring and distribution repo for that same harness) and reported the root AGENTS family as copied_only because AGENTS-hello.md, AGENTS-Terms.md, AGENTS-Vision.md, AGENTS-Rules.md are absent -- they are absent on purpose because AI-Links is an authoring/distribution repo, not a consumer workspace that has adopted the family -- the harness has no repo-role distinction and no runtime provenance in its output, so it cannot tell it is applying consumer-adoption checks to its own source of truth -- the failure is not a repo gap, it is an observation gap created by the harness acting on the wrong repo role from a stale installation lane -- this is kin to shipment-session enforcement gap and to the gov2gov post-migration verification gap (e025): all three reduce to 'the harness must declare its own scope, role, and provenance before its claims are trustworthy' -- fix class tracked as e027 -- named here so future sessions can cite it when the same mistake recurs",
-        "resolved": false,
+        "description": "harness-applying-consumer-adoption-checks-to-authoring-repo -- observed when a schema-governance harness installed from the user profile was invoked inside AI-Links (the authoring and distribution repo for that same harness) and reported the root AGENTS family as copied_only because AGENTS-hello.md, AGENTS-Terms.md, AGENTS-Vision.md, AGENTS-Rules.md are absent -- they are absent on purpose because AI-Links is an authoring/distribution repo, not a consumer workspace that has adopted the family -- the harness had no repo-role distinction and no runtime provenance in its output, so it could not tell it was applying consumer-adoption checks to its own source of truth -- the failure was not a repo gap, it was an observation gap created by the harness acting on the wrong repo role from a stale installation lane -- this is kin to shipment-session enforcement gap and to the gov2gov post-migration verification gap (e025): all three reduce to 'the harness must declare its own scope, role, and provenance before its claims are trustworthy' -- fixed for e027 by d010/e032; kept here so future sessions can cite the resolved failure class when similar scope/provenance mistakes recur",
+        "resolved": true,
         "tribal": false
       }
     ]
   },
 
-  "handoff-note": "next session should read this Arc record before reading the scratchpads or pen test -- the scratchpads were inputs to the decisions recorded here, not replacements for them -- four threads are open (recovery-vs-continuation audit, TheLinks sync, model-narration integration, layered-model articulation) -- the open threads are parked intentionally, not forgotten; front-load them in the next session's open state -- the terms-to-skills walk-back is the canonical example of why schema-shape proposals must be pressure-tested against a live artifact before landing -- 'skills sucks' is the canonical example of a BECAUSE clause that fails the precision bar, kept in observed-patterns.bad for that reason"
+  "handoff-note": "next session should read this Arc record before reading the scratchpads or pen test -- the scratchpads were inputs to the decisions recorded here, not replacements for them -- open threads are e012, e013, e016-e019, e025, e028-e030, e035, and e036; they are parked intentionally, not forgotten -- e011 (TheLinks sync) is closed by e033 with commit 7e70530 on TheLinks branch governance-schema -- e027 is closed by d010/e032 and e025 is now evidence-assisted by post_migration_inventory but still needs the WO2/TheLinks-style history investigation before it fully closes -- d011 (canonical provenance definition) and d012 (narrative is the strongest durable home for provenance) are this session's deepest theory shifts; e035 is the small concrete vocabulary upgrade derived from them, e036 is the design surface that should not be touched until observed muddling pulls on it -- restraint-as-feature is a load-bearing posture (observed-patterns.good); future sessions facing 'should we add layer X for symmetry' should re-read it before deciding -- ECC positioning ('learn from their lifecycle muscle, keep Anarchy as the proof/provenance substrate') is captured in e034; if it stabilizes across more first-contact evaluations it should graduate into Vision -- the terms-to-skills walk-back is the canonical example of why schema-shape proposals must be pressure-tested against a live artifact before landing -- 'skills sucks' is the canonical example of a BECAUSE clause that fails the precision bar, kept in observed-patterns.bad for that reason"
 }

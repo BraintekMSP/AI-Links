@@ -1,6 +1,6 @@
 {
   "contract_name": "preflight_session_contract",
-  "contract_version": "0.1.0",
+  "contract_version": "0.1.1",
   "function_name": "preflight_session",
   "purpose": "Decide whether the current repo/session is ready for complex changes before the agent continues.",
   "input_contract": {
@@ -31,6 +31,23 @@
     }
   },
   "output_contract": {
+    "workspace_role": {
+      "type": "object",
+      "description": "Role envelope declaring whether this workspace is schema/plugin source-delivery, a material governance consumer, or mixed/undetermined before readiness claims are interpreted."
+    },
+    "runtime_provenance": {
+      "type": "object",
+      "description": "Runtime provenance envelope declaring whether the callable harness came from user profile install, repo-local install, source checkout, or an unknown/external runtime lane."
+    },
+    "consumer_material_governance_check": {
+      "type": "enum",
+      "values": [
+        "applicable",
+        "not_applicable",
+        "undetermined"
+      ],
+      "description": "Whether governed AGENTS materialization checks apply to this workspace role."
+    },
     "preflight_state": {
       "type": "enum",
       "values": [
@@ -88,6 +105,22 @@
     }
   },
   "result_example": {
+    "workspace_role": {
+      "machine_key": "schema_authoring_and_plugin_delivery_workspace",
+      "statement": "This workspace deliberately combines schema/harness development with plugin delivery in one source repo.",
+      "evidence": [
+        "root_portable_schema_family_present"
+      ],
+      "claim_scope_effect": [
+        "consumer_material_governance_check:not_applicable_unless_explicitly_requested"
+      ],
+      "confidence": "inferred_from_workspace"
+    },
+    "runtime_provenance": {
+      "machine_key": "user_profile_installed_runtime",
+      "statement": "This callable harness is running from the current user's installed plugin bundle. It is convenient and valid as an installed runtime, but it is not source truth for the workspace being evaluated."
+    },
+    "consumer_material_governance_check": "not_applicable",
     "preflight_state": "ready_with_gaps",
     "recommended_path": "inspect_schema_reality",
     "active_gaps": [
