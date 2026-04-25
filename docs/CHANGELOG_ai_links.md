@@ -9,6 +9,8 @@
 - Added the zero-trust fallacy boundary: zero trust is a useful security aspiration and control discipline, but tokens, devices, vaults, humans, and AI agents remain trust-bearing surfaces.
 - Clarified that Anarchy-AI complements security controls by making the right path easier and shortcut recovery costs visible, not by claiming to eliminate trust or replace security controls.
 - Added the `AI-Links` authoring boundary: in this source repo the human owner acts as the operative harness, and that repo-specific rule must not be copied into portable schemas, templates, plugin payloads, or consuming repos.
+- Added the affirmative control-plane class boundary: Anarchy-AI is an underlay, not a control plane, and should reject the control-plane category rather than present itself as a successful or failed instance of it.
+- Added `violates-N-prior-decisions` as a non-gating thinking measure for fast-path choices whose local speed may hide cascading violations of prior decisions.
 - Recorded the correction in the Arc narrative as continuity against context-compression drift.
 
 ## 2026-04-24
