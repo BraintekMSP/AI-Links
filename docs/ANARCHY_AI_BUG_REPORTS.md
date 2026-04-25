@@ -189,10 +189,12 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
   - Operator confusion around why `AGENTS.md` richness appeared coupled to integrity signals.
 - Required product direction:
   - Schema integrity comparison should name the canonical source used for the comparison.
-  - Preferred canonical sources are:
-    - explicit local AI-Links source path when the operator provides one
-    - current public AI-Links release when local source is not provided
-  - Embedded bundle comparison remains useful as install evidence, but should not silently become the only answer to "current canonical schema" when a fresher local or public source is available.
+  - Normal distribution default should require no extra local repo clone or operator step.
+  - Canonical source priority should be:
+    - current public AI-Links release by default
+    - explicit local AI-Links source path only when the caller provides one
+    - embedded bundle as offline fallback and installed-payload evidence
+  - Embedded bundle comparison remains useful for answering "what did this installer carry?" but should not silently become the only answer to "current canonical schema" when public release lookup is available.
 - Acceptance:
   - Result payload and docs include explicit “canonical surfaces compared” section.
   - Result payload includes the canonical source lane used for schema comparison (`local_source`, `public_release`, or `embedded_bundle`) and the source path or release reference when known.
