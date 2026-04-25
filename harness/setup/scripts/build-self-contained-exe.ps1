@@ -607,6 +607,8 @@ function Assert-SetupCliHelpContract {
     '/assess',
     '/install',
     '/update',
+    '/status',
+    'install-state',
     '5 core + 1 test harness tool'
   )
 
@@ -618,6 +620,7 @@ function Assert-SetupCliHelpContract {
 }
 
 $projectPath = Join-Path $setupRoot 'dotnet\AnarchyAi.Setup.csproj'
+$serverProjectPath = Join-Path $repoRoot 'harness\server\dotnet\AnarchyAi.Mcp.Server.csproj'
 $pluginsRoot = Join-Path $repoRoot 'plugins'
 $targetExePath = Join-Path $pluginsRoot 'AnarchyAi.Setup.exe'
 $pathAuditScriptPath = Join-Path $repoRoot 'harness\pathing\scripts\test-path-canon-compliance.ps1'
@@ -627,10 +630,16 @@ $removalSafetyAuditScriptPath = Join-Path $repoRoot 'docs\scripts\test-removal-s
 $tempRoot = Join-Path $env:LOCALAPPDATA 'Temp\ai-links-setup-build'
 $objRoot = Join-Path $tempRoot 'obj'
 $binRoot = Join-Path $tempRoot 'bin'
+$serverObjRoot = Join-Path $tempRoot 'server-obj'
+$serverBinRoot = Join-Path $tempRoot 'server-bin'
 $publishRoot = Join-Path $tempRoot 'publish'
+$serverPublishRoot = Join-Path $tempRoot 'server-publish'
+$pluginPayloadStageRoot = Join-Path $tempRoot 'plugin-payload-stage'
 $statusPath = Join-Path $tempRoot 'last-build-result.json'
 $objRootMsbuild = (($objRoot -replace '\\', '/') + '/')
 $binRootMsbuild = (($binRoot -replace '\\', '/') + '/')
+$serverObjRootMsbuild = (($serverObjRoot -replace '\\', '/') + '/')
+$serverBinRootMsbuild = (($serverBinRoot -replace '\\', '/') + '/')
 
 <#
 .SYNOPSIS
@@ -670,12 +679,19 @@ $documentationTruthAuditValidated = $false
 $removalSafetyAuditValidated = $false
 $publishedHelpContractValidated = $false
 $targetHelpContractValidated = $false
+$pluginPayloadStaged = $false
+$publishedRuntimeExePath = ''
+$stagedPluginPayloadRoot = ''
 
 try {
   $resolvedDotnetPath = Resolve-DotnetPath -RequestedPath $DotnetPath
 
   if (-not (Test-Path $projectPath)) {
     throw "Setup project not found: $projectPath"
+  }
+
+  if (-not (Test-Path $serverProjectPath)) {
+    throw "MCP server project not found: $serverProjectPath"
   }
 
   if (-not (Test-Path $pluginsRoot)) {
@@ -711,6 +727,46 @@ try {
   }
   $removalSafetyAuditValidated = $true
 
+  if (Test-Path $serverPublishRoot) {
+    Remove-Item $serverPublishRoot -Recurse -Force
+  }
+
+  $serverPublishArguments = @(
+    'publish',
+    $serverProjectPath,
+    '-c', $Configuration,
+    '-f', 'net8.0',
+    ('-p:BaseIntermediateOutputPath="{0}"' -f $serverObjRootMsbuild),
+    ('-p:BaseOutputPath="{0}"' -f $serverBinRootMsbuild),
+    '-p:NuGetAudit=false',
+    '-o', ('"{0}"' -f $serverPublishRoot)
+  )
+
+  & $resolvedDotnetPath @serverPublishArguments
+  if ($LASTEXITCODE -ne 0) {
+    throw "dotnet publish for MCP server failed with exit code $LASTEXITCODE"
+  }
+
+  $publishedRuntimeExePath = Join-Path $serverPublishRoot 'AnarchyAi.Mcp.Server.exe'
+  if (-not (Test-Path $publishedRuntimeExePath)) {
+    throw "Published MCP server executable not found: $publishedRuntimeExePath"
+  }
+
+  if (Test-Path $pluginPayloadStageRoot) {
+    Remove-Item $pluginPayloadStageRoot -Recurse -Force
+  }
+
+  $stagedPluginPayloadRoot = Join-Path $pluginPayloadStageRoot 'anarchy-ai'
+  Copy-Item (Resolve-CanonRelativePath -RootPath $repoRoot -RelativePath $pathCanon.relative_paths.repo_source_plugin_directory_relative_path) $stagedPluginPayloadRoot -Recurse -Force
+  $stagedRuntimePath = Resolve-CanonRelativePath -RootPath $stagedPluginPayloadRoot -RelativePath $pathCanon.relative_paths.bundle_runtime_executable_file_relative_path
+  $stagedRuntimeDirectory = Split-Path -Parent $stagedRuntimePath
+  if (-not (Test-Path $stagedRuntimeDirectory)) {
+    New-Item -ItemType Directory -Path $stagedRuntimeDirectory -Force | Out-Null
+  }
+
+  Copy-Item $publishedRuntimeExePath $stagedRuntimePath -Force
+  $pluginPayloadStaged = $true
+
   if (Test-Path $publishRoot) {
     Remove-Item $publishRoot -Recurse -Force
   }
@@ -721,6 +777,7 @@ try {
     '-c', $Configuration,
     ('-p:BaseIntermediateOutputPath="{0}"' -f $objRootMsbuild),
     ('-p:BaseOutputPath="{0}"' -f $binRootMsbuild),
+    ('-p:AnarchySetupPluginPayloadRoot="{0}"' -f (($stagedPluginPayloadRoot -replace '\\', '/') + '/')),
     '-p:NuGetAudit=false',
     '-o', ('"{0}"' -f $publishRoot)
   )
@@ -751,10 +808,15 @@ try {
         status = 'failed'
         failure_stage = 'copy_to_plugins'
         project_path = $projectPath
+        server_project_path = $serverProjectPath
         dotnet_path = $resolvedDotnetPath
         configuration = $Configuration
         publish_root = $publishRoot
+        server_publish_root = $serverPublishRoot
         published_executable = $publishedExePath
+        published_runtime_executable = $publishedRuntimeExePath
+        plugin_payload_staged = $pluginPayloadStaged
+        staged_plugin_payload_root = $stagedPluginPayloadRoot
         plugin_readme_generated = $pluginReadmeGenerated
         plugin_mcp_declaration_generated = $pluginMcpDeclarationGenerated
         plugin_manifest_generated = $pluginManifestGenerated
@@ -793,10 +855,15 @@ try {
   $result = [ordered]@{
     status = 'completed'
     project_path = $projectPath
+    server_project_path = $serverProjectPath
     dotnet_path = $resolvedDotnetPath
     configuration = $Configuration
     publish_root = $publishRoot
+    server_publish_root = $serverPublishRoot
     published_executable = $publishedExePath
+    published_runtime_executable = $publishedRuntimeExePath
+    plugin_payload_staged = $pluginPayloadStaged
+    staged_plugin_payload_root = $stagedPluginPayloadRoot
     plugin_readme_generated = $pluginReadmeGenerated
     plugin_mcp_declaration_generated = $pluginMcpDeclarationGenerated
     plugin_manifest_generated = $pluginManifestGenerated
@@ -819,10 +886,15 @@ catch {
     status = 'failed'
     failure_stage = 'build_or_publish'
     project_path = $projectPath
+    server_project_path = $serverProjectPath
     dotnet_path = $resolvedDotnetPath
     configuration = $Configuration
     publish_root = $publishRoot
+    server_publish_root = $serverPublishRoot
     published_executable = $publishedExePath
+    published_runtime_executable = $publishedRuntimeExePath
+    plugin_payload_staged = $pluginPayloadStaged
+    staged_plugin_payload_root = $stagedPluginPayloadRoot
     plugin_readme_generated = $pluginReadmeGenerated
     plugin_mcp_declaration_generated = $pluginMcpDeclarationGenerated
     plugin_manifest_generated = $pluginManifestGenerated

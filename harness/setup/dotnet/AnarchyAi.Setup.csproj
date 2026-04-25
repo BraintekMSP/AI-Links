@@ -19,6 +19,7 @@
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <ApplicationIcon>..\..\..\plugins\anarchy-ai\$(AnarchyBrandingBundleSetupIconRelativePath)</ApplicationIcon>
+    <AnarchySetupPluginPayloadRoot Condition="'$(AnarchySetupPluginPayloadRoot)' == ''">..\..\..\plugins\anarchy-ai</AnarchySetupPluginPayloadRoot>
   </PropertyGroup>
 
   <ItemGroup>
@@ -29,7 +30,7 @@
     <Compile Remove="obj\**\*.cs" />
     <EmbeddedResource Remove="obj\**\*" />
     <None Remove="obj\**\*" />
-    <EmbeddedResource Include="..\..\..\plugins\anarchy-ai\**\*"
+    <EmbeddedResource Include="$(AnarchySetupPluginPayloadRoot)\**\*"
                       LogicalName="$(AnarchyCanonPluginPayloadPrefix)%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\..\..\AGENTS-schema-governance.json"
                       LogicalName="$(AnarchyCanonPortableSchemaPayloadPrefix)AGENTS-schema-governance.json" />
