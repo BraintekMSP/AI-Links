@@ -94,6 +94,48 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
   - Local patch notes:
     - build helper now validates `/?` help contract on both published EXE and copied `plugins/AnarchyAi.Setup.exe`
 
+### AA-BUG-018: Setup deployable can package a stale embedded MCP runtime
+
+- Severity: High
+- Status: Fixed locally by `184a3a9` (pending independent release repeat)
+- Component: Build / Publish helper / Runtime payload
+- Repro:
+  - Update harness server source or contracts.
+  - Run the setup publish helper.
+  - Inspect `plugins/AnarchyAi.Setup.exe` help or timestamp and treat the setup EXE as fresh.
+  - Install into a target repo and inspect the extracted `AnarchyAi.Mcp.Server.exe`.
+- Expected:
+  - A rebuilt setup EXE carries the current MCP runtime payload.
+  - The release helper fails before publish if it cannot build or stage the current runtime.
+  - The repo does not require committing refreshed runtime binaries or the large setup EXE to make the deployable reproducible.
+- Actual:
+  - The setup EXE could be fresh while the embedded `plugins/anarchy-ai/runtime/win-x64/AnarchyAi.Mcp.Server.exe` payload remained stale.
+  - The stale runtime lacked current harness tool strings such as `direction_assist_test` and `verify_config_materialization`.
+- Evidence:
+  - Local check on `2026-04-25` showed:
+    - `plugins/AnarchyAi.Setup.exe` exposed current `/status` and install-state help text.
+    - tracked runtime payload was still the older runtime and did not contain current harness tool strings.
+  - Fix commit `184a3a9` changed setup publish to:
+    - publish `AnarchyAi.Mcp.Server.exe` first
+    - stage a temporary plugin payload
+    - replace only the staged runtime
+    - publish setup using `AnarchySetupPluginPayloadRoot`
+    - leave tracked runtime binary and gitignored setup EXE out of source history
+  - Smoke install after the fix returned `bootstrap_state = ready`, `install_state.state_valid = true`, and extracted a runtime containing current tool strings:
+    - `direction_assist_test`
+    - `verify_config_materialization`
+    - `assess_harness_gap_state`
+    - `preflight_session`
+    - `compile_active_work_state`
+    - `run_gov2gov_migration`
+    - `is_schema_real_or_shadow_copied`
+- Acceptance:
+  - `build-self-contained-exe.ps1` publishes the MCP server before setup.
+  - Setup payload is built from a staged plugin bundle carrying the freshly published runtime.
+  - Build output reports `plugin_payload_staged = true` and `published_runtime_executable`.
+  - Smoke install from `plugins/AnarchyAi.Setup.exe` extracts a runtime with current expected tool strings.
+  - `git status --short` remains source-only after build; no large setup EXE or refreshed runtime binary is required for commit.
+
 ### AA-BUG-005: Missing setup `self-check` command for active mount diagnostics
 
 - Severity: Medium
