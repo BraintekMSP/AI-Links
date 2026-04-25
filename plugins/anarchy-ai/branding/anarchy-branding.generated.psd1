@@ -1,10 +1,10 @@
-﻿@{
+@{
   version = '0.1.0'
   names = @{
     brand_display_name = 'Anarchy-AI'
     setup_display_name = 'Anarchy-AI Setup'
     user_profile_marketplace_display_name = 'Anarchy-AI User Profile'
-    repo_local_marketplace_display_name_template = 'Anarchy-AI Local (<RepoName>)'
+    repo_local_marketplace_display_name_template = 'Anarchy-AI Repo (<RepoName>)'
   }
   metadata = @{
     author_name = 'Matt Herring'
@@ -12,6 +12,7 @@
     homepage_url = 'https://github.com/BraintekMSP/AI-Links'
     repository_url = 'https://github.com/BraintekMSP/AI-Links'
     developer_name = 'Matt Herring'
+    plugin_manifest_version = '0.1.9'
     privacy_policy_url = 'https://github.com/BraintekMSP/AI-Links/blob/main/plugins/anarchy-ai/PRIVACY.md'
     terms_of_service_url = 'https://github.com/BraintekMSP/AI-Links/blob/main/LICENSE'
     default_update_source_zip_url = 'https://github.com/BraintekMSP/AI-Links/archive/refs/heads/main.zip'

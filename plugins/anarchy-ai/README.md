@@ -27,7 +27,7 @@ The standalone installer is a published carrier:
 
 The published plugin bundle therefore keeps destination-relative paths such as:
 
-- repo-local installed plugin root: `.\plugins\anarchy-ai-local-<repo-slug>-<stable-path-hash>`
+- repo-local installed plugin root: `.\plugins\anarchy-ai`
 - user-profile installed plugin root: `~\.codex\plugins\anarchy-ai`
 - personal marketplace path: `~\.agents\plugins\marketplace.json`
 - personal marketplace `source.path`: `./.codex/plugins/anarchy-ai`
@@ -44,6 +44,8 @@ This README should never teach source-repo-relative install paths or up-level so
   - `./runtime/win-x64/`
 - bundled canonical schemas:
   - `./schemas/`
+- bundled narrative templates:
+  - `./templates/narratives/`
 - bundled skill:
   - `./skills/anarchy-ai-harness/`
 
@@ -67,6 +69,7 @@ The plugin provides:
 - a local MCP declaration through `.mcp.json`
 - direct launch of the bundled `.NET 8` self-contained single-file runtime inside the plugin
 - a bundled canonical schema family plus hash manifest under `./schemas/`
+- narrative register and record templates under `./templates/narratives/` because `AGENTS-schema-narrative.json` carries the arc/register lane
 - a skill that teaches when to use the five bounded core runtime tools and how to discover the experimental `direction_assist_test` module
 - a repo-bootstrap script at `./scripts/bootstrap-anarchy-ai.ps1` as a compatibility/fallback lane for repo-local install, assess, and bundle refresh after the bundle already exists
 - a runtime lock script at `./scripts/stop-anarchy-ai.ps1` for assessing, safely releasing, or forcibly releasing the bundled Anarchy-AI runtime lock
@@ -161,7 +164,7 @@ The dedicated runtime-lock commands are:
 
 `<installed-plugin-root>` is either:
 
-- `.\plugins\anarchy-ai-local-<repo-slug>-<stable-path-hash>`
+- `.\plugins\anarchy-ai`
 - `~\.codex\plugins\anarchy-ai`
 
 `SafeReleaseRuntimeLock` does not request UAC elevation.

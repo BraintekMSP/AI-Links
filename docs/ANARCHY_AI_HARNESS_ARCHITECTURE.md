@@ -1,4 +1,4 @@
-﻿# Anarchy-AI Harness Architecture
+# Anarchy-AI Harness Architecture
 
 ## Purpose
 
@@ -113,7 +113,7 @@ Current environment evidence discipline:
 - maintain explicit separation between:
   - host-neutral marketplace plane (`.agents`)
   - home-local Codex install plane (`~/.agents/plugins/marketplace.json` -> `~/.codex/plugins/anarchy-ai`) -- proven
-  - repo-local Codex install plane (`<repo>/.agents/plugins/marketplace.json` -> `<repo>/plugins/anarchy-ai-local-...`) -- Codex-documented, runtime is per-machine
+  - repo-local Codex install plane (`<repo>/.agents/plugins/marketplace.json` -> `<repo>/plugins/anarchy-ai`) -- Codex-documented, runtime is per-machine
   - home-local Claude Code install plane (direct read-merge-write into user-scope `~/.claude.json`, no `claude` CLI shellout) -- Pass 2 implemented, pending verification (see truth matrix item D)
   - home-local Claude Desktop install plane (auto-detect MSIX vs classic install, read-merge-write into the active `claude_desktop_config.json`) -- Pass 2 implemented, pending verification (see truth matrix item E)
   - legacy Codex custom-MCP cleanup plane (`~/.codex/config.toml` stale `[mcp_servers.*]` removal) -- retained for migration only
@@ -187,10 +187,14 @@ Install lifecycle direction:
 - claims about host behavior should be graded through the truth matrix; file presence alone is not proof of plugin materialization or session reachability
 - skills and startup instructions are influence surfaces, not enforcement surfaces; they improve consistency and discoverability but do not guarantee behavior
 - schema adoption claims should not close on file copy, schema presence, or startup text alone; they close only when a harness or verification lane observes the intended materialized state
+- schema-carried artifact lanes must travel with the installer as concrete bundle surfaces; the narrative schema now carries register/record templates through `templates/narratives/`, and gov2gov handles missing narrative register/project-directory materialization non-destructively
 
 Lifecycle state implemented in setup source:
 
 - install/update writes a versioned `.anarchy-ai/install-state.json` record inside the owned plugin bundle
+- install-state v2 separates the install `target` from the optional repo/schema `workspace`, following ECC's useful lifecycle discipline without importing ECC's product class
+- user-profile status validates the home install target; a different later `/repo` is a workspace warning, not a broken runtime
+- install-state v2 records setup-owned `managed_operations` so future doctor/repair/uninstall work can become operation-led instead of file-presence-led
 - setup JSON now includes `setup_operation` and `install_state`
 - `/status`, `/doctor`, `/selfcheck`, and `/self-check` perform read-only lifecycle inspection
 - status mode compares recorded install intent against the currently resolved destination paths and returns bounded `install_state_*` findings

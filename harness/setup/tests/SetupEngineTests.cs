@@ -56,7 +56,7 @@ public sealed class SetupEngineTests
     }
 
     /// <summary>
-    /// Confirms that repo-local marketplace identity is stable across devices for the same repo name instead of leaking a path hash.
+    /// Confirms that repo-local marketplace identity is stable across devices for the same repo name instead of leaking path-local wording.
     /// </summary>
     /// <returns>No direct return value; the method asserts the generated repo-local marketplace identifier.</returns>
     /// <remarks>Critical dependencies: <see cref="SetupEngine.BuildMarketplaceName(InstallScope, string?)"/> and the repo-slug identity contract.</remarks>
@@ -67,7 +67,22 @@ public sealed class SetupEngineTests
             InstallScope.RepoLocal,
             Path.Combine(Path.GetTempPath(), "AI-Links"));
 
-        Assert.Equal("anarchy-ai-local-ai-links", marketplaceName);
+        Assert.Equal("anarchy-ai-repo-ai-links", marketplaceName);
+    }
+
+    /// <summary>
+    /// Confirms that repo-local plugin bundles use the plain plugin path because the repo root already scopes the install.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts the generated repo-local source path.</returns>
+    /// <remarks>Critical dependencies: <see cref="SetupEngine.BuildPluginRelativePath(InstallScope, string?)"/> and the plain repo-local path contract.</remarks>
+    [Fact]
+    public void BuildPluginRelativePath_RepoLocal_UsesPlainPluginPath()
+    {
+        var relativePath = SetupEngine.BuildPluginRelativePath(
+            InstallScope.RepoLocal,
+            Path.Combine(Path.GetTempPath(), "AI-Links"));
+
+        Assert.Equal("./plugins/anarchy-ai", relativePath);
     }
 
     /// <summary>
@@ -192,11 +207,99 @@ public sealed class SetupEngineTests
 
         using var document = JsonDocument.Parse(File.ReadAllText(statePath));
         var root = document.RootElement;
-        Assert.Equal("anarchy.install-state.v1", root.GetProperty("schema_version").GetString());
+        Assert.Equal("anarchy.install-state.v2", root.GetProperty("schema_version").GetString());
         Assert.Equal("install", root.GetProperty("setup_operation").GetString());
         Assert.Equal("repo_local", root.GetProperty("install_scope").GetString());
+        Assert.Equal("codex-repo-local", root.GetProperty("target").GetProperty("id").GetString());
+        Assert.Equal("project", root.GetProperty("target").GetProperty("kind").GetString());
+        Assert.Equal(tempRepo.Path, root.GetProperty("target").GetProperty("root").GetString(), StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(tempRepo.Path, root.GetProperty("workspace").GetProperty("root").GetString(), StringComparer.OrdinalIgnoreCase);
+        Assert.True(root.GetProperty("workspace").GetProperty("schema_targeted").GetBoolean());
+        Assert.True(root.GetProperty("managed_operations").GetArrayLength() > 0);
         Assert.Equal(tempRepo.Path, root.GetProperty("workspace_root").GetString(), StringComparer.OrdinalIgnoreCase);
         Assert.Equal("anarchy-ai", root.GetProperty("mcp_server_name").GetString());
+    }
+
+    /// <summary>
+    /// Confirms that user-profile lifecycle state is keyed to the home install target, not the last repo used for schema seeding.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts user-profile target/workspace separation.</returns>
+    /// <remarks>Critical dependencies: install-state v2 shape and the ECC-inspired distinction between install target and workspace target.</remarks>
+    [Fact]
+    public void InspectInstallState_UserProfile_DifferentWorkspaceIsWarningNotInvalid()
+    {
+        using var pluginRoot = new TempDirectory();
+        using var firstRepo = CreateTempRepo();
+        using var secondRepo = CreateTempRepo();
+        var statePath = SetupEngine.ResolveInstallStatePath(pluginRoot.Path);
+        Directory.CreateDirectory(Path.GetDirectoryName(statePath)!);
+        var userRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var marketplacePath = Path.Combine(userRoot, ".agents", "plugins", "marketplace.json");
+        var runtimePath = Path.Combine(pluginRoot.Path, "runtime", "win-x64", "AnarchyAi.Mcp.Server.exe");
+
+        var state = new
+        {
+            schema_version = "anarchy.install-state.v2",
+            written_at_utc = DateTimeOffset.UtcNow.ToString("O"),
+            setup_operation = "install",
+            install_scope = "user_profile",
+            host_context = "codex",
+            host_targets = new[] { "codex" },
+            target = new
+            {
+                id = "codex-user-profile",
+                kind = "home",
+                root = userRoot,
+                install_state_path = statePath,
+                plugin_root = pluginRoot.Path,
+                marketplace_path = marketplacePath,
+                mcp_server_name = "anarchy-ai",
+                runtime_path = runtimePath
+            },
+            workspace = new
+            {
+                root = firstRepo.Path,
+                schema_targeted = true,
+                schema_refresh_requested = false
+            },
+            managed_operations = new[]
+            {
+                new
+                {
+                    kind = "materialize_runtime",
+                    surface = "mcp_runtime",
+                    destination_path = runtimePath,
+                    strategy = "copy_embedded_payload",
+                    ownership = "managed"
+                }
+            }
+        };
+        File.WriteAllText(statePath, JsonSerializer.Serialize(state, ProgramJson.Options), Encoding.UTF8);
+
+        var report = SetupEngine.InspectInstallState(
+            new SetupOptions
+            {
+                Mode = OperationMode.Status,
+                InstallScope = InstallScope.UserProfile,
+                HostContext = "codex",
+                HostTargets = HostTargets.Codex,
+                RepoPath = secondRepo.Path,
+                Silent = true,
+                JsonOutput = true
+            },
+            "codex",
+            secondRepo.Path,
+            pluginRoot.Path,
+            marketplacePath,
+            runtimePath,
+            stateWritten: false);
+
+        Assert.True(report.state_valid);
+        Assert.Empty(report.findings);
+        Assert.Contains("last_workspace_target_differs_from_current_request", report.warnings);
+        Assert.Equal("codex-user-profile", report.recorded_target_id);
+        Assert.Equal(userRoot, report.recorded_target_root, StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(firstRepo.Path, report.recorded_workspace_root, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -269,6 +372,144 @@ public sealed class SetupEngineTests
     }
 
     /// <summary>
+    /// Confirms that a fully absent repo-local plugin root reports the missing bundle itself without noisy child-surface findings.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts bounded missing-component vocabulary.</returns>
+    /// <remarks>Critical dependencies: setup assess missing-component routing and the plain repo-local plugin path.</remarks>
+    [Fact]
+    public void Execute_Assess_RepoLocal_MissingBundle_DoesNotReportEveryChildSurface()
+    {
+        using var tempRepo = CreateTempRepo();
+        var engine = new SetupEngine();
+
+        var assess = engine.Execute(new SetupOptions
+        {
+            Mode = OperationMode.Assess,
+            InstallScope = InstallScope.RepoLocal,
+            HostContext = "codex",
+            HostTargets = HostTargets.Codex,
+            RepoPath = tempRepo.Path,
+            Silent = true,
+            JsonOutput = true
+        });
+
+        Assert.Equal("bootstrap_needed", assess.bootstrap_state);
+        Assert.False(assess.runtime_present);
+        Assert.Contains("repo_marketplace_missing", assess.missing_components);
+        Assert.DoesNotContain("schema_bundle_manifest_missing", assess.missing_components);
+        Assert.DoesNotContain("bundled_runtime_missing", assess.missing_components);
+        Assert.DoesNotContain("codex_plugin_manifest_missing", assess.missing_components);
+        Assert.DoesNotContain("codex_mcp_declaration_missing", assess.missing_components);
+        Assert.DoesNotContain("codex_skill_surface_missing", assess.missing_components);
+        Assert.DoesNotContain(assess.missing_components, value => value.StartsWith("missing_contract:", StringComparison.Ordinal));
+        Assert.DoesNotContain("experimental_direction_assist_contract_missing_non_blocking", assess.actions_taken);
+    }
+
+    /// <summary>
+    /// Confirms that assessing the AI-Links-style source repo reads plugins/anarchy-ai as an authoring bundle instead of reporting source-owned schemas as missing.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts source-authoring assessment output.</returns>
+    /// <remarks>Critical dependencies: source-authoring detection, nested path roles, and the boundary between source bundle and consumer install target.</remarks>
+    [Fact]
+    public void Execute_Assess_RepoLocal_SourceAuthoringBundle_DoesNotReportBundleSurfacesMissing()
+    {
+        using var tempRepo = CreateTempRepo();
+        CreateSourceAuthoringBundle(tempRepo.Path);
+        var engine = new SetupEngine();
+
+        var assess = engine.Execute(new SetupOptions
+        {
+            Mode = OperationMode.Assess,
+            InstallScope = InstallScope.RepoLocal,
+            HostContext = "codex",
+            HostTargets = HostTargets.Codex,
+            RepoPath = tempRepo.Path,
+            Silent = true,
+            JsonOutput = true
+        });
+
+        Assert.Equal("source_authoring_bundle_ready", assess.bootstrap_state);
+        Assert.True(assess.source_authoring_bundle_present);
+        Assert.Equal("complete", assess.source_authoring_bundle_state);
+        Assert.True(assess.runtime_present);
+        Assert.Contains("source_authoring_bundle_detected", assess.actions_taken);
+        Assert.DoesNotContain("repo_marketplace_missing", assess.missing_components);
+        Assert.Contains("choose_user_profile_install_or_explicit_consumer_repo_install", assess.safe_repairs);
+        Assert.DoesNotContain("schema_bundle_manifest_missing", assess.missing_components);
+        Assert.DoesNotContain("bundled_runtime_missing", assess.missing_components);
+        Assert.DoesNotContain("codex_plugin_manifest_missing", assess.missing_components);
+        Assert.DoesNotContain("codex_mcp_declaration_missing", assess.missing_components);
+        Assert.DoesNotContain("codex_skill_surface_missing", assess.missing_components);
+        Assert.DoesNotContain(assess.missing_components, value => value.StartsWith("missing_contract:", StringComparison.Ordinal));
+        Assert.Equal("use_source_build_lane_or_user_profile_install", assess.next_action);
+        Assert.EndsWith(Path.Combine("plugins", "anarchy-ai"), assess.paths.source?.root_path, StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith(
+            Path.Combine("plugins", "anarchy-ai"),
+            assess.paths.destination?.directories?["plugin_root_directory_path"],
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Confirms that a consumer repo with an installed plain plugins/anarchy-ai bundle is assessed as an install target, not as AI-Links source truth.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts consumer install behavior after repo-local install.</returns>
+    /// <remarks>Critical dependencies: source-repo marker detection and the plain repo-local path contract.</remarks>
+    [Fact]
+    public void Execute_Install_RepoLocal_PlainPluginPath_RemainsConsumerInstall()
+    {
+        using var tempRepo = CreateTempRepo();
+        var engine = new SetupEngine();
+
+        var install = engine.Execute(new SetupOptions
+        {
+            Mode = OperationMode.Install,
+            InstallScope = InstallScope.RepoLocal,
+            HostContext = "codex",
+            HostTargets = HostTargets.Codex,
+            RepoPath = tempRepo.Path,
+            Silent = true,
+            JsonOutput = true
+        });
+
+        Assert.Equal("ready", install.bootstrap_state);
+        Assert.False(install.source_authoring_bundle_present);
+        Assert.EndsWith(Path.Combine("plugins", "anarchy-ai"), install.paths.destination?.directories?["plugin_root_directory_path"], StringComparison.OrdinalIgnoreCase);
+        Assert.True(File.Exists(Path.Combine(tempRepo.Path, "plugins", "anarchy-ai", ".mcp.json")));
+    }
+
+    /// <summary>
+    /// Confirms that repo-local install is blocked when the target is the AI-Links source repo and would overwrite plugins/anarchy-ai.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts bounded source-write blocking.</returns>
+    /// <remarks>Critical dependencies: source-repo marker detection and the AI-Links source-authoring boundary.</remarks>
+    [Fact]
+    public void Execute_Install_RepoLocal_SourceAuthoringRepo_BlocksConsumerWrite()
+    {
+        using var tempRepo = CreateTempRepo();
+        CreateSourceAuthoringBundle(tempRepo.Path);
+        var engine = new SetupEngine();
+
+        var install = engine.Execute(new SetupOptions
+        {
+            Mode = OperationMode.Install,
+            InstallScope = InstallScope.RepoLocal,
+            HostContext = "codex",
+            HostTargets = HostTargets.Codex,
+            RepoPath = tempRepo.Path,
+            Silent = true,
+            JsonOutput = true
+        });
+
+        Assert.Equal("source_authoring_write_blocked", install.bootstrap_state);
+        Assert.True(install.source_authoring_bundle_present);
+        Assert.Equal("complete", install.source_authoring_bundle_state);
+        Assert.Contains("source_authoring_consumer_install_blocked", install.actions_taken);
+        Assert.Contains("source_authoring_repo_consumer_install_blocked", install.missing_components);
+        Assert.DoesNotContain("repo_marketplace_missing", install.missing_components);
+        Assert.Equal("use_source_build_lane_or_user_profile_install", install.next_action);
+    }
+
+    /// <summary>
     /// Verifies that legacy home-local evidence is reported as a custom-MCP fallback mode instead of a ready marketplace lane.
     /// </summary>
     /// <returns>No direct return value; the method asserts the computed registration mode.</returns>
@@ -299,7 +540,7 @@ public sealed class SetupEngineTests
         var readmePath = Path.Combine(repoRoot, "plugins", "anarchy-ai", "README.md");
         var readme = File.ReadAllText(readmePath);
 
-        Assert.Contains(@".\plugins\anarchy-ai-local-<repo-slug>-<stable-path-hash>", readme);
+        Assert.Contains(@".\plugins\anarchy-ai", readme);
         Assert.Contains(@"~\.codex\plugins\anarchy-ai", readme);
         Assert.Contains("./.codex/plugins/anarchy-ai", readme);
         Assert.DoesNotContain("../../../", readme, StringComparison.Ordinal);
@@ -334,6 +575,29 @@ public sealed class SetupEngineTests
             Assert.False(hasUtf8Bom, $"Expected UTF-8 without BOM: {path}");
             Assert.True(Encoding.UTF8.GetString(bytes).TrimStart().StartsWith("{", StringComparison.Ordinal), $"Expected JSON content in {path}");
         }
+    }
+
+    /// <summary>
+    /// Confirms that narrative schema artifact templates travel inside the installed plugin payload.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts template presence and JSON shape.</returns>
+    /// <remarks>Critical dependencies: AGENTS-schema-narrative template obligations and setup's embedded plugin payload wildcard.</remarks>
+    [Fact]
+    public void PluginBundle_CarriesNarrativeTemplates()
+    {
+        var repoRoot = FindRepoRoot();
+        var templateRoot = Path.Combine(repoRoot, "plugins", "anarchy-ai", "templates", "narratives");
+        var registerTemplatePath = Path.Combine(templateRoot, "register.template.json");
+        var recordTemplatePath = Path.Combine(templateRoot, "record.template.json");
+
+        using var registerTemplate = JsonDocument.Parse(File.ReadAllText(registerTemplatePath));
+        using var recordTemplate = JsonDocument.Parse(File.ReadAllText(recordTemplatePath));
+
+        Assert.True(registerTemplate.RootElement.TryGetProperty("records", out var records));
+        Assert.Equal(JsonValueKind.Array, records.ValueKind);
+        Assert.True(recordTemplate.RootElement.TryGetProperty("header", out _));
+        Assert.True(recordTemplate.RootElement.TryGetProperty("entries", out var entries));
+        Assert.Equal(JsonValueKind.Array, entries.ValueKind);
     }
 
     /// <summary>
@@ -481,5 +745,73 @@ public sealed class SetupEngineTests
         var tempRepo = new TempDirectory();
         Directory.CreateDirectory(Path.Combine(tempRepo.Path, ".git"));
         return tempRepo;
+    }
+
+    /// <summary>
+    /// Creates the minimal repo-authored plugin source bundle shape used by AI-Links itself.
+    /// </summary>
+    /// <param name="repoRoot">Temporary repo root that receives plugins/anarchy-ai.</param>
+    /// <remarks>Critical dependencies: setup's source-authoring bundle detector and the current required contract filenames.</remarks>
+    private static void CreateSourceAuthoringBundle(string repoRoot)
+    {
+        Directory.CreateDirectory(Path.Combine(repoRoot, "harness", "setup", "dotnet"));
+        Directory.CreateDirectory(Path.Combine(repoRoot, "harness", "server", "dotnet"));
+        Directory.CreateDirectory(Path.Combine(repoRoot, "docs"));
+        File.WriteAllText(Path.Combine(repoRoot, "harness", "setup", "dotnet", "AnarchyAi.Setup.csproj"), "<Project />", Encoding.UTF8);
+        File.WriteAllText(Path.Combine(repoRoot, "harness", "server", "dotnet", "AnarchyAi.Mcp.Server.csproj"), "<Project />", Encoding.UTF8);
+        File.WriteAllText(Path.Combine(repoRoot, "docs", "README_ai_links.md"), "# AI-Links", Encoding.UTF8);
+
+        var pluginRoot = Path.Combine(repoRoot, "plugins", "anarchy-ai");
+        Directory.CreateDirectory(Path.Combine(pluginRoot, ".codex-plugin"));
+        Directory.CreateDirectory(Path.Combine(pluginRoot, "runtime", "win-x64"));
+        Directory.CreateDirectory(Path.Combine(pluginRoot, "skills", "anarchy-ai-harness"));
+        Directory.CreateDirectory(Path.Combine(pluginRoot, "schemas"));
+        Directory.CreateDirectory(Path.Combine(pluginRoot, "contracts"));
+        Directory.CreateDirectory(Path.Combine(pluginRoot, "templates", "narratives"));
+
+        File.WriteAllText(
+            Path.Combine(pluginRoot, ".codex-plugin", "plugin.json"),
+            """
+            {
+              "name": "anarchy-ai",
+              "interface": {
+                "displayName": "Anarchy-AI"
+              }
+            }
+            """,
+            Encoding.UTF8);
+        File.WriteAllText(
+            Path.Combine(pluginRoot, ".mcp.json"),
+            """
+            {
+              "mcpServers": {
+                "anarchy-ai": {
+                  "command": ".\\runtime\\win-x64\\AnarchyAi.Mcp.Server.exe",
+                  "args": [],
+                  "cwd": "."
+                }
+              }
+            }
+            """,
+            Encoding.UTF8);
+        File.WriteAllText(Path.Combine(pluginRoot, "runtime", "win-x64", "AnarchyAi.Mcp.Server.exe"), "test-runtime", Encoding.UTF8);
+        File.WriteAllText(Path.Combine(pluginRoot, "skills", "anarchy-ai-harness", "SKILL.md"), "# Test Skill", Encoding.UTF8);
+        File.WriteAllText(Path.Combine(pluginRoot, "schemas", "schema-bundle.manifest.json"), "{}", Encoding.UTF8);
+        File.WriteAllText(Path.Combine(pluginRoot, "templates", "narratives", "register.template.json"), """{"records":[]}""", Encoding.UTF8);
+        File.WriteAllText(Path.Combine(pluginRoot, "templates", "narratives", "record.template.json"), """{"header":{"id":""}}""", Encoding.UTF8);
+
+        var contractNames = new[]
+        {
+            "active-work-state.contract.json",
+            "schema-reality.contract.json",
+            "gov2gov-migration.contract.json",
+            "preflight-session.contract.json",
+            "harness-gap-state.contract.json",
+            "direction-assist-test.contract.json"
+        };
+        foreach (var contractName in contractNames)
+        {
+            File.WriteAllText(Path.Combine(pluginRoot, "contracts", contractName), "{}", Encoding.UTF8);
+        }
     }
 }

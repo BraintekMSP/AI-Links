@@ -1,6 +1,6 @@
 {
   "contract_name": "gov2gov_migration_contract",
-  "contract_version": "0.1.1",
+  "contract_version": "0.1.2",
   "function_name": "run_gov2gov_migration",
   "purpose": "Non-destructively reconcile a partial or copied-only schema package using the AGENTS-schema-gov2gov-migration model, then return the resulting schema reality state.",
   "input_contract": {
@@ -124,7 +124,7 @@
     },
     "post_migration_inventory": {
       "type": "object",
-      "description": "Non-gating evidence inventory after the migration pass. Portable schema files are presence and hash checked against the current canonical bundle and this run's plan/action lists; governed AGENTS and GOV2GOV structure are presence-only because workspace-specific divergence is expected."
+      "description": "Non-gating evidence inventory after the migration pass. Portable schema files are presence and hash checked against the current canonical bundle and this run's plan/action lists; governed AGENTS, narrative/arc artifacts, and GOV2GOV structure are presence-only because workspace-specific divergence is expected."
     }
   },
   "gov2gov_alignment_targets": [
@@ -138,6 +138,8 @@
     "GOV2GOV_source_target_map_materialization_when_required",
     "GOV2GOV_registry_materialization_when_required",
     "GOV2GOV_rules_materialization_when_required",
+    "narrative_register_materialization_when_schema_present",
+    "narrative_projects_directory_materialization_when_schema_present",
     "historical_lane_preservation_for_demoted_surfaces"
   ],
   "result_example": {

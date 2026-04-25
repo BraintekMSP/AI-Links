@@ -177,6 +177,265 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
   - Fresh-session proof requires metadata/runtime/install-state agreement or explicitly records the mismatch as a caveat.
   - Truth matrix distinguishes "tools callable" from "cache/home install state fully understood."
 
+### AA-BUG-020: User-profile install-state conflates home runtime with last workspace target
+
+- Severity: High
+- Status: Patched local (pending republish and Workorders/Fissure repeat)
+- Component: Setup / Install lifecycle state
+- Repro:
+  - Install Anarchy-AI through `/userprofile /repo <RepoA>`.
+  - Later run `/status /userprofile /repo <RepoB>`.
+- Expected:
+  - The user-profile runtime, plugin root, marketplace path, install-state path, and MCP runtime path are validated as the home install target.
+  - The repo path is treated as a workspace/schema target and may differ without invalidating the home install.
+  - Status still exposes the last recorded workspace target so adoption/schema checks can be reasoned about explicitly.
+- Actual:
+  - The single install-state record stored `workspace_root` as if it were part of the user-profile install identity.
+  - A later status run against another repo reported `install_state_workspace_root_mismatch`, even when the home runtime and marketplace were otherwise valid.
+- Evidence:
+  - Workorders status on `2026-04-25` found user-profile runtime and marketplace present, but the install-state still recorded Fissure / Docker-Builder-Project as `recorded_workspace_root`.
+  - The same Workorders repo-local status correctly reported `bootstrap_needed`, proving the confusion was lane/state modeling rather than a stale setup shortcut.
+- Required product direction:
+  - Follow ECC's lifecycle discipline shape: target adapter identity, request/plan/result state, managed operations, doctor/repair paths.
+  - Do not copy ECC's product philosophy or overclaim enforcement.
+  - User-profile install-state must separate install target from workspace/schema target.
+- Local patch notes:
+  - setup install-state version moved to `anarchy.install-state.v2`
+  - state now writes nested `target`, `workspace`, `source`, and `managed_operations`
+  - `/status` validates install-target facts and reports a different user-profile workspace target as warning `last_workspace_target_differs_from_current_request`
+  - repo-local still treats workspace root as the project install target and keeps workspace mismatches blocking
+  - regression test added for user-profile workspace mismatch as warning, not invalid state
+- Acceptance:
+  - Rebuild setup.
+  - Install `/userprofile /repo <RepoA>`.
+  - Run `/status /userprofile /repo <RepoB>`.
+  - Confirm `install_state.state_valid = true`.
+  - Confirm `install_state.warnings` includes `last_workspace_target_differs_from_current_request`.
+  - Confirm `install_state.recorded_target_root` points at the user profile and `recorded_workspace_root` points at `<RepoA>`.
+  - Confirm repo-local status for an uninstalled repo still reports `bootstrap_needed`.
+
+### AA-BUG-021: Source repo assess reports generated consumer bundle surfaces as missing
+
+- Severity: High
+- Status: Patched local; superseded in part by `AA-BUG-022` plain repo-local path cleanup
+- Component: Setup / Source-authoring assessment
+- Repro:
+  - Run `plugins/AnarchyAi.Setup.exe /assess /repolocal /repo <AI-Links> /codex /silent /json` from the AI-Links source repo.
+- Expected:
+  - Setup detects the repo-authored source bundle at `plugins/anarchy-ai`.
+  - Source-owned contracts, runtime, skill, and `schemas/schema-bundle.manifest.json` are not reported missing.
+  - The old generated repo-local consumer install target's absence does not erase source-bundle evidence.
+  - Missing generated marketplace state is not treated as a blocking component for this read-only source-authoring assess.
+  - Output names the source-authoring state so agents do not try to "fix" the source repo by inventing a self-consumer install.
+- Actual:
+  - Setup resolved only the generated repo-local target such as `plugins/anarchy-ai-local-ai-links-<hash>`.
+  - Because that generated consumer directory did not exist, assess reported `schema_bundle_manifest_missing`, all core contracts missing, missing runtime, missing MCP declaration, missing skill surface, and missing plugin manifest.
+  - This made the AI-Links source repo look broken even though `plugins/anarchy-ai` carried the current source bundle.
+- Evidence:
+  - `2026-04-25` AI-Links assess reported `bootstrap_state = bootstrap_needed`, `runtime_present = false`, and `schema_bundle_manifest_missing` while `plugins/anarchy-ai/schemas/schema-bundle.manifest.json` existed.
+  - After the local patch and setup rebuild on `2026-04-25`, the same AI-Links assess returned `bootstrap_state = source_authoring_bundle_ready`, `source_authoring_bundle_present = true`, `source_authoring_bundle_state = complete`, `missing_components = []`, and exit code `0`.
+- Required product direction:
+  - Keep AI-Links source-authoring truth separate from consumer install readiness.
+  - Do not expect schemas/harness to self-fulfill inside AI-Links.
+  - Do not hide generated consumer install targets; show them as destination targets, not as source truth.
+- Local patch notes:
+  - setup now detects `plugins/anarchy-ai` as a source-authoring bundle during read-only repo-local assess/status
+  - result includes `source_authoring_bundle_present` and `source_authoring_bundle_state`
+  - complete source bundles produce `bootstrap_state = source_authoring_bundle_ready`
+  - source bundle pathing now appears under `paths.origin` and `paths.source`
+  - regression test added for source repo assess not reporting source-owned schema/contract/runtime surfaces as missing
+- Acceptance:
+  - Rebuild setup.
+  - Run `/assess /repolocal /repo <AI-Links> /codex /silent /json`.
+  - Confirm `source_authoring_bundle_present = true`.
+  - Confirm `source_authoring_bundle_state = complete`.
+  - Confirm `missing_components` does not include `schema_bundle_manifest_missing`, `bundled_runtime_missing`, or `missing_contract:*`.
+  - Confirm `missing_components` does not include `repo_marketplace_missing`.
+  - Confirm `paths.source.root_path` ends with `plugins/anarchy-ai`.
+
+### AA-BUG-022: Repo-local plugin directory carries stale local/hash naming
+
+- Severity: Medium
+- Status: Patched local and republished in generated setup (pending commit/distribution)
+- Component: Setup / Path canon / Install discipline
+- Repro:
+  - Run repo-local setup assessment or inspect setup path output.
+  - Observe generated plugin roots such as `plugins/anarchy-ai-local-ai-links-bb85a60e`.
+- Expected:
+  - Repo-local install root is already scoped by the selected repo root.
+  - The installed bundle path is plain and readable: `plugins/anarchy-ai`.
+  - Repo-local marketplace identity uses an explicit repo label: `anarchy-ai-repo-<repo-slug>`.
+  - Legacy `anarchy-ai-local-*` and `anarchy-local-*` names remain recognized only for cleanup, migration, and stale-state detection.
+- Actual:
+  - Repo-local bundle directory carried both ambiguous `local` language and a path-derived hash suffix.
+  - Moving or cloning the same repo changed the generated path.
+  - AI-Links source-authoring assessment became harder to reason about because source truth and generated consumer install naming used different mental models.
+- Evidence:
+  - `2026-04-25` AI-Links assess reported destination path `plugins/anarchy-ai-local-ai-links-bb85a60e`.
+  - User challenged both the hash suffix and the `local` term as likely leftover hallucinated complexity.
+  - After patch and setup rebuild, throwaway repo-local install returned `bootstrap_state = ready`, plugin root ending in `plugins/anarchy-ai`, marketplace name `anarchy-ai-repo-<throwaway-slug>`, and `plugins.<entry>.source.path = ./plugins/anarchy-ai`.
+  - After patch and setup rebuild, AI-Links source repo install attempt returned `bootstrap_state = source_authoring_write_blocked` with only `source_authoring_repo_consumer_install_blocked` as the missing component.
+- Required product direction:
+  - Keep install paths legible.
+  - Let roots define scope instead of adding path-derived suffixes.
+  - Use source-repo marker detection to protect `AI-Links`, not strange folder names.
+- Local patch notes:
+  - path canon changed repo-local plugin directory template to `anarchy-ai`
+  - path canon changed repo-local marketplace name template to `anarchy-ai-repo-<repo-slug>`
+  - repo-local display name changed to `Anarchy-AI Repo (<RepoName>)`
+  - setup reports `bootstrap_state = source_authoring_write_blocked` and blocks repo-local install/update when the selected repo is the AI-Links source repo
+  - consumer repo installs still use `plugins/anarchy-ai` as a normal installed bundle path
+- Acceptance:
+  - Rebuild setup.
+  - Run repo-local install into a throwaway repo.
+  - Confirm `paths.destination.directories.plugin_root_directory_path` ends with `plugins/anarchy-ai`.
+  - Confirm marketplace root name is `anarchy-ai-repo-<repo-slug>`.
+  - Confirm `plugins.<entry>.source.path = ./plugins/anarchy-ai`.
+  - Run AI-Links source repo assess and confirm it reports `source_authoring_bundle_ready`.
+  - Run AI-Links source repo install attempt and confirm `bootstrap_state = source_authoring_write_blocked`.
+  - Confirm the blocked source install does not report `repo_marketplace_missing` as the next repair.
+
+### AA-BUG-023: Absent plugin root assessment reports noisy child-surface findings
+
+- Severity: Medium
+- Status: Patched local (pending rebuild and Workorders repeat)
+- Component: Setup / Assessment findings
+- Repro:
+  - Run repo-local assess against a consumer repo with no `plugins/anarchy-ai` directory.
+- Expected:
+  - Setup reports the bundle/root installation gap and marketplace gap.
+  - Setup does not list every child contract, runtime, schema manifest, skill, and MCP declaration as individually missing when the parent bundle root is absent.
+  - Child-surface findings are reserved for partial bundles where `plugins/anarchy-ai` exists or at least one bundle marker exists.
+- Actual:
+  - Workorders assess returned `bootstrap_needed`, but also listed every core contract and every child bundle surface as missing.
+  - The extra findings made a normal uninstalled repo look like a broken partial install.
+- Evidence:
+  - `2026-04-25` Workorders assess found no `plugins` directory and no repo marketplace, but still reported:
+    - `schema_bundle_manifest_missing`
+    - `bundled_runtime_missing`
+    - `codex_plugin_manifest_missing`
+    - `codex_mcp_declaration_missing`
+    - `codex_skill_surface_missing`
+    - `missing_contract:*`
+    - `experimental_direction_assist_contract_missing_non_blocking`
+- Local patch notes:
+  - setup now computes `inspectChildBundleSurfaces`
+  - child bundle missing findings only run when the plugin root exists or some bundle marker exists
+  - fully absent bundles keep the assessment focused on install/marketplace repair
+  - regression test added for absent repo-local bundle assessment not reporting child surfaces
+- Acceptance:
+  - Rebuild setup.
+  - Re-run Workorders `/assess /repolocal`.
+  - Confirm `bootstrap_state = bootstrap_needed`.
+  - Confirm missing child-surface findings are absent.
+  - Confirm `repo_marketplace_missing` still reports until install creates `.agents/plugins/marketplace.json`.
+
+### AA-BUG-024: Plugin manifest version was hard-coded outside release canon
+
+- Severity: High
+- Status: Patched local (pending cross-device cache proof)
+- Component: Build / Publish helper / Codex cache invalidation
+- Repro:
+  - Change plugin-facing surfaces such as skills, contracts, MCP tools, setup disclosure, or install pathing.
+  - Rebuild setup.
+  - Inspect `plugins/anarchy-ai/.codex-plugin/plugin.json`.
+  - Observe Codex cache state on another device or session where an older home-profile plugin was already enabled.
+- Expected:
+  - The plugin manifest version is an explicit release-canon value.
+  - Release builds move that version when plugin-facing behavior changes.
+  - Codex has a clear new cache version to materialize instead of silently reusing a stale enabled cache lane.
+- Actual:
+  - `build-self-contained-exe.ps1` regenerated `plugin.json` with hard-coded `version = '0.1.8'`.
+  - The work machine still exposed only `C:\Users\mherring\.codex\plugins\cache\anarchy-ai-user-profile\anarchy-ai\0.1.7` after the newer install work, while this machine's source bundle still declared `0.1.8`.
+  - Manual edits to `plugin.json` would have been overwritten by the build helper.
+- Evidence:
+  - `2026-04-25` inspection found `plugins/anarchy-ai/.codex-plugin/plugin.json` at `0.1.8`.
+  - The same inspection found `harness/setup/scripts/build-self-contained-exe.ps1` generated the plugin manifest with a literal `0.1.8`.
+  - Work-machine session reported only cache version `0.1.7` under `anarchy-ai-user-profile/anarchy-ai`.
+- Required product direction:
+  - Treat plugin manifest version movement as cache-invalidation evidence, not cosmetic metadata.
+  - Keep the version in repo-authored canon so generated plugin manifests, setup payloads, and release notes have one source.
+  - Do not claim cross-device proof until the fresh session observes the expected marketplace/plugin/version cache lane.
+- Local patch notes:
+  - branding canon now carries `metadata.plugin_manifest_version`
+  - branding generation mirrors that value into generated C#, PowerShell, and MSBuild artifacts
+  - setup build helper now writes `plugin.json.version` from branding canon instead of a hard-coded literal
+  - current release-canon plugin manifest version is bumped to `0.1.9`
+- Acceptance:
+  - Rebuild setup.
+  - Confirm `plugins/anarchy-ai/.codex-plugin/plugin.json` reports `version = 0.1.9`.
+  - Install user-profile on a machine with an older enabled cache.
+  - Restart Codex and confirm a cache lane exists for `anarchy-ai-user-profile/anarchy-ai/0.1.9`.
+  - If repo-local is enabled too, confirm whether Codex surfaces `anarchy-ai-repo-<repo-slug>/anarchy-ai/0.1.9` or the user-profile lane.
+  - Record any active-lane mismatch under `AA-BUG-019` until runtime path, skill metadata path, installed root, and cache root agree.
+
+### AA-BUG-025: Gov2gov ignored schema-carried narrative arc materialization
+
+- Severity: High
+- Status: Patched local (pending Fissure repeat)
+- Component: Runtime / Gov2Gov / Installer payload
+- Repro:
+  - Install Anarchy-AI into a repo carrying the AGENTS schema family.
+  - Run `run_gov2gov_migration` after `AGENTS-schema-narrative.json` is present or planned for delivery.
+  - Ask whether the Anarchy narrative/arc register exists.
+- Expected:
+  - If a portable schema carries an artifact lane, the installer payload carries concrete templates for that lane.
+  - Gov2gov includes the narrative register and projects directory in its non-gating inventory.
+  - In `non_destructive_apply`, gov2gov seeds only missing narrative surfaces and leaves existing narrative content untouched.
+- Actual:
+  - `AGENTS-schema-narrative.json` carried register/record templates inside the schema, but the installed plugin bundle did not carry concrete narrative templates.
+  - `run_gov2gov_migration` hash-checked `AGENTS-schema-narrative.json` as a file but ignored the `.agents/anarchy-ai/narratives` materialization surface implied by that schema.
+  - Agents had to infer and manually create `.agents/anarchy-ai/narratives/register.json` and a project arc file.
+- Evidence:
+  - Fissure session on `2026-04-25` created `.agents/anarchy-ai/narratives/register.json` and `.agents/anarchy-ai/narratives/projects/fissure-jan-provider-lifecycle-arc.json` manually after the user clarified that arc is part of Anarchy.
+  - The prior gov2gov `plan_only` result only reported canonical schema divergence/audit work and did not mention narrative register materialization.
+- Required product direction:
+  - Schema-carried artifact lanes should travel with the installer as concrete bundle surfaces.
+  - Gov2gov should not own arbitrary story writing, but it should own missing-register/project-directory materialization when the narrative schema is present or planned.
+  - Existing narrative artifacts are workspace-specific truth; never hash-compare or overwrite them as canonical payload.
+- Local patch notes:
+  - added `plugins/anarchy-ai/templates/narratives/register.template.json`
+  - added `plugins/anarchy-ai/templates/narratives/record.template.json`
+  - path canon now includes the `templates` bundle surface and narrative template paths
+  - setup assessment reports missing narrative templates as bundle gaps
+  - `run_gov2gov_migration` inventories `narrative_arc_structure`
+  - `non_destructive_apply` seeds missing `.agents/anarchy-ai/narratives/register.json` and creates the missing `.agents/anarchy-ai/narratives/projects` directory
+  - gov2gov contract version bumped to `0.1.2`
+- Acceptance:
+  - Rebuild setup.
+  - Install into a throwaway repo and confirm `plugins/anarchy-ai/templates/narratives/register.template.json` and `record.template.json` are present.
+  - Run gov2gov `plan_only` on a consumer workspace with narrative schema present and no narrative register.
+  - Confirm planned actions include `seed_missing_narrative_register:.agents/anarchy-ai/narratives/register.json`.
+  - Run gov2gov `non_destructive_apply`.
+  - Confirm `.agents/anarchy-ai/narratives/register.json` exists, parses as JSON, and contains `records: []`.
+  - Confirm existing narrative artifacts are not overwritten.
+
+### AA-BUG-026: .NET prerequisites can drift into synced repo workspaces
+
+- Severity: Medium
+- Status: Patched local (pending release repeat)
+- Component: Build / Install discipline / Workspace hygiene
+- Repro:
+  - Treat repo-local install as permission to place .NET SDK/runtime files, restore output, NuGet caches, or package caches under the source repo or a target repo.
+  - Build or install from a synced workspace such as OneDrive.
+- Expected:
+  - Repo-local install only means the Anarchy-AI plugin bundle may be materialized under the selected repo.
+  - .NET SDK/runtime prerequisites and package caches live in non-workspace user/machine-local lanes such as `%USERPROFILE%\.dotnet`, `%LOCALAPPDATA%`, or `C:\Program Files\dotnet`.
+  - The setup EXE remains self-contained for target installs, so consumer repos do not need repo-local .NET.
+- Actual:
+  - Prior install/build discussion drifted toward treating repo-local .NET as acceptable.
+  - That creates synced workspace noise and raises corruption risk in OneDrive-backed repos.
+- Evidence:
+  - User correction on `2026-04-25`: installing `.NET` to the repo is not the way; use non-workspace paths like AppData because repo-local SDK files create sync noise and contribute to corruptions.
+  - Current build helper already publishes temporary build output under `%LOCALAPPDATA%\Temp\ai-links-setup-build`, proving the correct lane exists.
+- Local patch notes:
+  - `build-self-contained-exe.ps1` now rejects a resolved `.NET SDK` path that lives inside the source workspace.
+  - Setup/repo install docs now state the .NET prerequisite boundary directly.
+- Acceptance:
+  - Running the build helper with a normal user/machine-local SDK still succeeds.
+  - Running the build helper with `-DotnetPath` pointing inside the repo fails before restore/publish work begins.
+  - Release/docs language does not imply that target repos should install .NET locally to use the self-contained setup EXE.
+
 ### AA-BUG-005: Missing setup `self-check` command for active mount diagnostics
 
 - Severity: Medium
@@ -237,7 +496,7 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
     - embedded bundle as offline fallback and installed-payload evidence
   - Embedded bundle comparison remains useful for answering "what did this installer carry?" but should not silently become the only answer to "current canonical schema" when public release lookup is available.
 - Acceptance:
-  - Result payload and docs include explicit “canonical surfaces compared” section.
+  - Result payload and docs include explicit â€œcanonical surfaces comparedâ€ section.
   - Result payload includes the canonical source lane used for schema comparison (`local_source`, `public_release`, or `embedded_bundle`) and the source path or release reference when known.
 
 ### AA-BUG-008: No intentional-divergence allowlist for canonical schema evolution
@@ -252,7 +511,7 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
 - Actual:
   - All drift is reported uniformly as divergence/possession pressure.
 - Evidence:
-  - Plan-only migration repeatedly lists canonical mismatch with no “approved local divergence” lane.
+  - Plan-only migration repeatedly lists canonical mismatch with no â€œapproved local divergenceâ€ lane.
 - Acceptance:
   - Optional allowlist/policy file supports bounded intentional drift annotations.
 
@@ -270,7 +529,7 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
 - Evidence:
   - Repeated restart-and-check cycles were needed to verify actual mount behavior.
 - Acceptance:
-  - Add environment proof script/tests for “change in session A, visible in session B.”
+  - Add environment proof script/tests for â€œchange in session A, visible in session B.â€
 
 ### AA-BUG-010: Evidence qualification (`proven` vs `inferred`) is not enforced by doc update workflow
 
@@ -314,7 +573,7 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
 - Expected:
   - Completion requires immediate post-install assess + route verification.
 - Actual:
-  - “Ready” can be reported before lane conflicts are fully surfaced.
+  - â€œReadyâ€ can be reported before lane conflicts are fully surfaced.
 - Evidence:
   - Additional manual checks were required after reported success to validate true active lane.
 - Acceptance:
@@ -377,10 +636,10 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
     - marks first contradiction pivot
     - returns one primary corrective action item
 - Proposed method surface:
-  - `trace_execution_path` (renamed from `explain_failure_path` — the word “failure” activates the wrong concept first per the negation-mitigation research; “trace” and “execution” are affirmative action words)
+  - `trace_execution_path` (renamed from `explain_failure_path` â€” the word â€œfailureâ€ activates the wrong concept first per the negation-mitigation research; â€œtraceâ€ and â€œexecutionâ€ are affirmative action words)
   - read-only
   - deterministic structured response
-- Required output fields (these are required, not optional — a trace without a next action becomes a satisfying stopping point instead of a repair action):
+- Required output fields (these are required, not optional â€” a trace without a next action becomes a satisfying stopping point instead of a repair action):
   - `path_name`
   - `steps[]` with:
     - `step_id`
@@ -391,16 +650,16 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
     - `evidence`
   - `first_contradiction_step_id` (renamed from `first_failure_step_id`)
   - `root_contradiction`
-  - `recommended_next_action` (REQUIRED — the tool always produces an action, even when that action is report-to-human)
-  - `recommended_next_call` (REQUIRED — the tool always names the next callable method)
+  - `recommended_next_action` (REQUIRED â€” the tool always produces an action, even when that action is report-to-human)
+  - `recommended_next_call` (REQUIRED â€” the tool always names the next callable method)
 - Relationship to AA-BUG-013:
   - `diagnose_harness_mount_state` is a narrow diagnostic for mount-layer issues.
   - `trace_execution_path` is a broader tracer for any harness lane, including mount flow.
 - Acceptance:
   - Method consistently identifies the first contradiction in known broken scenarios.
-  - Output always includes `recommended_next_action` and `recommended_next_call` — a trace that ends at diagnosis without an action is incomplete.
+  - Output always includes `recommended_next_action` and `recommended_next_call` â€” a trace that ends at diagnosis without an action is incomplete.
   - Output is concise enough for agent decisioning and detailed enough for human validation.
-  - Skill/setup docs reference it as the default “stop guessing” lane before destructive retries.
+  - Skill/setup docs reference it as the default â€œstop guessingâ€ lane before destructive retries.
 
 ### AA-BUG-015: Codex Plugins UI card title can drift from current marketplace and plugin metadata
 

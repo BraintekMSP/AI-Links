@@ -1,4 +1,4 @@
-﻿# Anarchy-AI Environment Truth Matrix
+# Anarchy-AI Environment Truth Matrix
 
 ## Purpose
 
@@ -193,6 +193,187 @@ Proven by local build output and a throwaway-repo smoke install on `2026-04-25`:
   - cross-device repeatability
   - Claude Code or Claude Desktop host surfacing
 
+### 11. Setup source now separates install target from workspace target
+
+Proven at source/test level on `2026-04-25` after comparing ECC's lifecycle model:
+
+- ECC uses target adapters and install-state records keyed to the actual install target, not to arbitrary caller context.
+- Anarchy setup now writes `anarchy.install-state.v2` with:
+  - `target` for the install identity
+  - `workspace` for the optional repo/schema target
+  - `source` for payload/update provenance
+  - `managed_operations` for setup-owned surfaces
+- New setup regression test:
+  - constructs a user-profile install-state with one recorded workspace
+  - inspects it while passing a different workspace
+  - asserts `install_state.state_valid = true`
+  - asserts warning `last_workspace_target_differs_from_current_request`
+
+What this proves:
+
+- source behavior no longer treats a different `/repo` argument as a broken user-profile runtime.
+
+What this does not yet prove:
+
+- rebuilt setup EXE behavior after republish
+- Workorders/Fissure repeat behavior from the generated deployable
+- Codex cache behavior after install-state v2 is present
+
+### 12. Setup source now distinguishes AI-Links authoring bundle from generated consumer install target
+
+Proven at source/test and local deployable-smoke level on `2026-04-25` after `AA-BUG-021`:
+
+- A setup regression test creates a repo with `.git` plus an AI-Links-style `plugins/anarchy-ai` source bundle.
+- It does not run a repo-local install or mutate the plain repo-local consumer target (`plugins/anarchy-ai`).
+- `/assess /repolocal` returns:
+  - `source_authoring_bundle_present = true`
+  - `source_authoring_bundle_state = complete`
+  - `bootstrap_state = source_authoring_bundle_ready`
+  - `runtime_present = true` from the source bundle
+  - no `schema_bundle_manifest_missing`
+  - no `bundled_runtime_missing`
+  - no `missing_contract:*`
+  - no `repo_marketplace_missing`
+- Path roles stay separated:
+  - `paths.origin` points at the source repo
+  - `paths.source` points at `plugins/anarchy-ai`
+- `paths.destination` may resolve to the same plain `plugins/anarchy-ai` path in AI-Links, so source-repo markers are what keep read-only source assessment distinct from consumer install mutation.
+- After rebuild, the generated `plugins/AnarchyAi.Setup.exe` was run against the AI-Links source repo and returned:
+  - `bootstrap_state = source_authoring_bundle_ready`
+  - `source_authoring_bundle_present = true`
+  - `source_authoring_bundle_state = complete`
+  - `missing_components = []`
+  - `next_action = use_source_build_lane_or_user_profile_install`
+  - process exit code `0`
+
+What this proves:
+
+- source-authoring assessment no longer erases real source bundle evidence just because the old generated consumer install directory is absent.
+- the plain repo-local bundle path requires source-repo marker detection so consumer repos can still use `plugins/anarchy-ai` normally.
+
+What this does not yet prove:
+
+- host UI surfacing
+- cross-device repeatability
+
+### 13. Repo-local setup uses plain plugin path and repo-scoped marketplace identity
+
+Proven at source/test and local deployable-smoke level on `2026-04-25` after `AA-BUG-022`:
+
+- Path canon now defines:
+  - repo-local plugin directory template: `anarchy-ai`
+  - repo-local marketplace name template: `anarchy-ai-repo-<repo-slug>`
+  - repo-local display-name template: `Anarchy-AI Repo (<RepoName>)`
+- Setup tests assert:
+  - repo-local `source.path = ./plugins/anarchy-ai`
+  - repo marketplace name `anarchy-ai-repo-ai-links`
+  - consumer repo install remains a normal install and does not trigger source-authoring mode
+  - AI-Links source repo install is blocked before it can overwrite `plugins/anarchy-ai`
+- After rebuild, generated `plugins/AnarchyAi.Setup.exe` installed into a throwaway repo and returned:
+  - `bootstrap_state = ready`
+  - `paths.destination.directories.plugin_root_directory_path` ended with `plugins/anarchy-ai`
+  - marketplace root name was `anarchy-ai-repo-<throwaway-slug>`
+  - marketplace display name was `Anarchy-AI Repo (<throwaway-name>)`
+  - `plugins.<entry>.source.path = ./plugins/anarchy-ai`
+  - `source_authoring_bundle_present = false`
+  - `missing_components = []`
+- After rebuild, generated `plugins/AnarchyAi.Setup.exe /install /repolocal /repo <AI-Links>` returned:
+  - process exit code `1`
+  - `bootstrap_state = source_authoring_write_blocked`
+  - `source_authoring_bundle_present = true`
+  - `source_authoring_bundle_state = complete`
+  - `missing_components = [source_authoring_repo_consumer_install_blocked]`
+  - `next_action = use_source_build_lane_or_user_profile_install`
+
+What this proves:
+
+- repo-local install no longer depends on `local` or path-hash folder naming
+- the AI-Links source repo is protected by source-repo markers, not by a weird destination folder name
+
+What this does not yet prove:
+
+- fresh-session Codex plugin UI surfacing from a repo-local install
+- cross-device repeatability
+
+### 14. Plugin manifest version is now release-canon driven and smoke-installed as `0.1.9`
+
+Proven at source/build and local deployable-smoke level on `2026-04-25` after `AA-BUG-024`:
+
+- Branding canon now defines:
+  - `metadata.plugin_manifest_version = 0.1.9`
+- The branding generator mirrors that value into generated C#, PowerShell, and MSBuild artifacts.
+- The setup build helper now writes `plugins/anarchy-ai/.codex-plugin/plugin.json.version` from branding canon instead of the old hard-coded build-script literal.
+- After rebuild, generated `plugins/AnarchyAi.Setup.exe` installed into a throwaway repo and the extracted plugin manifest reported:
+  - `version = 0.1.9`
+  - `bootstrap_state = ready`
+  - `install_state.state_valid = true`
+  - plugin root ending in `plugins/anarchy-ai`
+
+What this proves:
+
+- the generated deployable carries the new plugin manifest version into installed repo-local bundles
+- a cache-sensitive release now has an explicit version signal for Codex to materialize
+
+What this does not yet prove:
+
+- Codex will invalidate an older enabled home-profile cache on every device
+- Codex will prefer repo-local skill metadata over home-profile skill metadata when both lanes are enabled
+- the work computer will surface `anarchy-ai-user-profile/anarchy-ai/0.1.9` or `anarchy-ai-repo-<repo-slug>/anarchy-ai/0.1.9` without additional host-side cache refresh behavior
+
+### 15. Gov2gov now inventories and seeds schema-carried narrative arc surfaces
+
+Proven at source/test and local deployable-smoke level on `2026-04-25` after `AA-BUG-025`:
+
+- `AGENTS-schema-narrative.json` carries record and register templates.
+- The installed plugin bundle now carries concrete templates:
+  - `templates/narratives/register.template.json`
+  - `templates/narratives/record.template.json`
+- Path canon now treats `templates` as a plugin bundle surface.
+- `run_gov2gov_migration` now includes `narrative_arc_structure` in `post_migration_inventory`.
+- Server tests prove:
+  - `plan_only` reports missing narrative register as `planned_to_deliver`
+  - `non_destructive_apply` creates missing `.agents/anarchy-ai/narratives/register.json`
+  - `non_destructive_apply` creates missing `.agents/anarchy-ai/narratives/projects`
+  - the seeded register parses as JSON and contains a `records` array
+- Setup tests prove the source plugin bundle carries the narrative templates.
+- Rebuilt `plugins/AnarchyAi.Setup.exe` installed into a throwaway repo with:
+  - `bootstrap_state = ready`
+  - `install_state.state_valid = true`
+  - both narrative template files present in the extracted plugin bundle
+
+What this proves:
+
+- the schema-described narrative/arc lane now travels with the installer as concrete template surfaces
+- gov2gov no longer ignores the missing narrative register/project-directory materialization surface
+- existing narrative artifacts remain workspace-specific and are not hash-compared as canonical payload
+
+What this does not yet prove:
+
+- a Fissure fresh-session run has observed the new `narrative_arc_structure` output from the installed runtime
+- existing narrative register preservation has been field-tested against a real non-empty arc register
+
+### 16. Build prerequisites are machine-local, not repo-local install payload
+
+Proven at source/build-helper level on `2026-04-25` after `AA-BUG-026`:
+
+- `build-self-contained-exe.ps1` resolves the .NET SDK from user/machine-local paths such as:
+  - `dotnet.exe` on `PATH`
+  - `%USERPROFILE%\.dotnet\dotnet.exe`
+  - `C:\Program Files\dotnet\dotnet.exe`
+- the build helper stages build output under `%LOCALAPPDATA%\Temp\ai-links-setup-build`
+- the build helper now rejects a resolved `.NET SDK` path inside the source workspace
+- setup/repo install docs state that .NET SDK/runtime prerequisites, NuGet caches, restore scratch, and package caches must not live inside the source repo or target repo
+
+What this proves:
+
+- repo-local install means Anarchy plugin bundle placement, not .NET SDK placement
+- the current source build path has a guard against accidentally using a repo-local SDK path
+
+What this does not yet prove:
+
+- every developer machine has a correctly installed user/machine-local SDK
+- external operators will not manually place SDK/cache folders under target repos outside the build helper
+
 ## Inferred (Not Yet Fully Proven)
 
 ### A. Codex materializes an installed-copy cache under `~/.codex/plugins/cache/...`, but active-lane selection remains unresolved
@@ -215,13 +396,15 @@ What remains unresolved:
 - whether stale skill metadata can persist while runtime/tool calls use a newer cache or installed root
 - which host-owned state invalidates or refreshes stale cache metadata
 - whether this behavior is stable across devices or only this Windows profile
+- whether keeping both repo-local and user-profile Anarchy plugin lanes enabled causes Codex to prefer one cache lane for skill metadata even when the other lane was more recently installed
 
 Promotion test:
 
 1. capture installed root, cache root, exposed skill metadata path, active runtime path, and successful tool call from the same fresh session
 2. repeat after a no-op reinstall and another Codex restart
 3. confirm the exposed skill metadata, callable runtime, and installed/cache versions agree
-4. repeat on a second device before treating cache selection as portable proof
+4. after a manifest-version bump, confirm the expected cache version appears; the `2026-04-25` release-canon test version is `0.1.9`
+5. repeat on a second device before treating cache selection as portable proof
 
 ### B. Codex install-state materialization may still differ from the documented cache/config model
 

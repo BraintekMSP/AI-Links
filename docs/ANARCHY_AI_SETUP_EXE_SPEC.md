@@ -1,4 +1,4 @@
-﻿# Anarchy-AI Setup EXE Specification
+# Anarchy-AI Setup EXE Specification
 
 ## Purpose
 
@@ -66,8 +66,8 @@ Marketplace identity rule:
 - each repo-local install uses its own repo-scoped marketplace root identity
 - setup generates a repo-scoped marketplace `name` while keeping the human-facing display name recognizable
 - this reduces collisions with Codex host-side install and uninstall state
-- setup keeps the repo-local install directory repo-scoped while keeping the visible plugin identity and MCP server key stable as `anarchy-ai`
-- this preserves predictable tool syntax like `mcp__anarchy_ai__...` while still keeping repo-local bundle materialization bounded to the selected workspace
+- setup keeps repo-local bundle materialization bounded by the selected repo root while keeping the visible plugin identity and MCP server key stable as `anarchy-ai`
+- this preserves predictable tool syntax like `mcp__anarchy_ai__...` without carrying path-derived suffixes in the installed bundle directory
 
 ### `AnarchyAi.Mcp.Server.exe`
 
@@ -96,7 +96,7 @@ The preferred v1 delivery model is:
 Current lanes:
 
 - `repo-local`
-  - plugin bundle under `./plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>`
+  - plugin bundle under `./plugins/anarchy-ai`
   - marketplace under `./.agents/plugins/marketplace.json`
 - `user-profile`
   - plugin bundle under `~/.codex/plugins/anarchy-ai`
@@ -107,10 +107,10 @@ Keep the top-level marketplace `name` branded and readable because current Codex
 
 Current repo-local shape:
 
-- `name = anarchy-ai-local-<repo-slug>`
-- `interface.displayName = Anarchy-AI Local (<RepoName>)`
+- `name = anarchy-ai-repo-<repo-slug>`
+- `interface.displayName = Anarchy-AI Repo (<RepoName>)`
 - `plugins.<entry>.name = anarchy-ai`
-- `plugins.<entry>.source.path = ./plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>`
+- `plugins.<entry>.source.path = ./plugins/anarchy-ai`
 - `.codex-plugin/plugin.json -> name = anarchy-ai`
 - `.mcp.json -> mcpServers -> anarchy-ai`
 
@@ -144,6 +144,17 @@ Auto-detection boundary:
 - when the marker is absent, the installer requires explicit `/repo`
 
 Inside the `AI-Links` source repo itself, `plugins/AnarchyAi.Setup.exe` is a generated artifact. It should be built locally rather than treated as canonical authored truth.
+
+Source-authoring assessment boundary:
+
+- when `/assess /repolocal` or `/status /repolocal` targets the `AI-Links` source repo, setup must detect `plugins/anarchy-ai` as a repo-authored source bundle
+- source-authoring detection is read-only; it must not silently turn `AI-Links` into its own generated consumer install
+- when the source bundle is complete, setup reports `source_authoring_bundle_present = true`, `source_authoring_bundle_state = complete`, and `bootstrap_state = source_authoring_bundle_ready`
+- core source-bundle surfaces such as contracts, runtime, skill, and `schemas/schema-bundle.manifest.json` must not be reported missing merely because the generated consumer target directory does not exist
+- the absent generated consumer marketplace is not a blocking missing component in this read-only source-authoring state
+- `paths.origin` points at the source repo, and `paths.source` points at `plugins/anarchy-ai`
+- because the plain repo-local consumer target is also `plugins/anarchy-ai`, setup must block `/install /repolocal` and `/update /repolocal` when the selected repo is the `AI-Links` source repo
+- the next action for this state is source-build/user-profile-install guidance, not unbounded self-registration
 
 ## GUI / CLI Behavior Split
 
@@ -250,6 +261,8 @@ Expected result shape:
 - `runtime_present`
 - `marketplace_registered`
 - `installed_by_default`
+- `source_authoring_bundle_present`
+- `source_authoring_bundle_state` when source-authoring detection applies
 - `actions_taken`
 - `missing_components`
 - `safe_repairs`
@@ -261,7 +274,11 @@ Expected result shape:
   - `state_written`
   - `state_valid`
   - `findings`
+  - `warnings`
   - `recorded_*` fields when a valid or readable install-state file exists
+  - target fields such as `recorded_target_id`, `recorded_target_kind`, and `recorded_target_root`
+  - workspace fields such as `recorded_workspace_root` and `recorded_workspace_schema_targeted`
+  - operation evidence such as `recorded_managed_operation_count`
 - `paths`
   - `paths.origin`
   - `paths.source`
@@ -293,12 +310,27 @@ Install lock semantics:
 Lifecycle state semantics:
 
 - install/update writes `.anarchy-ai/install-state.json` inside the owned plugin bundle
-- the install-state record is versioned as `anarchy.install-state.v1`
-- the record captures install scope, host context, host targets, workspace root, plugin root, marketplace path, plugin source path, MCP server name, runtime path, source kind, and write timestamp
-- `/status` reads that record and compares it to the current resolved destination paths
+- the install-state record is versioned as `anarchy.install-state.v2`
+- the record separates `target` from `workspace`
+- `target` is the install identity:
+  - `kind = home` for `/userprofile`
+  - `kind = project` for `/repolocal`
+  - target root, plugin root, marketplace path, install-state path, runtime path, and MCP server name live under this object
+- `workspace` is the optional repo/schema target used for portable schema seeding and adoption checks
+- a `/userprofile` install is not invalid merely because a later `/status /userprofile /repo <different-repo>` points at a different workspace
+- that different workspace is reported as a warning about the last workspace target, not as a broken home install
+- the record includes `managed_operations` so future doctor/repair/uninstall work can inspect and replay setup-owned surfaces instead of guessing from file presence
+- legacy flat fields remain in the state file for older readers, but v2 validation uses the target/workspace split
+- `/status` reads that record and compares install-target facts to the current resolved destination paths
 - when `/status` cannot find the record, it reports `install_state_missing` and `next_action = run_install_to_write_install_state`
 - when `/status` finds a mismatched or invalid record, it reports bounded `install_state_*` findings and points to `rerun_install_to_refresh_install_state`
 - this is lifecycle evidence, not host UI proof; fresh-session tool reachability still belongs in the truth matrix
+
+ECC comparison note:
+
+- ECC's useful lesson is install lifecycle discipline: manifest/request planning, target adapters, install-state records, doctor/repair/uninstall operations, and managed-operation tracking
+- Anarchy should adopt that lifecycle shape without adopting ECC's product claims or treating instructions/skills as enforcement
+- for Anarchy, target adapters describe delivery/adoption surfaces; the underlay still works by shaping the path before execution, not by acting as a control plane during execution
 
 The setup exe preserves these semantics so:
 
@@ -432,7 +464,10 @@ The current one-command build helper is:
 Its current responsibilities are:
 
 - resolve a usable SDK path, preferring the user-scoped install when needed
+- reject `.NET SDK` paths that live inside the source workspace
+- regenerate `plugin.json` from branding/path canon, including the release-canon plugin manifest version
 - sync `plugins/anarchy-ai/schemas/schema-bundle.manifest.json` hashes from current source schema files before publish
+- carry concrete narrative register/record templates under `plugins/anarchy-ai/templates/narratives/`
 - generate `plugins/anarchy-ai/README.md` from `docs/ANARCHY_AI_PLUGIN_README_SOURCE.md` using destination-relative install facts
 - run both the path-canon audit and the documentation-truth audit before publish succeeds
 - publish the MCP server runtime first
@@ -441,6 +476,13 @@ Its current responsibilities are:
 - refresh the local generated `plugins/AnarchyAi.Setup.exe`
 
 That keeps setup regeneration machine-local and avoids synced-workspace build churn.
+
+Build prerequisite boundary:
+
+- .NET SDK/runtime prerequisites belong in a non-workspace user/machine-local lane, such as `%USERPROFILE%\.dotnet`, `%LOCALAPPDATA%`, or `C:\Program Files\dotnet`
+- NuGet/package caches and restore scratch also belong outside the synced repo/workspace
+- do not install a .NET SDK, runtime, restore cache, or package cache into this repo or any consumer repo
+- repo-local install means the Anarchy plugin bundle can live under the repo; it does not mean build prerequisites live there
 
 ## Short Release Checklist
 
@@ -453,11 +495,15 @@ Before handing out a local setup executable:
    - `plugin_payload_staged = true`
    - `published_runtime_executable` is populated
    - `copied_to_plugins = true`
-3. Smoke install into a throwaway repo with a `.git` marker:
+3. Confirm the plugin manifest version moved when plugin-facing behavior changed:
+   - `Get-Content .\plugins\anarchy-ai\.codex-plugin\plugin.json`
+   - cache-sensitive releases must not reuse the prior published `version`
+   - the `2026-04-25` cache-invalidation test release uses `0.1.9`
+4. Smoke install into a throwaway repo with a `.git` marker:
    - run `plugins\AnarchyAi.Setup.exe /install /repolocal /repo <throwaway-repo> /silent /json`
    - require `bootstrap_state = "ready"`
    - require `install_state.state_valid = true`
-4. Confirm the extracted runtime contains current tool strings:
+5. Confirm the extracted runtime contains current tool strings:
    - `direction_assist_test`
    - `verify_config_materialization`
    - `assess_harness_gap_state`
@@ -465,15 +511,15 @@ Before handing out a local setup executable:
    - `compile_active_work_state`
    - `run_gov2gov_migration`
    - `is_schema_real_or_shadow_copied`
-5. Run setup tests:
+6. Run setup tests:
    - `dotnet test .\harness\setup\tests\AnarchyAi.Setup.Tests.csproj --no-restore -p:RestoreFallbackFolders=`
-6. Run path and documentation audits:
+7. Run path and documentation audits:
    - `powershell -ExecutionPolicy Bypass -File .\harness\pathing\scripts\test-path-canon-compliance.ps1`
    - `powershell -ExecutionPolicy Bypass -File .\docs\scripts\test-documentation-truth-compliance.ps1`
-7. Confirm copied deployable timestamp:
+8. Confirm copied deployable timestamp:
    - `Get-Item .\plugins\AnarchyAi.Setup.exe`
    - do not distribute if the timestamp predates the latest successful build output
-8. Confirm source-only repo status:
+9. Confirm source-only repo status:
    - no large setup EXE should be staged
    - no refreshed runtime binary should be required for commit
 
@@ -493,4 +539,8 @@ These caveats do not block handing out the generated setup executable, but they 
    - Setup/runtime distribution can be valid while Codex plugin UI indexing or cache state is stale.
    - Do not use plugin-card visibility alone as proof that setup or runtime source is wrong.
    - Use setup status, smoke install, extracted runtime checks, and direct tool reachability as the stronger evidence path.
+4. Codex cache invalidation depends on host behavior and manifest version movement.
+   - The setup build now sources `plugin.json.version` from branding canon instead of a hard-coded build-script literal.
+   - A plugin-facing release should bump that version before distribution.
+   - When both repo-local and user-profile lanes are enabled in Codex, the active surfaced skill cache may still require fresh-session evidence rather than assumption.
 

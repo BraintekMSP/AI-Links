@@ -86,7 +86,7 @@ $activeDocRules = @(
   @{
     path = 'docs/ANARCHY_AI_REPO_INSTALL_PROCESS.md'
     required = @(
-      'anarchy-ai-local-<repo-slug>-<stable-path-hash>',
+      './plugins/anarchy-ai',
       '~/.codex/plugins/anarchy-ai',
       'plugins.<entry>.name = anarchy-ai',
       'both lanes keep the plugin-local MCP server key stable as `anarchy-ai`'
@@ -139,7 +139,8 @@ $activeDocRules = @(
     path = 'plugins/anarchy-ai/README.md'
     required = @(
       '~\.codex\plugins\anarchy-ai',
-      'mcp_servers.anarchy-ai'
+      'mcp_servers.anarchy-ai',
+      './templates/narratives/'
     )
     forbidden = @(
       '~\.codex\plugins\anarchy-ai-herringms',

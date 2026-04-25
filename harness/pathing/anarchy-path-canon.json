@@ -4,9 +4,9 @@
     "default_plugin_name": "anarchy-ai",
     "setup_executable_file_name": "AnarchyAi.Setup.exe",
     "runtime_executable_file_name": "AnarchyAi.Mcp.Server.exe",
-    "repo_scoped_plugin_directory_name_template": "anarchy-ai-local-<repo-slug>-<stable-path-hash>",
+    "repo_scoped_plugin_directory_name_template": "anarchy-ai",
     "user_profile_marketplace_name": "anarchy-ai-user-profile",
-    "repo_scoped_marketplace_name_template": "anarchy-ai-local-<repo-slug>"
+    "repo_scoped_marketplace_name_template": "anarchy-ai-repo-<repo-slug>"
   },
   "relative_paths": {
     "repo_source_plugin_directory_relative_path": "plugins/anarchy-ai",
@@ -26,6 +26,10 @@
     "bundle_contracts_directory_relative_path": "contracts",
     "bundle_pathing_directory_relative_path": "pathing",
     "bundle_pathing_psd1_file_relative_path": "pathing/anarchy-path-canon.generated.psd1",
+    "bundle_templates_directory_relative_path": "templates",
+    "bundle_narrative_templates_directory_relative_path": "templates/narratives",
+    "bundle_narrative_register_template_file_relative_path": "templates/narratives/register.template.json",
+    "bundle_narrative_record_template_file_relative_path": "templates/narratives/record.template.json",
     "bundle_plugin_manifest_file_relative_path": ".codex-plugin/plugin.json",
     "bundle_mcp_file_relative_path": ".mcp.json",
     "bundle_readme_file_relative_path": "README.md",
@@ -58,6 +62,7 @@
       "schemas",
       "scripts",
       "skills",
+      "templates",
       ".mcp.json",
       "README.md",
       "PRIVACY.md",
@@ -86,6 +91,7 @@
       "anarchy-user-profile"
     ],
     "owned_marketplace_name_prefixes": [
+      "anarchy-ai-repo-",
       "anarchy-ai-local-",
       "anarchy-ai-herringms-local-",
       "anarchy-local-"

@@ -1,17 +1,20 @@
-﻿namespace AnarchyAi.Pathing;
+namespace AnarchyAi.Pathing;
 
 internal static class GeneratedAnarchyPathCanon
 {
     public const string Version = "0.1.0";
     public const string DefaultPluginName = "anarchy-ai";
-    public const string RepoScopedMarketplaceNameTemplate = "anarchy-ai-local-<repo-slug>";
-    public const string RepoScopedPluginDirectoryNameTemplate = "anarchy-ai-local-<repo-slug>-<stable-path-hash>";
+    public const string RepoScopedMarketplaceNameTemplate = "anarchy-ai-repo-<repo-slug>";
+    public const string RepoScopedPluginDirectoryNameTemplate = "anarchy-ai";
     public const string RuntimeExecutableFileName = "AnarchyAi.Mcp.Server.exe";
     public const string SetupExecutableFileName = "AnarchyAi.Setup.exe";
     public const string UserProfileMarketplaceName = "anarchy-ai-user-profile";
     public const string BundleAssetsDirectoryRelativePath = "assets";
     public const string BundleContractsDirectoryRelativePath = "contracts";
     public const string BundleMcpFileRelativePath = ".mcp.json";
+    public const string BundleNarrativeRecordTemplateFileRelativePath = "templates/narratives/record.template.json";
+    public const string BundleNarrativeRegisterTemplateFileRelativePath = "templates/narratives/register.template.json";
+    public const string BundleNarrativeTemplatesDirectoryRelativePath = "templates/narratives";
     public const string BundlePathingDirectoryRelativePath = "pathing";
     public const string BundlePathingPsd1FileRelativePath = "pathing/anarchy-path-canon.generated.psd1";
     public const string BundlePluginManifestFileRelativePath = ".codex-plugin/plugin.json";
@@ -24,6 +27,7 @@ internal static class GeneratedAnarchyPathCanon
     public const string BundleScriptsDirectoryRelativePath = "scripts";
     public const string BundleSkillDirectoryRelativePath = "skills/anarchy-ai-harness";
     public const string BundleSkillFileRelativePath = "skills/anarchy-ai-harness/SKILL.md";
+    public const string BundleTemplatesDirectoryRelativePath = "templates";
     public const string BundleTermsFileRelativePath = "TERMS.md";
     public const string LegacyUserProfilePluginParentDirectoryRelativePath = "plugins";
     public const string PortableSchemaPayloadDirectoryRelativePath = "portable-schema";
@@ -88,6 +92,7 @@ internal static class GeneratedAnarchyPathCanon
 
     public static readonly string[] OwnedMarketplaceNamePrefixes =
     [
+        "anarchy-ai-repo-",
         "anarchy-ai-local-",
         "anarchy-ai-herringms-local-",
         "anarchy-local-",
@@ -123,6 +128,7 @@ internal static class GeneratedAnarchyPathCanon
         "schemas",
         "scripts",
         "skills",
+        "templates",
         ".mcp.json",
         "README.md",
         "PRIVACY.md",

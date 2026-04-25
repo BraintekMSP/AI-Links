@@ -1,4 +1,4 @@
-﻿# Anarchy-AI Repo Installation Process
+# Anarchy-AI Repo Installation Process
 
 ## Purpose
 
@@ -35,10 +35,17 @@ In the `AI-Links` source repo, that installer should be generated first with:
 powershell -ExecutionPolicy Bypass -File .\harness\setup\scripts\build-self-contained-exe.ps1
 ```
 
+Build prerequisite rule:
+
+- use a .NET SDK from a non-workspace user/machine-local path such as `%USERPROFILE%\.dotnet`, `%LOCALAPPDATA%`, or `C:\Program Files\dotnet`
+- do not install .NET SDK/runtime files, NuGet caches, restore scratch, or package caches into the source repo or a target repo
+- synced workspace trees such as OneDrive are especially bad lanes for SDKs and package caches because they add sync noise and raise corruption risk
+- the setup EXE is self-contained for target install; target repos do not need a repo-local .NET installation
+
 That file now handles:
 
 - plugin bundle materialization into either:
-  - a repo-scoped `plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>/`
+  - a repo-scoped `plugins/anarchy-ai/`
   - or a Codex user-profile `~/.codex/plugins/anarchy-ai/`
 - matching marketplace registration in either:
   - `./.agents/plugins/marketplace.json`
@@ -67,7 +74,7 @@ Important targeting rule:
 The setup executable materializes one of these plugin roots:
 
 - repo-local:
-  - `plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>/`
+  - `plugins/anarchy-ai/`
 - user-profile:
   - `~/.codex/plugins/anarchy-ai/`
 
@@ -78,6 +85,7 @@ That bundle contains:
 - `contracts/`
 - `runtime/win-x64/AnarchyAi.Mcp.Server.exe`
 - `schemas/`
+- `templates/narratives/`
 - `skills/anarchy-ai-harness/SKILL.md`
 - `scripts/bootstrap-anarchy-ai.ps1`
 - `scripts/start-anarchy-ai.cmd`
@@ -96,16 +104,16 @@ Setup also creates or updates one of these marketplace roots:
 
 The plugin identity rule is now split on purpose:
 
-- repo-local installs use repo-scoped install directories and marketplaces while keeping the visible plugin identity stable as `anarchy-ai`
+- repo-local installs use the selected repo root as the filesystem scope and a repo-scoped marketplace identity while keeping the visible plugin identity stable as `anarchy-ai`
 - user-profile installs use one stable user-profile plugin identity because the install root is intentionally shared for that user
 - both lanes keep the plugin-local MCP server key stable as `anarchy-ai`
 
 Current repo-local shape:
 
-- `name = anarchy-ai-local-<repo-slug>`
-- `interface.displayName = Anarchy-AI Local (<RepoName>)`
+- `name = anarchy-ai-repo-<repo-slug>`
+- `interface.displayName = Anarchy-AI Repo (<RepoName>)`
 - `plugins.<entry>.name = anarchy-ai`
-- `plugins.<entry>.source.path = ./plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>`
+- `plugins.<entry>.source.path = ./plugins/anarchy-ai`
 - `.codex-plugin/plugin.json -> name = anarchy-ai`
 - `.mcp.json -> mcpServers -> anarchy-ai`
 
@@ -133,7 +141,7 @@ Setup writes and maintains this plugin entry shape:
   "name": "anarchy-ai",
   "source": {
     "source": "local",
-    "path": "./plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>"
+    "path": "./plugins/anarchy-ai"
   },
   "policy": {
     "installation": "INSTALLED_BY_DEFAULT",
@@ -164,6 +172,17 @@ Keep harness delivery separate from schema reality.
 Material governance requires the harness to be installed, callable, and used in the work path - copied schema files alone are delivery evidence, not proof of operative governance.
 
 Schemas do not self-fulfill. They make the desired route legible, but setup, runtime tools, proof files, or human-confirmed verification must still materialize and observe the intended state.
+
+### 4. Narrative arc templates
+
+Because `AGENTS-schema-narrative.json` carries the narrative register/record shape, the installed plugin bundle also carries concrete templates:
+
+- `templates/narratives/register.template.json`
+- `templates/narratives/record.template.json`
+
+These templates are not project arcs by themselves. They are the carried surface that lets runtime tools materialize a missing `.agents/anarchy-ai/narratives/register.json` without inventing the shape from chat.
+
+`run_gov2gov_migration` now treats the narrative register and projects directory as non-destructive materialization targets when the narrative schema is present or planned for delivery. It seeds only missing surfaces and leaves existing narrative content untouched.
 
 ## Exact installation steps in another repo
 
@@ -205,8 +224,8 @@ Then use the simple installer UI.
 Result required:
 
 - repo-local:
-  - `./plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>/.codex-plugin/plugin.json` exists
-  - `./plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>/.mcp.json` exists
+  - `./plugins/anarchy-ai/.codex-plugin/plugin.json` exists
+  - `./plugins/anarchy-ai/.mcp.json` exists
   - `./.agents/plugins/marketplace.json` contains the repo-scoped Anarchy-AI plugin entry
 - user-profile:
   - `~/.codex/plugins/anarchy-ai/.codex-plugin/plugin.json` exists
@@ -297,7 +316,7 @@ Refresh the plugin bundle and root portable schema family together:
 Current update behavior:
 
 - refreshes the selected plugin bundle surfaces in either:
-  - repo-local `./plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>/`
+  - repo-local `./plugins/anarchy-ai/`
   - user-profile `~/.codex/plugins/anarchy-ai/`
 - seeds missing portable root schema files during install by default
 - force-refreshes the root portable schema family only when `/refreshschemas` is passed
@@ -353,7 +372,7 @@ powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\stop-an
 Where `<installed-plugin-root>` is one of:
 
 - repo-local:
-  - `.\plugins\anarchy-ai-local-<repo-slug>-<stable-path-hash>`
+  - `.\plugins\anarchy-ai`
 - user-profile:
   - `~\.codex\plugins\anarchy-ai`
 
@@ -426,7 +445,7 @@ powershell -ExecutionPolicy Bypass -File <repo-local-plugin-root>\scripts\bootst
 
 Where `<repo-local-plugin-root>` is:
 
-- `.\plugins\anarchy-ai-local-<repo-slug>-<stable-path-hash>`
+- `.\plugins\anarchy-ai`
 
 ## How to make the system accessible
 
@@ -436,7 +455,7 @@ For the current Codex-first path, accessibility requires all of the following:
 
 - `plugins/AnarchyAi.Setup.exe` or the already materialized plugin bundle is present
 - plugin bundle exists in either:
-  - `./plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>`
+  - `./plugins/anarchy-ai`
   - `~/.codex/plugins/anarchy-ai`
 - marketplace entry exists in either:
   - `./.agents/plugins/marketplace.json`
@@ -556,7 +575,7 @@ A target repo should only be considered fully adopted when all of the following 
 
 - `plugins/AnarchyAi.Setup.exe` has been used or the equivalent plugin bundle has already been materialized
 - either:
-  - `plugins/anarchy-ai-local-<repo-slug>-<stable-path-hash>/` is present
+  - `plugins/anarchy-ai/` is present
   - or `~/.codex/plugins/anarchy-ai/` is present
 - either:
   - `.agents/plugins/marketplace.json` contains the Anarchy-AI entry for the repo

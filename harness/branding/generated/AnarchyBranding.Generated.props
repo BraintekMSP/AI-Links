@@ -1,15 +1,16 @@
-﻿<Project>
+<Project>
   <PropertyGroup>
     <AnarchyBrandingVersion>0.1.0</AnarchyBrandingVersion>
     <AnarchyBrandingBrandDisplayName>Anarchy-AI</AnarchyBrandingBrandDisplayName>
     <AnarchyBrandingSetupDisplayName>Anarchy-AI Setup</AnarchyBrandingSetupDisplayName>
     <AnarchyBrandingUserProfileMarketplaceDisplayName>Anarchy-AI User Profile</AnarchyBrandingUserProfileMarketplaceDisplayName>
-    <AnarchyBrandingRepoLocalMarketplaceDisplayNameTemplate>Anarchy-AI Local (&lt;RepoName&gt;)</AnarchyBrandingRepoLocalMarketplaceDisplayNameTemplate>
+    <AnarchyBrandingRepoLocalMarketplaceDisplayNameTemplate>Anarchy-AI Repo (&lt;RepoName&gt;)</AnarchyBrandingRepoLocalMarketplaceDisplayNameTemplate>
     <AnarchyBrandingAuthorName>Matt Herring</AnarchyBrandingAuthorName>
     <AnarchyBrandingAuthorUrl>https://github.com/BraintekMSP/AI-Links</AnarchyBrandingAuthorUrl>
     <AnarchyBrandingHomepageUrl>https://github.com/BraintekMSP/AI-Links</AnarchyBrandingHomepageUrl>
     <AnarchyBrandingRepositoryUrl>https://github.com/BraintekMSP/AI-Links</AnarchyBrandingRepositoryUrl>
     <AnarchyBrandingDeveloperName>Matt Herring</AnarchyBrandingDeveloperName>
+    <AnarchyBrandingPluginManifestVersion>0.1.9</AnarchyBrandingPluginManifestVersion>
     <AnarchyBrandingPrivacyPolicyUrl>https://github.com/BraintekMSP/AI-Links/blob/main/plugins/anarchy-ai/PRIVACY.md</AnarchyBrandingPrivacyPolicyUrl>
     <AnarchyBrandingTermsOfServiceUrl>https://github.com/BraintekMSP/AI-Links/blob/main/LICENSE</AnarchyBrandingTermsOfServiceUrl>
     <AnarchyBrandingDefaultUpdateSourceZipUrl>https://github.com/BraintekMSP/AI-Links/archive/refs/heads/main.zip</AnarchyBrandingDefaultUpdateSourceZipUrl>

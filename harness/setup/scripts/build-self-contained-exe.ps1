@@ -7,7 +7,7 @@ publishes the setup project, and refreshes the repo-local handoff EXE.
 .PARAMETER Configuration
 Build configuration passed to dotnet publish.
 .PARAMETER DotnetPath
-Optional explicit path to dotnet.exe when SDK discovery should not use the default lookup order.
+Optional explicit path to dotnet.exe when SDK discovery should not use the default lookup order. The path must not live inside this repo.
 .PARAMETER SkipCopyToPlugins
 Skips copying the published EXE back into the repo-local plugins folder.
 .OUTPUTS
@@ -246,6 +246,40 @@ function Resolve-DotnetPath {
   }
 
   throw 'Could not resolve a dotnet.exe with an installed SDK. Install the .NET SDK or pass -DotnetPath explicitly.'
+}
+
+<#
+.SYNOPSIS
+Rejects tool paths that live inside the source workspace.
+.DESCRIPTION
+Build prerequisites such as the .NET SDK must live in user-local or machine-local locations, not inside the synced repo tree.
+.PARAMETER ToolPath
+Absolute or relative executable path to validate.
+.PARAMETER WorkspaceRoot
+Absolute workspace root that must not contain the tool path.
+.PARAMETER ToolName
+Human-readable tool name used in the failure message.
+.OUTPUTS
+No direct return value.
+.NOTES
+Critical dependencies: absolute path normalization and Windows case-insensitive path comparison.
+#>
+function Assert-ToolPathOutsideWorkspace {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$ToolPath,
+    [Parameter(Mandatory = $true)]
+    [string]$WorkspaceRoot,
+    [Parameter(Mandatory = $true)]
+    [string]$ToolName
+  )
+
+  $normalizedToolPath = [System.IO.Path]::GetFullPath($ToolPath)
+  $normalizedWorkspaceRoot = [System.IO.Path]::GetFullPath($WorkspaceRoot).TrimEnd([char[]]"\/") + [System.IO.Path]::DirectorySeparatorChar
+
+  if ($normalizedToolPath.StartsWith($normalizedWorkspaceRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "$ToolName path is inside the source workspace: $normalizedToolPath. Install or point to $ToolName from a non-workspace user/machine-local lane such as `%USERPROFILE%\.dotnet`, `%LOCALAPPDATA%`, or Program Files."
+  }
 }
 
 <#
@@ -524,7 +558,7 @@ function Update-GeneratedPluginManifest {
   $manifestPath = Resolve-CanonRelativePath -RootPath $RepoRoot -RelativePath ($pathCanon.relative_paths.repo_source_plugin_directory_relative_path + '/' + $pathCanon.relative_paths.bundle_plugin_manifest_file_relative_path)
   $manifestObject = [ordered]@{
     name = [string]$pathCanon.names.default_plugin_name
-    version = '0.1.8'
+    version = [string]$branding.metadata.plugin_manifest_version
     description = [string]$branding.messaging.plugin_description
     author = [ordered]@{
       name = [string]$branding.metadata.author_name
@@ -685,6 +719,7 @@ $stagedPluginPayloadRoot = ''
 
 try {
   $resolvedDotnetPath = Resolve-DotnetPath -RequestedPath $DotnetPath
+  Assert-ToolPathOutsideWorkspace -ToolPath $resolvedDotnetPath -WorkspaceRoot $repoRoot -ToolName '.NET SDK'
 
   if (-not (Test-Path $projectPath)) {
     throw "Setup project not found: $projectPath"

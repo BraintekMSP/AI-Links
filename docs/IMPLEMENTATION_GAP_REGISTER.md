@@ -1,4 +1,4 @@
-﻿# Implementation Gap Register
+# Implementation Gap Register
 
 ## Purpose
 
@@ -742,10 +742,14 @@ ECC demonstrates a more durable pattern worth adapting without copying its produ
   - `/selfcheck`
   - `/self-check`
   - versioned `.anarchy-ai/install-state.json` writing on install/update
+  - `anarchy.install-state.v2` target/workspace separation so user-profile runtime state does not collapse into the last repo/schema target
+  - managed-operation recording for setup-owned surfaces
   - `install_state` reporting in setup JSON
   - status-mode repair guidance for missing or drifted install-state records
 - Still pending:
+  - full declared install-plan output before apply
   - a bounded repair command that rematerializes only Anarchy-owned surfaces
+  - operation-level doctor comparisons against every recorded managed operation
   - catalog validation beyond the current embedded payload/path-canon checks
   - truth-matrix promotion tests for host-specific surfacing after install
 
@@ -825,35 +829,99 @@ The core harness docs and implementation direction still mention plugin delivery
 
 ---
 
+### 18. Schema-Carried Narrative Artifact Lanes Must Materialize Through Harness/Installer Surfaces
+
+#### Gap
+
+`AGENTS-schema-narrative.json` describes the narrative register and record shape, but the product previously relied on agents to infer `.agents/anarchy-ai/narratives` paths from schema text and field reports.
+
+#### Why it matters
+
+- a schema-carried artifact lane that does not travel with the installer recreates the schema self-fulfillment failure class
+- agents may create incompatible narrative paths or one-off arc files even when they are trying to follow Anarchy
+- gov2gov was checking the narrative schema file without checking the narrative register surface implied by that schema
+
+#### What this points toward
+
+- installer payloads should carry concrete templates for schema-carried artifact families
+- gov2gov should inventory and non-destructively seed the minimum missing artifact surfaces when the schema is present or planned
+- future narrative capture tools should write through the same template/register lane instead of inventing storage
+
+#### Current patch state
+
+- `AA-BUG-025` tracks the defect and acceptance criteria
+- `templates/narratives/register.template.json` and `record.template.json` now travel in the plugin bundle
+- `run_gov2gov_migration` now reports `narrative_arc_structure` and seeds missing register/projects surfaces in `non_destructive_apply`
+
+#### Problem being solved
+
+- turning narrative/arc from schema-only implication into a carried and harness-materialized surface
+
+---
+
+### 19. Build Prerequisites Must Stay Out Of Synced Workspaces
+
+#### Gap
+
+Repo-local install language drifted enough that .NET SDK/runtime placement could be confused with plugin bundle placement.
+
+Repo-local Anarchy installation may write an Anarchy-owned plugin bundle under `plugins/anarchy-ai`, but build prerequisites and package caches are not repo truth.
+
+#### Why it matters
+
+- SDK/runtime folders and package caches create large, high-churn file trees
+- OneDrive-backed workspaces are especially vulnerable to sync noise, partial file state, and corruption when toolchains are placed under the repo
+- target repos do not need repo-local .NET because `AnarchyAi.Setup.exe` is self-contained for install
+
+#### What this points toward
+
+- keep .NET SDK/runtime prerequisites in non-workspace user/machine-local lanes such as `%USERPROFILE%\.dotnet`, `%LOCALAPPDATA%`, or `C:\Program Files\dotnet`
+- keep restore scratch, NuGet caches, and publish intermediates outside repo and synced workspace trees
+- make build helpers reject repo-local SDK paths instead of merely documenting the rule
+
+#### Current patch state
+
+- `AA-BUG-026` tracks the defect and acceptance criteria
+- `build-self-contained-exe.ps1` rejects resolved `.NET SDK` paths inside the source workspace
+- setup/repo install docs now state that repo-local install is plugin-bundle placement, not SDK placement
+
+#### Problem being solved
+
+- keeping repo-local deployment useful without turning the repo or OneDrive workspace into toolchain/cache storage
+
+---
+
 ## Current Priority Order
 
 Highest practical friction:
 
 1. install-state / doctor / repair lifecycle gap
 2. schema self-fulfillment gap
-3. plugin adapter breakage contaminating core harness truth
-4. plugin trust surfaces
-5. deprecated launch-path documentation
-6. stale maturity framing
-7. missing architecture sentence
+3. schema-carried narrative artifact materialization
+4. build prerequisite/cache placement outside synced workspaces
+5. plugin adapter breakage contaminating core harness truth
+6. plugin trust surfaces
+7. deprecated launch-path documentation
+8. stale maturity framing
+9. missing architecture sentence
 
 Highest canonical consistency pressure:
 
-8. governance residual exit grammar
-9. required-field `missing` abort grammar
-10. skill result-axis ambiguity
+10. governance residual exit grammar
+11. required-field `missing` abort grammar
+12. skill result-axis ambiguity
 
 Evidence / theory discipline:
 
-11. scratchpad working-claim strength
+13. scratchpad working-claim strength
 
 Platform clarity:
 
-12. Windows-first vs host-agnostic delivery language
+14. Windows-first vs host-agnostic delivery language
 
 Schema-family review pressure:
 
-13. dedicated narrative-schema review
+14. dedicated narrative-schema review
 
 Future expansion guardrail:
 

@@ -1,9 +1,10 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -1254,6 +1255,9 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
 {
     private readonly CanonicalSchemaBundle _canonicalSchemaBundle = CanonicalSchemaBundle.TryLoad();
 
+    private const string NarrativeRegisterRelativePath = ".agents/anarchy-ai/narratives/register.json";
+    private const string NarrativeProjectsDirectoryRelativePath = ".agents/anarchy-ai/narratives/projects";
+
     // Purpose: Runs the gov2gov migration planner or non-destructive apply flow.
     // Expected input: Absolute workspace root, schema package label, schema-reality state, active reasons, optional startup surfaces, and migration mode.
     // Expected output: An anonymous object describing migration planning, applied work, audit needs, and resulting state.
@@ -1365,6 +1369,15 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
             plannedActions.Add("audit_for_schema_tampering");
         }
 
+        ReconcileNarrativeArcSurfaces(
+            resolvedWorkspaceRoot,
+            consumerMaterialGovernanceCheck,
+            migrationMode,
+            plannedActions,
+            actionsTaken,
+            touchedSurfaces,
+            auditNeeded);
+
         var postEvaluation = JsonSerializer.SerializeToElement(
             schemaRealityInspector.Evaluate(resolvedWorkspaceRoot, expectedSchemaPackage, startupSurfaces));
         var postRealityState = postEvaluation.GetProperty("schema_reality_state").GetString() ?? "fully_missing";
@@ -1442,6 +1455,7 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
             governed_agents_structure = RuntimeEnvelopeBuilder.GovernedAgentsStructure
                 .Select(fileName => BuildPresenceOnlyInventoryEntry(workspaceRoot, fileName))
                 .ToArray(),
+            narrative_arc_structure = BuildNarrativeArcInventory(workspaceRoot, plannedActionSet, actionTakenSet),
             gov2gov_structure = RuntimeEnvelopeBuilder.Gov2GovStructure
                 .Select(fileName => BuildPresenceOnlyInventoryEntry(workspaceRoot, fileName))
                 .ToArray(),
@@ -1450,9 +1464,204 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
                 "portable_schema_family_hashes_compare_against_the_current_canonical_schema_bundle_manifest",
                 "delivery_plan_state_compares_each_portable_schema_file_against_this_run_planned_actions_and_actions_taken",
                 "governed_agents_and_gov2gov_structure_are_presence_only_because_workspace_specific_content_is_expected_to_diverge",
+                "narrative_arc_structure_is_presence_checked_because_AGENTS_schema_narrative_carries_record_and_register_templates",
                 "inventory_does_not_fail_or_block_migration"
             }
         };
+    }
+
+    // Purpose: Plans or applies the minimal Anarchy narrative register surfaces carried by AGENTS-schema-narrative.
+    // Expected input: Workspace root, consumer-role classification, migration mode, and current plan/action collections.
+    // Expected output: Updated plan/action/audit collections; non-destructive apply creates only missing narrative surfaces.
+    // Critical dependencies: Narrative register path convention and the installed plugin narrative template payload.
+    private static void ReconcileNarrativeArcSurfaces(
+        string workspaceRoot,
+        string consumerMaterialGovernanceCheck,
+        string migrationMode,
+        List<string> plannedActions,
+        List<string> actionsTaken,
+        List<string> touchedSurfaces,
+        List<string> auditNeeded)
+    {
+        if (consumerMaterialGovernanceCheck == "not_applicable")
+        {
+            return;
+        }
+
+        var narrativeSchemaPath = Path.Combine(workspaceRoot, "AGENTS-schema-narrative.json");
+        var narrativeSchemaPresentOrPlanned = File.Exists(narrativeSchemaPath) ||
+            plannedActions.Contains("copy_missing_canonical_schema_file:AGENTS-schema-narrative.json", StringComparer.Ordinal);
+        if (!narrativeSchemaPresentOrPlanned)
+        {
+            return;
+        }
+
+        var registerPath = Path.Combine(workspaceRoot, NarrativeRegisterRelativePath.Replace('/', Path.DirectorySeparatorChar));
+        var projectsDirectoryPath = Path.Combine(workspaceRoot, NarrativeProjectsDirectoryRelativePath.Replace('/', Path.DirectorySeparatorChar));
+        touchedSurfaces.Add(NarrativeRegisterRelativePath);
+        touchedSurfaces.Add(NarrativeProjectsDirectoryRelativePath);
+
+        if (!File.Exists(registerPath))
+        {
+            plannedActions.Add($"seed_missing_narrative_register:{NarrativeRegisterRelativePath}");
+            if (migrationMode == "non_destructive_apply")
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(registerPath)!);
+                File.WriteAllText(registerPath, LoadNarrativeRegisterTemplateJson(), Encoding.UTF8);
+                actionsTaken.Add($"seeded_narrative_register:{NarrativeRegisterRelativePath}");
+            }
+        }
+        else if (!TryReadJson(registerPath))
+        {
+            auditNeeded.Add($"narrative_register_invalid_json:{NarrativeRegisterRelativePath}");
+        }
+
+        if (!Directory.Exists(projectsDirectoryPath))
+        {
+            plannedActions.Add($"create_missing_narrative_projects_directory:{NarrativeProjectsDirectoryRelativePath}");
+            if (migrationMode == "non_destructive_apply")
+            {
+                Directory.CreateDirectory(projectsDirectoryPath);
+                actionsTaken.Add($"created_narrative_projects_directory:{NarrativeProjectsDirectoryRelativePath}");
+            }
+        }
+    }
+
+    // Purpose: Builds presence evidence for the narrative/arc artifact family carried by the narrative schema.
+    // Expected input: Workspace root plus this run's plan/action sets.
+    // Expected output: Register and projects-directory evidence with delivery plan state.
+    // Critical dependencies: NarrativeRegisterRelativePath and gov2gov planned/action string vocabulary.
+    private static object BuildNarrativeArcInventory(
+        string workspaceRoot,
+        IReadOnlySet<string> plannedActions,
+        IReadOnlySet<string> actionsTaken)
+    {
+        var registerPath = Path.Combine(workspaceRoot, NarrativeRegisterRelativePath.Replace('/', Path.DirectorySeparatorChar));
+        var projectsDirectoryPath = Path.Combine(workspaceRoot, NarrativeProjectsDirectoryRelativePath.Replace('/', Path.DirectorySeparatorChar));
+        var registerExists = File.Exists(registerPath);
+        var registerValidJson = registerExists && TryReadJson(registerPath);
+
+        return new
+        {
+            register = new
+            {
+                path = NarrativeRegisterRelativePath,
+                presence_state = registerExists ? "present" : "missing",
+                json_state = registerExists ? (registerValidJson ? "valid_json" : "invalid_json") : "not_applicable",
+                template_source = AnarchyPathCanon.BundleNarrativeRegisterTemplateFileRelativePath,
+                delivery_plan_state = DetermineNarrativeRegisterDeliveryPlanState(registerExists, plannedActions, actionsTaken)
+            },
+            projects_directory = new
+            {
+                path = NarrativeProjectsDirectoryRelativePath,
+                presence_state = Directory.Exists(projectsDirectoryPath) ? "present" : "missing",
+                delivery_plan_state = DetermineNarrativeProjectsDeliveryPlanState(Directory.Exists(projectsDirectoryPath), plannedActions, actionsTaken)
+            },
+            hash_mode = "presence_only_workspace_specific_narrative_expected_to_diverge"
+        };
+    }
+
+    // Purpose: Determines delivery-plan state for the narrative register.
+    // Expected input: Final presence and this run's plan/action sets.
+    // Expected output: A bounded delivery state string.
+    // Critical dependencies: ReconcileNarrativeArcSurfaces action string vocabulary.
+    private static string DetermineNarrativeRegisterDeliveryPlanState(
+        bool exists,
+        IReadOnlySet<string> plannedActions,
+        IReadOnlySet<string> actionsTaken)
+    {
+        if (actionsTaken.Contains($"seeded_narrative_register:{NarrativeRegisterRelativePath}"))
+        {
+            return "delivered_this_run";
+        }
+
+        if (plannedActions.Contains($"seed_missing_narrative_register:{NarrativeRegisterRelativePath}"))
+        {
+            return "planned_to_deliver";
+        }
+
+        return exists ? "already_present_not_targeted" : "missing_not_in_delivery_plan";
+    }
+
+    // Purpose: Determines delivery-plan state for the narrative projects directory.
+    // Expected input: Final presence and this run's plan/action sets.
+    // Expected output: A bounded delivery state string.
+    // Critical dependencies: ReconcileNarrativeArcSurfaces action string vocabulary.
+    private static string DetermineNarrativeProjectsDeliveryPlanState(
+        bool exists,
+        IReadOnlySet<string> plannedActions,
+        IReadOnlySet<string> actionsTaken)
+    {
+        if (actionsTaken.Contains($"created_narrative_projects_directory:{NarrativeProjectsDirectoryRelativePath}"))
+        {
+            return "delivered_this_run";
+        }
+
+        if (plannedActions.Contains($"create_missing_narrative_projects_directory:{NarrativeProjectsDirectoryRelativePath}"))
+        {
+            return "planned_to_deliver";
+        }
+
+        return exists ? "already_present_not_targeted" : "missing_not_in_delivery_plan";
+    }
+
+    // Purpose: Loads the carried narrative register template, falling back to the minimal schema template shape during source tests.
+    // Expected input: Current process directory and app base directory from the launched runtime.
+    // Expected output: JSON text for a missing narrative register.
+    // Critical dependencies: The plugin bundle carrying templates/narratives/register.template.json.
+    private static string LoadNarrativeRegisterTemplateJson()
+    {
+        foreach (var candidateRoot in CandidatePluginRoots())
+        {
+            var templatePath = AnarchyPathCanon.ResolveBundleFilePath(candidateRoot, AnarchyPathCanon.BundleNarrativeRegisterTemplateFileRelativePath);
+            if (File.Exists(templatePath))
+            {
+                return File.ReadAllText(templatePath);
+            }
+        }
+
+        return "{\n  \"records\": []\n}\n";
+    }
+
+    // Purpose: Finds likely plugin roots for runtime template lookup across installed and source-test executions.
+    // Expected input: Current directory and app base directory.
+    // Expected output: Distinct candidate roots from most to least likely.
+    // Critical dependencies: Installed .mcp cwd convention and runtime/win-x64 bundle layout.
+    private static IEnumerable<string> CandidatePluginRoots()
+    {
+        var candidates = new List<string> { Environment.CurrentDirectory };
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        for (var i = 0; i < 5 && current is not null; i++)
+        {
+            candidates.Add(current.FullName);
+            current = current.Parent;
+        }
+
+        return candidates
+            .Where(static value => !string.IsNullOrWhiteSpace(value))
+            .Select(Path.GetFullPath)
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+    }
+
+    // Purpose: Checks whether a JSON file can be parsed without throwing into the migration flow.
+    // Expected input: Absolute JSON path.
+    // Expected output: True when the file parses as JSON; false otherwise.
+    // Critical dependencies: JsonDocument and readable file access.
+    private static bool TryReadJson(string path)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(path));
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
     }
 
     // Purpose: Builds one hash-aware portable schema inventory row.

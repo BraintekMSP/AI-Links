@@ -1,4 +1,4 @@
-﻿# Changelog - AI-Links
+# Changelog - AI-Links
 
 
 ## 2026-04-25
@@ -13,6 +13,15 @@
 - Added `violates-N-prior-decisions` as a non-gating thinking measure for fast-path choices whose local speed may hide cascading violations of prior decisions.
 - Recorded the Fissure fresh-session install result as partial proof with a cache/home metadata caveat: Anarchy tools were callable after restart, but exposed skill metadata still referenced an older cache generation.
 - Added `AA-BUG-019` for Codex home install and cache divergence so install discipline treats installed root, cache root, skill metadata, runtime path, and install-state as separate evidence surfaces.
+- Patched setup install-state toward ECC-style lifecycle discipline: `anarchy.install-state.v2` separates install target from workspace/schema target and records managed operations, so a user-profile runtime is not invalidated merely because a later status check targets another repo.
+- Patched setup source-authoring assessment so `/assess /repolocal /repo <AI-Links>` detects `plugins/anarchy-ai` as source truth instead of reporting source-owned schemas, contracts, runtime, and skill surfaces as missing because the generated consumer install target is absent.
+- Added `AA-BUG-021`, source-level proof, and rebuilt-deployable smoke proof for the source-authoring bundle lane while keeping destination paths pointed at the generated repo-local consumer install target.
+- Removed the stale repo-local `local`/path-hash directory model: repo-local bundles now target `plugins/anarchy-ai`, repo marketplace roots use `anarchy-ai-repo-<repo-slug>`, and AI-Links source writes are protected by source-repo marker detection instead of special folder names.
+- Added `AA-BUG-022` to capture the naming cleanup and acceptance criteria for throwaway repo install plus AI-Links source write-block proof.
+- Added `AA-BUG-023` and patched setup assessment so a fully absent repo-local plugin bundle reports install/root repair needs without enumerating every child contract/runtime/schema/skill surface as missing.
+- Added `AA-BUG-024`, moved `plugin.json.version` into branding canon, and bumped the plugin manifest release version to `0.1.9` so Codex cache invalidation has an explicit version signal instead of a hard-coded build-script literal.
+- Added `AA-BUG-025`, bundled concrete narrative register/record templates, and widened `run_gov2gov_migration` so schema-carried narrative arc surfaces are inventoried and seeded non-destructively when missing.
+- Added `AA-BUG-026` and a build-helper guard so .NET SDK/runtime prerequisites and package caches stay in non-workspace user/machine-local lanes instead of synced repo trees.
 - Recorded the correction in the Arc narrative as continuity against context-compression drift.
 
 ## 2026-04-24

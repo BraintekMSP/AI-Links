@@ -1,4 +1,4 @@
-﻿namespace AnarchyAi.Branding;
+namespace AnarchyAi.Branding;
 
 internal static class GeneratedAnarchyBranding
 {
@@ -6,12 +6,13 @@ internal static class GeneratedAnarchyBranding
     public const string BrandDisplayName = "Anarchy-AI";
     public const string SetupDisplayName = "Anarchy-AI Setup";
     public const string UserProfileMarketplaceDisplayName = "Anarchy-AI User Profile";
-    public const string RepoLocalMarketplaceDisplayNameTemplate = "Anarchy-AI Local (<RepoName>)";
+    public const string RepoLocalMarketplaceDisplayNameTemplate = "Anarchy-AI Repo (<RepoName>)";
     public const string AuthorName = "Matt Herring";
     public const string AuthorUrl = "https://github.com/BraintekMSP/AI-Links";
     public const string HomepageUrl = "https://github.com/BraintekMSP/AI-Links";
     public const string RepositoryUrl = "https://github.com/BraintekMSP/AI-Links";
     public const string DeveloperName = "Matt Herring";
+    public const string PluginManifestVersion = "0.1.9";
     public const string PrivacyPolicyUrl = "https://github.com/BraintekMSP/AI-Links/blob/main/plugins/anarchy-ai/PRIVACY.md";
     public const string TermsOfServiceUrl = "https://github.com/BraintekMSP/AI-Links/blob/main/LICENSE";
     public const string DefaultUpdateSourceZipUrl = "https://github.com/BraintekMSP/AI-Links/archive/refs/heads/main.zip";

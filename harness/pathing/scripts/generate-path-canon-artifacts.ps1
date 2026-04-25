@@ -42,6 +42,36 @@ New-Item -ItemType Directory -Path $pluginGeneratedRoot -Force | Out-Null
 
 <#
 .SYNOPSIS
+Writes generated text as UTF-8 without a byte-order mark.
+.DESCRIPTION
+Avoids reintroducing BOM-prefixed generated artifacts into Codex-facing and script-consumed surfaces.
+.PARAMETER Path
+Absolute file path to write.
+.PARAMETER Content
+Text content to persist.
+.OUTPUTS
+No direct return value.
+.NOTES
+Critical dependencies: System.IO.File and System.Text.UTF8Encoding.
+#>
+function Set-Utf8NoBomContent {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path,
+    [Parameter(Mandatory = $true)]
+    [string]$Content
+  )
+
+  if (-not $Content.EndsWith("`n", [System.StringComparison]::Ordinal)) {
+    $Content += [Environment]::NewLine
+  }
+
+  $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+  [System.IO.File]::WriteAllText($Path, $Content, $utf8NoBom)
+}
+
+<#
+.SYNOPSIS
 Converts JSON-derived values into ordered PowerShell hashtables and arrays.
 .DESCRIPTION
 Normalizes nested PSCustomObject and dictionary content so later emitters can traverse a predictable structure.
@@ -171,8 +201,8 @@ $psd1 = @"
 }
 "@
 
-Set-Content -Path $generatedPsd1Path -Value $psd1 -Encoding UTF8
-Set-Content -Path $pluginGeneratedPsd1Path -Value $psd1 -Encoding UTF8
+Set-Utf8NoBomContent -Path $generatedPsd1Path -Content $psd1
+Set-Utf8NoBomContent -Path $pluginGeneratedPsd1Path -Content $psd1
 
 $csharpLines = New-Object System.Collections.Generic.List[string]
 $csharpLines.Add('namespace AnarchyAi.Pathing;')
@@ -202,7 +232,7 @@ foreach ($entry in ($canon.arrays.GetEnumerator() | Sort-Object Name)) {
 }
 
 $csharpLines.Add('}')
-Set-Content -Path $generatedCSharpPath -Value ($csharpLines -join [Environment]::NewLine) -Encoding UTF8
+Set-Utf8NoBomContent -Path $generatedCSharpPath -Content ($csharpLines -join [Environment]::NewLine)
 
 $propsLines = @(
   '<Project>',
@@ -214,7 +244,7 @@ $propsLines = @(
   '  </PropertyGroup>',
   '</Project>'
 )
-Set-Content -Path $generatedPropsPath -Value ($propsLines -join [Environment]::NewLine) -Encoding UTF8
+Set-Utf8NoBomContent -Path $generatedPropsPath -Content ($propsLines -join [Environment]::NewLine)
 
 [pscustomobject]@{
   source = $sourcePath

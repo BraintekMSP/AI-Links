@@ -1,0 +1,24 @@
+{
+  "header": {
+    "id": "",
+    "subject": "",
+    "entity-type": "",
+    "primary-parties": [],
+    "cadence": "",
+    "status": "active",
+    "last-updated": "",
+    "owner": ""
+  },
+  "record-state-at-review-open-and-close": {
+    "open": "",
+    "close": ""
+  },
+  "entries": [],
+  "open-threads": [],
+  "known-decisions": [],
+  "observed-patterns": {
+    "good": [],
+    "bad": []
+  },
+  "handoff-note": ""
+}

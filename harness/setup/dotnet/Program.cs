@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
@@ -120,6 +121,9 @@ internal sealed class SetupResult
     public required bool runtime_present { get; init; }
     public required bool marketplace_registered { get; init; }
     public required bool installed_by_default { get; init; }
+    public bool source_authoring_bundle_present { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? source_authoring_bundle_state { get; init; }
     public required string[] actions_taken { get; init; }
     public required string[] missing_components { get; init; }
     public required string[] safe_repairs { get; init; }
@@ -140,15 +144,22 @@ internal sealed class InstallStateReport
     public required bool state_written { get; init; }
     public required bool state_valid { get; init; }
     public required string[] findings { get; init; }
+    public string[] warnings { get; init; } = [];
     public string? recorded_at_utc { get; init; }
     public string? recorded_install_scope { get; init; }
     public string? recorded_host_context { get; init; }
     public string[] recorded_host_targets { get; init; } = [];
+    public string? recorded_target_id { get; init; }
+    public string? recorded_target_kind { get; init; }
+    public string? recorded_target_root { get; init; }
     public string? recorded_workspace_root { get; init; }
+    public bool? recorded_workspace_schema_targeted { get; init; }
     public string? recorded_plugin_root { get; init; }
     public string? recorded_marketplace_path { get; init; }
+    public string? recorded_install_state_path { get; init; }
     public string? recorded_runtime_path { get; init; }
     public string? recorded_mcp_server_name { get; init; }
+    public int? recorded_managed_operation_count { get; init; }
 }
 
 // Purpose: Centralizes JSON serialization settings for setup output.
@@ -200,7 +211,7 @@ internal static class Program
             var result = engine.Execute(options);
             Console.OutputEncoding = Encoding.UTF8;
             Console.WriteLine(JsonSerializer.Serialize(result, ProgramJson.Options));
-            return result.bootstrap_state == "ready" ? 0 : 1;
+            return result.bootstrap_state is "ready" or "source_authoring_bundle_ready" ? 0 : 1;
         }
         catch (Exception ex)
         {
@@ -1334,6 +1345,12 @@ internal sealed class SetupEngine
 
     private const string ExperimentalDirectionAssistContract = "direction-assist-test.contract.json";
 
+    private static readonly string[] NarrativeTemplateFiles =
+    [
+        AnarchyPathCanon.BundleNarrativeRegisterTemplateFileRelativePath,
+        AnarchyPathCanon.BundleNarrativeRecordTemplateFileRelativePath
+    ];
+
     private static IReadOnlyList<string> PortableSchemaFiles => AnarchyPathCanon.PortableSchemaFiles;
 
     private static IReadOnlyList<string> PluginSurfaces => AnarchyPathCanon.PluginSurfaces;
@@ -1352,7 +1369,7 @@ internal sealed class SetupEngine
         "direction_assist_test"
     ];
 
-    private const string InstallStateSchemaVersion = "anarchy.install-state.v1";
+    private const string InstallStateSchemaVersion = "anarchy.install-state.v2";
     private const string InstallStateFileRelativePath = ".anarchy-ai/install-state.json";
 
     // Purpose: Guesses a default repo root for CLI help and repo-local operations when /repo is omitted.
@@ -1544,11 +1561,21 @@ internal sealed class SetupEngine
         var workspaceRoot = ResolveWorkspaceRoot(options.InstallScope, options.RepoPath);
         var pluginRoot = ResolvePluginRoot(options.InstallScope, workspaceRoot);
         var marketplacePath = ResolveMarketplacePath(options.InstallScope, workspaceRoot);
-        var runtimePath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath);
-        var pluginManifestPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundlePluginManifestFileRelativePath);
-        var mcpPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleMcpFileRelativePath);
-        var skillPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleSkillFileRelativePath);
-        var schemaManifestPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleSchemaManifestFileRelativePath);
+        var destinationRuntimePath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath);
+        var destinationPluginManifestPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundlePluginManifestFileRelativePath);
+        var destinationMcpPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleMcpFileRelativePath);
+        var destinationSkillPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleSkillFileRelativePath);
+        var destinationSchemaManifestPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleSchemaManifestFileRelativePath);
+        var sourceAuthoringBundle = InspectSourceAuthoringBundle(workspaceRoot);
+        var useSourceAuthoringBundleForReadOnlyInspection = ShouldInspectSourceAuthoringBundle(options, sourceAuthoringBundle);
+        var inspectedPluginRoot = useSourceAuthoringBundleForReadOnlyInspection
+            ? sourceAuthoringBundle.PluginRoot
+            : pluginRoot;
+        var runtimePath = AnarchyPathCanon.ResolveBundleFilePath(inspectedPluginRoot, AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath);
+        var pluginManifestPath = AnarchyPathCanon.ResolveBundleFilePath(inspectedPluginRoot, AnarchyPathCanon.BundlePluginManifestFileRelativePath);
+        var mcpPath = AnarchyPathCanon.ResolveBundleFilePath(inspectedPluginRoot, AnarchyPathCanon.BundleMcpFileRelativePath);
+        var skillPath = AnarchyPathCanon.ResolveBundleFilePath(inspectedPluginRoot, AnarchyPathCanon.BundleSkillFileRelativePath);
+        var schemaManifestPath = AnarchyPathCanon.ResolveBundleFilePath(inspectedPluginRoot, AnarchyPathCanon.BundleSchemaManifestFileRelativePath);
         var updateSourceRoot = string.Empty;
         var installStateWritten = false;
 
@@ -1560,7 +1587,17 @@ internal sealed class SetupEngine
         var updateRequested = options.Mode == OperationMode.Update;
         var updateState = updateRequested ? "in_progress" : "not_requested";
 
-        if (options.Mode == OperationMode.Install)
+        var blockSourceAuthoringConsumerWrite = ShouldBlockSourceAuthoringConsumerWrite(options, sourceAuthoringBundle);
+
+        if (blockSourceAuthoringConsumerWrite)
+        {
+            actionsTaken.Add("source_authoring_bundle_detected");
+            actionsTaken.Add("source_authoring_consumer_install_blocked");
+            missingComponents.Add("source_authoring_repo_consumer_install_blocked");
+            safeRepairs.Add("use_source_build_lane_or_user_profile_install");
+            updateState = updateRequested ? "blocked_source_authoring_repo" : updateState;
+        }
+        else if (options.Mode == OperationMode.Install)
         {
             try
             {
@@ -1748,38 +1785,68 @@ internal sealed class SetupEngine
             safeRepairs.Add("run_force_release_runtime_lock");
         }
 
+        if (useSourceAuthoringBundleForReadOnlyInspection)
+        {
+            actionsTaken.Add("source_authoring_bundle_detected");
+        }
+
         var pluginManifestExists = File.Exists(pluginManifestPath);
         var mcpExists = File.Exists(mcpPath);
         var runtimeExists = File.Exists(runtimePath);
         var skillExists = File.Exists(skillPath);
         var schemaManifestExists = File.Exists(schemaManifestPath);
+        var pluginRootExists = Directory.Exists(inspectedPluginRoot);
+        var inspectChildBundleSurfaces = pluginRootExists
+            || pluginManifestExists
+            || mcpExists
+            || runtimeExists
+            || skillExists
+            || schemaManifestExists;
 
-        if (!pluginManifestExists) { missingComponents.Add("codex_plugin_manifest_missing"); }
-        if (!mcpExists) { missingComponents.Add("codex_mcp_declaration_missing"); }
-        if (!runtimeExists) { missingComponents.Add("bundled_runtime_missing"); }
-        if (!skillExists && string.Equals(options.HostContext, "codex", StringComparison.OrdinalIgnoreCase))
+        if (inspectChildBundleSurfaces && !pluginManifestExists) { missingComponents.Add("codex_plugin_manifest_missing"); }
+        if (inspectChildBundleSurfaces && !mcpExists) { missingComponents.Add("codex_mcp_declaration_missing"); }
+        if (inspectChildBundleSurfaces && !runtimeExists) { missingComponents.Add("bundled_runtime_missing"); }
+        if (inspectChildBundleSurfaces && !skillExists && string.Equals(options.HostContext, "codex", StringComparison.OrdinalIgnoreCase))
         {
             missingComponents.Add("codex_skill_surface_missing");
         }
-        if (!schemaManifestExists) { missingComponents.Add("schema_bundle_manifest_missing"); }
+        if (inspectChildBundleSurfaces && !schemaManifestExists) { missingComponents.Add("schema_bundle_manifest_missing"); }
 
-        foreach (var contractFile in CoreContractFiles)
+        if (inspectChildBundleSurfaces)
         {
-            var contractPath = AnarchyPathCanon.ResolveBundleFilePath(
-                pluginRoot,
-                AnarchyPathCanon.CombineCanonRelativePath(AnarchyPathCanon.BundleContractsDirectoryRelativePath, contractFile));
-            if (!File.Exists(contractPath))
+            foreach (var contractFile in CoreContractFiles)
             {
-                missingComponents.Add($"missing_contract:{contractFile}");
+                var contractPath = AnarchyPathCanon.ResolveBundleFilePath(
+                    inspectedPluginRoot,
+                    AnarchyPathCanon.CombineCanonRelativePath(AnarchyPathCanon.BundleContractsDirectoryRelativePath, contractFile));
+                if (!File.Exists(contractPath))
+                {
+                    missingComponents.Add($"missing_contract:{contractFile}");
+                }
             }
         }
 
-        var experimentalDirectionAssistContractPath = AnarchyPathCanon.ResolveBundleFilePath(
-            pluginRoot,
-            AnarchyPathCanon.CombineCanonRelativePath(AnarchyPathCanon.BundleContractsDirectoryRelativePath, ExperimentalDirectionAssistContract));
-        if (!File.Exists(experimentalDirectionAssistContractPath))
+        if (inspectChildBundleSurfaces)
         {
-            actionsTaken.Add("experimental_direction_assist_contract_missing_non_blocking");
+            var experimentalDirectionAssistContractPath = AnarchyPathCanon.ResolveBundleFilePath(
+                inspectedPluginRoot,
+                AnarchyPathCanon.CombineCanonRelativePath(AnarchyPathCanon.BundleContractsDirectoryRelativePath, ExperimentalDirectionAssistContract));
+            if (!File.Exists(experimentalDirectionAssistContractPath))
+            {
+                actionsTaken.Add("experimental_direction_assist_contract_missing_non_blocking");
+            }
+        }
+
+        if (inspectChildBundleSurfaces)
+        {
+            foreach (var templateFile in NarrativeTemplateFiles)
+            {
+                var templatePath = AnarchyPathCanon.ResolveBundleFilePath(inspectedPluginRoot, templateFile);
+                if (!File.Exists(templatePath))
+                {
+                    missingComponents.Add($"missing_narrative_template:{templateFile}");
+                }
+            }
         }
 
         var pluginManifestInspection = InspectPluginManifest(pluginManifestPath, options.InstallScope, workspaceRoot);
@@ -1790,15 +1857,15 @@ internal sealed class SetupEngine
         missingComponents.UnionWith(mcpInspection.Findings);
         var marketplaceMissingFinding = BuildMarketplaceMissingFinding(options.InstallScope);
         var marketplaceMissingPluginsArrayFinding = BuildMarketplaceMissingPluginsArrayFinding(options.InstallScope);
-        if (!marketplaceInspection.Exists)
+        if (!marketplaceInspection.Exists && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
         {
             missingComponents.Add(marketplaceMissingFinding);
         }
-        if (marketplaceInspection.Exists && !marketplaceInspection.HasPluginsArray)
+        if (marketplaceInspection.Exists && !marketplaceInspection.HasPluginsArray && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
         {
             missingComponents.Add(marketplaceMissingPluginsArrayFinding);
         }
-        if (marketplaceInspection.Exists && !marketplaceInspection.IsValidJson)
+        if (marketplaceInspection.Exists && !marketplaceInspection.IsValidJson && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
         {
             missingComponents.Add("marketplace_json_invalid");
         }
@@ -1813,11 +1880,14 @@ internal sealed class SetupEngine
         missingComponents.UnionWith(legacyUserProfileInspection.Findings);
 
         if (!runtimeExists) { safeRepairs.Add("publish_or_restore_bundled_runtime"); }
-        if (!marketplaceInspection.HasAnarchyPluginEntry || !marketplaceInspection.InstalledByDefault)
+        if ((!marketplaceInspection.HasAnarchyPluginEntry || !marketplaceInspection.InstalledByDefault)
+            && !blockSourceAuthoringConsumerWrite)
         {
-            safeRepairs.Add(options.InstallScope == InstallScope.UserProfile
-                ? "run_user_profile_harness_install"
-                : "run_bootstrap_harness_install");
+            safeRepairs.Add(useSourceAuthoringBundleForReadOnlyInspection
+                ? "choose_user_profile_install_or_explicit_consumer_repo_install"
+                : options.InstallScope == InstallScope.UserProfile
+                    ? "run_user_profile_harness_install"
+                    : "run_bootstrap_harness_install");
         }
         if (!pluginManifestInspection.IdentityAligned)
         {
@@ -1825,7 +1895,7 @@ internal sealed class SetupEngine
                 ? "refresh_user_profile_plugin_identity"
                 : "refresh_repo_plugin_identity");
         }
-        if (!marketplaceInspection.MarketplaceIdentityAligned)
+        if (!marketplaceInspection.MarketplaceIdentityAligned && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
         {
             safeRepairs.Add(options.InstallScope == InstallScope.UserProfile
                 ? "refresh_user_profile_marketplace_identity"
@@ -1868,7 +1938,15 @@ internal sealed class SetupEngine
         var hasLockedBundleSurfaceSkip = missingComponents.Contains("locked_bundle_surface_write_skipped");
         var hasBlockingLegacySurface = legacyUserProfileInspection.LegacyCodexCustomMcpEntryPresent;
         var hasInstallStateStatusGap = options.Mode == OperationMode.Status && !installStateReport.state_valid;
-        var bootstrapState = !hasLockedBundleSurfaceSkip
+        var bootstrapState = blockSourceAuthoringConsumerWrite
+            ? "source_authoring_write_blocked"
+            : useSourceAuthoringBundleForReadOnlyInspection
+            && sourceAuthoringBundle.IsComplete
+            && !marketplaceRegistrationReady
+            && !hasLockedBundleSurfaceSkip
+            && !hasInstallStateStatusGap
+            ? "source_authoring_bundle_ready"
+            : !hasLockedBundleSurfaceSkip
             && marketplaceRegistrationReady
             && !hasBlockingLegacySurface
             && !hasInstallStateStatusGap
@@ -1884,10 +1962,14 @@ internal sealed class SetupEngine
 
         var nextAction = hasLockedBundleSurfaceSkip
             ? "release_runtime_lock_and_retry_install"
+            : blockSourceAuthoringConsumerWrite
+                ? "use_source_build_lane_or_user_profile_install"
             : hasBlockingLegacySurface
                 ? "inventory_legacy_home_install_and_run_user_profile_install"
             : hasInstallStateStatusGap
                 ? (installStateReport.state_present ? "rerun_install_to_refresh_install_state" : "run_install_to_write_install_state")
+            : bootstrapState == "source_authoring_bundle_ready"
+                ? "use_source_build_lane_or_user_profile_install"
             : bootstrapState switch
         {
             "ready" => "use_preflight_session",
@@ -1902,11 +1984,11 @@ internal sealed class SetupEngine
             workspaceRoot,
             pluginRoot,
             marketplacePath,
-            runtimePath,
-            pluginManifestPath,
-            mcpPath,
-            skillPath,
-            schemaManifestPath,
+            destinationRuntimePath,
+            destinationPluginManifestPath,
+            destinationMcpPath,
+            destinationSkillPath,
+            destinationSchemaManifestPath,
             updateSourceRoot);
 
         return new SetupResult
@@ -1924,6 +2006,10 @@ internal sealed class SetupEngine
             runtime_present = runtimeExists,
             marketplace_registered = marketplaceInspection.HasAnarchyPluginEntry,
             installed_by_default = marketplaceInspection.InstalledByDefault,
+            source_authoring_bundle_present = sourceAuthoringBundle.Present,
+            source_authoring_bundle_state = sourceAuthoringBundle.Present
+                ? sourceAuthoringBundle.State
+                : null,
             actions_taken = actionsTaken.ToArray(),
             missing_components = missingComponents.ToArray(),
             safe_repairs = safeRepairs.ToArray(),
@@ -2623,9 +2709,9 @@ internal sealed class SetupEngine
     }
 
     // Purpose: Builds the install-lane-specific plugin directory name used for filesystem materialization.
-    // Expected input: Install scope and optional repo root used for repo-local directory scoping.
-    // Expected output: The shared user-profile directory name or a repo-scoped local directory name with a stable path hash.
-    // Critical dependencies: GeneratedAnarchyPathCanon templates, NormalizeMarketplaceSlug, and SHA256 hashing.
+    // Expected input: Install scope and optional repo root retained for signature consistency.
+    // Expected output: The shared bundle directory name used beneath the selected install root.
+    // Critical dependencies: GeneratedAnarchyPathCanon templates.
     internal static string BuildPluginDirectoryName(InstallScope installScope, string? repoRoot)
     {
         if (installScope == InstallScope.UserProfile)
@@ -2633,18 +2719,7 @@ internal sealed class SetupEngine
             return GeneratedAnarchyPathCanon.DefaultPluginName;
         }
 
-        if (string.IsNullOrWhiteSpace(repoRoot))
-        {
-            return GeneratedAnarchyPathCanon.RepoScopedPluginDirectoryNameTemplate;
-        }
-
-        var repoName = new DirectoryInfo(repoRoot).Name;
-        var slug = NormalizeMarketplaceSlug(repoName);
-        var repoPathHash = SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(repoRoot).ToLowerInvariant()));
-        var suffix = Convert.ToHexString(repoPathHash.AsSpan(0, 4)).ToLowerInvariant();
-        return GeneratedAnarchyPathCanon.RepoScopedPluginDirectoryNameTemplate
-            .Replace("<repo-slug>", slug, StringComparison.Ordinal)
-            .Replace("<stable-path-hash>", suffix, StringComparison.Ordinal);
+        return GeneratedAnarchyPathCanon.RepoScopedPluginDirectoryNameTemplate;
     }
 
     // Purpose: Builds the marketplace-relative source.path used to point at the selected plugin directory.
@@ -2736,6 +2811,92 @@ internal sealed class SetupEngine
         return installScope == InstallScope.UserProfile
             ? AnarchyPathCanon.ResolveUserProfilePluginRoot(GetUserProfileDirectory(), BuildPluginDirectoryName(installScope, repoRoot))
             : AnarchyPathCanon.ResolveRepoLocalPluginRoot(repoRoot, BuildPluginDirectoryName(installScope, repoRoot));
+    }
+
+    // Purpose: Detects the AI-Links repo-authored plugin bundle when setup is assessing the source repo itself.
+    // Expected input: A workspace root that may be the AI-Links source repo.
+    // Expected output: A bounded inspection of plugins/anarchy-ai without treating it as a consumer install target.
+    // Critical dependencies: AnarchyPathCanon.RepoSourcePluginDirectoryRelativePath and the current bundle-surface contract.
+    internal static SourceAuthoringBundleInspection InspectSourceAuthoringBundle(string workspaceRoot)
+    {
+        if (string.IsNullOrWhiteSpace(workspaceRoot))
+        {
+            return SourceAuthoringBundleInspection.Empty;
+        }
+
+        if (!LooksLikeAnarchySourceRepo(workspaceRoot))
+        {
+            return SourceAuthoringBundleInspection.Empty;
+        }
+
+        var sourcePluginRoot = AnarchyPathCanon.ResolveSourcePluginDirectory(workspaceRoot);
+        if (!Directory.Exists(sourcePluginRoot))
+        {
+            return SourceAuthoringBundleInspection.Empty with { PluginRoot = sourcePluginRoot };
+        }
+
+        var pluginManifestExists = File.Exists(AnarchyPathCanon.ResolveBundleFilePath(sourcePluginRoot, AnarchyPathCanon.BundlePluginManifestFileRelativePath));
+        var mcpExists = File.Exists(AnarchyPathCanon.ResolveBundleFilePath(sourcePluginRoot, AnarchyPathCanon.BundleMcpFileRelativePath));
+        var runtimeExists = File.Exists(AnarchyPathCanon.ResolveBundleFilePath(sourcePluginRoot, AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath));
+        var skillExists = File.Exists(AnarchyPathCanon.ResolveBundleFilePath(sourcePluginRoot, AnarchyPathCanon.BundleSkillFileRelativePath));
+        var schemaManifestExists = File.Exists(AnarchyPathCanon.ResolveBundleFilePath(sourcePluginRoot, AnarchyPathCanon.BundleSchemaManifestFileRelativePath));
+        var missingContracts = CoreContractFiles
+            .Where(contractFile =>
+            {
+                var contractPath = AnarchyPathCanon.ResolveBundleFilePath(
+                    sourcePluginRoot,
+                    AnarchyPathCanon.CombineCanonRelativePath(AnarchyPathCanon.BundleContractsDirectoryRelativePath, contractFile));
+                return !File.Exists(contractPath);
+            })
+            .ToArray();
+        var experimentalContractExists = File.Exists(AnarchyPathCanon.ResolveBundleFilePath(
+            sourcePluginRoot,
+            AnarchyPathCanon.CombineCanonRelativePath(AnarchyPathCanon.BundleContractsDirectoryRelativePath, ExperimentalDirectionAssistContract)));
+        var markerPresent = pluginManifestExists || mcpExists || runtimeExists || skillExists || schemaManifestExists || missingContracts.Length < CoreContractFiles.Length;
+
+        return new SourceAuthoringBundleInspection(
+            Present: markerPresent,
+            PluginRoot: sourcePluginRoot,
+            PluginManifestExists: pluginManifestExists,
+            McpExists: mcpExists,
+            RuntimeExists: runtimeExists,
+            SkillExists: skillExists,
+            SchemaManifestExists: schemaManifestExists,
+            MissingCoreContracts: missingContracts,
+            ExperimentalContractExists: experimentalContractExists);
+    }
+
+    // Purpose: Keeps source-authoring detection read-only so AI-Links does not become its own consumer install by accident.
+    // Expected input: Setup options and source bundle inspection facts.
+    // Expected output: True only for repo-local assess/status runs against a repo-authored source bundle.
+    // Critical dependencies: the AI-Links authoring boundary in AGENTS.md and source-bundle path canon.
+    private static bool ShouldInspectSourceAuthoringBundle(SetupOptions options, SourceAuthoringBundleInspection sourceAuthoringBundle)
+    {
+        return options.InstallScope == InstallScope.RepoLocal
+            && (options.Mode == OperationMode.Assess || options.Mode == OperationMode.Status)
+            && sourceAuthoringBundle.Present;
+    }
+
+    // Purpose: Blocks repo-local install/update from overwriting AI-Links' source-authored plugin bundle.
+    // Expected input: Setup options and source-authoring detection facts.
+    // Expected output: True when a write operation should return bounded guidance instead of mutating source truth.
+    // Critical dependencies: LooksLikeAnarchySourceRepo and the plain repo-local plugins/anarchy-ai destination path.
+    private static bool ShouldBlockSourceAuthoringConsumerWrite(SetupOptions options, SourceAuthoringBundleInspection sourceAuthoringBundle)
+    {
+        return options.InstallScope == InstallScope.RepoLocal
+            && (options.Mode == OperationMode.Install || options.Mode == OperationMode.Update)
+            && sourceAuthoringBundle.Present;
+    }
+
+    // Purpose: Distinguishes the AI-Links source repo from a consumer repo that has a plain plugins/anarchy-ai installed bundle.
+    // Expected input: Candidate workspace root.
+    // Expected output: True only when repo-authored harness/source markers are present.
+    // Critical dependencies: source-authoring boundary and stable source tree markers.
+    private static bool LooksLikeAnarchySourceRepo(string workspaceRoot)
+    {
+        return File.Exists(Path.Combine(workspaceRoot, "harness", "setup", "dotnet", "AnarchyAi.Setup.csproj"))
+            && File.Exists(Path.Combine(workspaceRoot, "harness", "server", "dotnet", "AnarchyAi.Mcp.Server.csproj"))
+            && File.Exists(Path.Combine(workspaceRoot, "docs", "README_ai_links.md"));
     }
 
     // Purpose: Resolves the marketplace file path for the selected install lane.
@@ -2861,6 +3022,9 @@ internal sealed class SetupEngine
     {
         var statePath = ResolveInstallStatePath(pluginRoot);
         Directory.CreateDirectory(Path.GetDirectoryName(statePath)!);
+        var installScopeLabel = BuildInstallScopeJsonLabel(options.InstallScope);
+        var targetRoot = ResolveInstallTargetRoot(options.InstallScope, workspaceRoot);
+        var workspaceSchemaTargeted = !string.IsNullOrWhiteSpace(workspaceRoot);
 
         var sourceKind = options.Mode == OperationMode.Update
             ? string.IsNullOrWhiteSpace(options.UpdateSourcePath)
@@ -2868,14 +3032,53 @@ internal sealed class SetupEngine
                 : "local_update_source"
             : "embedded_payload";
 
+        var target = new JsonObject
+        {
+            ["id"] = BuildInstallTargetId(options.InstallScope, normalizedHostContext),
+            ["kind"] = options.InstallScope == InstallScope.UserProfile ? "home" : "project",
+            ["root"] = targetRoot,
+            ["install_state_path"] = statePath,
+            ["plugin_root"] = pluginRoot,
+            ["marketplace_path"] = marketplacePath,
+            ["marketplace_plugin_source"] = BuildPluginRelativePath(options.InstallScope, workspaceRoot),
+            ["mcp_server_name"] = BuildMcpServerName(),
+            ["runtime_path"] = runtimePath,
+            ["runtime_relative_path"] = AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath
+        };
+
+        var workspace = new JsonObject
+        {
+            ["root"] = workspaceRoot,
+            ["schema_targeted"] = workspaceSchemaTargeted,
+            ["schema_refresh_requested"] = options.RefreshPortableSchemaFamily
+        };
+
+        var source = new JsonObject
+        {
+            ["kind"] = sourceKind,
+            ["root"] = updateSourceRoot,
+            ["schema_claim"] = "schemas_describe_route_shape_but_setup_records_materialized_state"
+        };
+
         var document = new JsonObject
         {
             ["schema_version"] = InstallStateSchemaVersion,
             ["written_at_utc"] = DateTimeOffset.UtcNow.ToString("O"),
             ["setup_operation"] = BuildSetupOperationLabel(options.Mode),
-            ["install_scope"] = BuildInstallScopeJsonLabel(options.InstallScope),
+            ["install_scope"] = installScopeLabel,
             ["host_context"] = normalizedHostContext,
             ["host_targets"] = CreateJsonStringArray(HostTargetLabels.ToLabelArray(options.HostTargets)),
+            ["target"] = target,
+            ["workspace"] = workspace,
+            ["source"] = source,
+            ["managed_operations"] = BuildInstallStateManagedOperations(
+                options,
+                workspaceRoot,
+                pluginRoot,
+                marketplacePath,
+                runtimePath,
+                statePath),
+            // Legacy flat fields remain for older readers, but v2 validation uses target/workspace separation.
             ["workspace_root"] = workspaceRoot,
             ["plugin_name"] = BuildPluginName(options.InstallScope, workspaceRoot),
             ["plugin_directory_name"] = BuildPluginDirectoryName(options.InstallScope, workspaceRoot),
@@ -2895,11 +3098,136 @@ internal sealed class SetupEngine
         actionsTaken.Add("wrote_install_state");
     }
 
+    // Purpose: Names the install target independently from any workspace/schema target.
+    // Expected input: Install scope plus normalized host context.
+    // Expected output: Stable target adapter-style id for lifecycle records.
+    // Critical dependencies: The ECC-inspired target/workspace separation in install-state v2.
+    private static string BuildInstallTargetId(InstallScope installScope, string normalizedHostContext)
+    {
+        return installScope == InstallScope.UserProfile
+            ? $"{normalizedHostContext}-user-profile"
+            : $"{normalizedHostContext}-repo-local";
+    }
+
+    // Purpose: Resolves the root whose identity owns the install state.
+    // Expected input: Install scope and optional workspace root.
+    // Expected output: User-profile root for home installs, workspace root for repo-local installs.
+    // Critical dependencies: User-profile state must not become invalid merely because a different repo is being assessed.
+    private static string ResolveInstallTargetRoot(InstallScope installScope, string workspaceRoot)
+    {
+        return installScope == InstallScope.UserProfile
+            ? GetUserProfileDirectory()
+            : workspaceRoot;
+    }
+
+    // Purpose: Records the surfaces setup owns so status/doctor/repair can become operation-based instead of guess-based.
+    // Expected input: Resolved install paths and optional workspace target.
+    // Expected output: JSON operation records modeled after ECC's managed-operation install-state discipline.
+    // Critical dependencies: Plugin bundle surface constants, marketplace registration shape, and portable schema seeding rules.
+    private static JsonArray BuildInstallStateManagedOperations(
+        SetupOptions options,
+        string workspaceRoot,
+        string pluginRoot,
+        string marketplacePath,
+        string runtimePath,
+        string statePath)
+    {
+        var operations = new JsonArray
+        {
+            CreateInstallStateOperation(
+                "materialize_plugin_bundle",
+                "plugin_bundle",
+                pluginRoot,
+                "copy_embedded_payload",
+                "managed"),
+            CreateInstallStateOperation(
+                "write_plugin_manifest_identity",
+                "codex_plugin_manifest",
+                AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundlePluginManifestFileRelativePath),
+                "write_json",
+                "managed"),
+            CreateInstallStateOperation(
+                "write_mcp_server_identity",
+                "mcp_declaration",
+                AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleMcpFileRelativePath),
+                "write_json",
+                "managed"),
+            CreateInstallStateOperation(
+                "materialize_runtime",
+                "mcp_runtime",
+                runtimePath,
+                "copy_embedded_payload",
+                "managed"),
+            CreateInstallStateOperation(
+                "write_install_state",
+                "install_state",
+                statePath,
+                "write_json",
+                "managed")
+        };
+
+        if (options.HostTargets.HasFlag(HostTargets.Codex))
+        {
+            operations.Add(CreateInstallStateOperation(
+                "register_marketplace_entry",
+                "marketplace_registration",
+                marketplacePath,
+                "merge_json",
+                "managed"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(workspaceRoot))
+        {
+            var ownership = options.RefreshPortableSchemaFamily ? "managed" : "seed_if_missing";
+            foreach (var schemaFile in PortableSchemaFiles)
+            {
+                operations.Add(CreateInstallStateOperation(
+                    options.RefreshPortableSchemaFamily ? "refresh_portable_schema" : "seed_portable_schema_if_missing",
+                    "portable_schema_family",
+                    Path.Combine(workspaceRoot, schemaFile),
+                    options.RefreshPortableSchemaFamily ? "copy_embedded_payload" : "copy_if_missing",
+                    ownership,
+                    schemaFile));
+            }
+        }
+
+        return operations;
+    }
+
+    // Purpose: Builds one managed-operation record for install-state v2.
+    // Expected input: Operation role, destination path, strategy, ownership, and optional source-relative path.
+    // Expected output: JSON operation record.
+    // Critical dependencies: Install-state readers that count or later replay managed operations.
+    private static JsonObject CreateInstallStateOperation(
+        string kind,
+        string surface,
+        string destinationPath,
+        string strategy,
+        string ownership,
+        string sourceRelativePath = "")
+    {
+        var operation = new JsonObject
+        {
+            ["kind"] = kind,
+            ["surface"] = surface,
+            ["destination_path"] = destinationPath,
+            ["strategy"] = strategy,
+            ["ownership"] = ownership
+        };
+
+        if (!string.IsNullOrWhiteSpace(sourceRelativePath))
+        {
+            operation["source_relative_path"] = sourceRelativePath;
+        }
+
+        return operation;
+    }
+
     // Purpose: Reads setup lifecycle state and compares recorded intent against observed destination paths.
     // Expected input: Current setup lane and resolved destination facts.
     // Expected output: An InstallStateReport with bounded findings rather than inferred plugin-trust claims.
     // Critical dependencies: ResolveInstallStatePath, setup install-state JSON fields, and path comparison rules.
-    private static InstallStateReport InspectInstallState(
+    internal static InstallStateReport InspectInstallState(
         SetupOptions options,
         string normalizedHostContext,
         string workspaceRoot,
@@ -2910,6 +3238,7 @@ internal sealed class SetupEngine
     {
         var statePath = ResolveInstallStatePath(pluginRoot);
         var findings = new List<string>();
+        var warnings = new List<string>();
 
         if (!File.Exists(statePath))
         {
@@ -2921,7 +3250,8 @@ internal sealed class SetupEngine
                 state_present = false,
                 state_written = stateWritten,
                 state_valid = false,
-                findings = findings.ToArray()
+                findings = findings.ToArray(),
+                warnings = warnings.ToArray()
             };
         }
 
@@ -2940,7 +3270,8 @@ internal sealed class SetupEngine
                 state_present = true,
                 state_written = stateWritten,
                 state_valid = false,
-                findings = findings.ToArray()
+                findings = findings.ToArray(),
+                warnings = warnings.ToArray()
             };
         }
 
@@ -2954,18 +3285,68 @@ internal sealed class SetupEngine
                 state_present = true,
                 state_written = stateWritten,
                 state_valid = false,
-                findings = findings.ToArray()
+                findings = findings.ToArray(),
+                warnings = warnings.ToArray()
             };
         }
 
         var schemaVersion = ReadJsonString(state, "schema_version");
         var recordedInstallScope = ReadJsonString(state, "install_scope");
         var recordedHostContext = ReadJsonString(state, "host_context");
-        var recordedWorkspaceRoot = ReadJsonString(state, "workspace_root");
-        var recordedPluginRoot = ReadJsonString(state, "plugin_root");
-        var recordedMarketplacePath = ReadJsonString(state, "marketplace_path");
-        var recordedRuntimePath = ReadJsonString(state, "runtime_path");
-        var recordedMcpServerName = ReadJsonString(state, "mcp_server_name");
+        var recordedTargetId = ReadNestedJsonString(state, "target", "id");
+        var recordedTargetKind = ReadNestedJsonString(state, "target", "kind");
+        var recordedTargetRoot = ReadNestedJsonString(state, "target", "root");
+        var recordedInstallStatePath = ReadNestedJsonString(state, "target", "install_state_path");
+        var recordedWorkspaceRoot = ReadNestedJsonString(state, "workspace", "root");
+        var recordedWorkspaceSchemaTargeted = ReadNestedJsonBool(state, "workspace", "schema_targeted");
+        var recordedPluginRoot = ReadNestedJsonString(state, "target", "plugin_root");
+        var recordedMarketplacePath = ReadNestedJsonString(state, "target", "marketplace_path");
+        var recordedRuntimePath = ReadNestedJsonString(state, "target", "runtime_path");
+        var recordedMcpServerName = ReadNestedJsonString(state, "target", "mcp_server_name");
+        var recordedManagedOperationCount = state["managed_operations"] is JsonArray operations
+            ? operations.Count
+            : (int?)null;
+
+        if (string.IsNullOrWhiteSpace(recordedWorkspaceRoot))
+        {
+            recordedWorkspaceRoot = ReadJsonString(state, "workspace_root");
+        }
+        if (string.IsNullOrWhiteSpace(recordedPluginRoot))
+        {
+            recordedPluginRoot = ReadJsonString(state, "plugin_root");
+        }
+        if (string.IsNullOrWhiteSpace(recordedMarketplacePath))
+        {
+            recordedMarketplacePath = ReadJsonString(state, "marketplace_path");
+        }
+        if (string.IsNullOrWhiteSpace(recordedRuntimePath))
+        {
+            recordedRuntimePath = ReadJsonString(state, "runtime_path");
+        }
+        if (string.IsNullOrWhiteSpace(recordedMcpServerName))
+        {
+            recordedMcpServerName = ReadJsonString(state, "mcp_server_name");
+        }
+        if (string.IsNullOrWhiteSpace(recordedTargetRoot))
+        {
+            recordedTargetRoot = options.InstallScope == InstallScope.UserProfile
+                ? GetUserProfileDirectory()
+                : recordedWorkspaceRoot;
+        }
+        if (string.IsNullOrWhiteSpace(recordedTargetKind))
+        {
+            recordedTargetKind = options.InstallScope == InstallScope.UserProfile ? "home" : "project";
+        }
+        if (string.IsNullOrWhiteSpace(recordedTargetId))
+        {
+            recordedTargetId = BuildInstallTargetId(
+                options.InstallScope,
+                string.IsNullOrWhiteSpace(recordedHostContext) ? normalizedHostContext : recordedHostContext);
+        }
+        if (string.IsNullOrWhiteSpace(recordedInstallStatePath))
+        {
+            recordedInstallStatePath = statePath;
+        }
 
         if (!string.Equals(schemaVersion, InstallStateSchemaVersion, StringComparison.Ordinal))
         {
@@ -2977,9 +3358,25 @@ internal sealed class SetupEngine
             findings.Add("install_state_scope_mismatch");
         }
 
-        if (!PathStringsMatch(recordedWorkspaceRoot, workspaceRoot))
+        var expectedTargetRoot = ResolveInstallTargetRoot(options.InstallScope, workspaceRoot);
+        if (!PathStringsMatch(recordedTargetRoot, expectedTargetRoot))
+        {
+            findings.Add("install_state_target_root_mismatch");
+        }
+
+        if (!PathStringsMatch(recordedInstallStatePath, statePath))
+        {
+            findings.Add("install_state_path_mismatch");
+        }
+
+        if (options.InstallScope == InstallScope.RepoLocal && !PathStringsMatch(recordedWorkspaceRoot, workspaceRoot))
         {
             findings.Add("install_state_workspace_root_mismatch");
+        }
+        else if (options.InstallScope == InstallScope.UserProfile
+                 && !PathStringsMatch(recordedWorkspaceRoot, workspaceRoot))
+        {
+            warnings.Add("last_workspace_target_differs_from_current_request");
         }
 
         if (!PathStringsMatch(recordedPluginRoot, pluginRoot))
@@ -3010,15 +3407,22 @@ internal sealed class SetupEngine
             state_written = stateWritten,
             state_valid = findings.Count == 0,
             findings = findings.ToArray(),
+            warnings = warnings.ToArray(),
             recorded_at_utc = ReadJsonString(state, "written_at_utc"),
             recorded_install_scope = recordedInstallScope,
             recorded_host_context = string.IsNullOrWhiteSpace(recordedHostContext) ? normalizedHostContext : recordedHostContext,
             recorded_host_targets = ReadJsonStringArray(state, "host_targets"),
+            recorded_target_id = recordedTargetId,
+            recorded_target_kind = recordedTargetKind,
+            recorded_target_root = recordedTargetRoot,
             recorded_workspace_root = recordedWorkspaceRoot,
+            recorded_workspace_schema_targeted = recordedWorkspaceSchemaTargeted,
             recorded_plugin_root = recordedPluginRoot,
             recorded_marketplace_path = recordedMarketplacePath,
+            recorded_install_state_path = recordedInstallStatePath,
             recorded_runtime_path = recordedRuntimePath,
-            recorded_mcp_server_name = recordedMcpServerName
+            recorded_mcp_server_name = recordedMcpServerName,
+            recorded_managed_operation_count = recordedManagedOperationCount
         };
     }
 
@@ -3052,6 +3456,33 @@ internal sealed class SetupEngine
         return state[key] is JsonValue value && value.TryGetValue<string>(out var text)
             ? text
             : string.Empty;
+    }
+
+    // Purpose: Reads a string field from a nested JSON object without throwing on legacy or malformed state files.
+    // Expected input: JSON object plus object key and nested field key.
+    // Expected output: Field value or empty string.
+    // Critical dependencies: install-state v2 target/workspace/source object shape.
+    private static string ReadNestedJsonString(JsonObject state, string objectKey, string key)
+    {
+        return state[objectKey] is JsonObject nested
+            ? ReadJsonString(nested, key)
+            : string.Empty;
+    }
+
+    // Purpose: Reads a nullable bool from a nested JSON object without throwing on legacy or malformed state files.
+    // Expected input: JSON object plus object key and nested field key.
+    // Expected output: True/false when present and well-shaped; otherwise null.
+    // Critical dependencies: install-state v2 workspace object shape.
+    private static bool? ReadNestedJsonBool(JsonObject state, string objectKey, string key)
+    {
+        if (state[objectKey] is not JsonObject nested ||
+            nested[key] is not JsonValue value ||
+            !value.TryGetValue<bool>(out var booleanValue))
+        {
+            return null;
+        }
+
+        return booleanValue;
     }
 
     // Purpose: Reads a string-array field from a JsonObject without throwing on absent or wrong-shaped fields.
@@ -3129,7 +3560,7 @@ internal sealed class SetupEngine
         string schemaManifestPath,
         string updateSourceRoot)
     {
-        var origin = BuildSetupOriginRoleReport(options, updateSourceRoot);
+        var origin = BuildSetupOriginRoleReport(options, workspaceRoot, updateSourceRoot);
         var source = BuildSetupSourceRoleReport(options, workspaceRoot, pluginRoot, updateSourceRoot);
         var destination = BuildSetupDestinationRoleReport(
             options,
@@ -3149,8 +3580,24 @@ internal sealed class SetupEngine
     // Expected input: Setup options and the resolved update-source root.
     // Expected output: A path-role report for the repo-authored update source, or null when no update source applies.
     // Critical dependencies: AnarchyPathCanon source-path helpers and the update-source contract.
-    private static PathRoleReport? BuildSetupOriginRoleReport(SetupOptions options, string updateSourceRoot)
+    private static PathRoleReport? BuildSetupOriginRoleReport(SetupOptions options, string workspaceRoot, string updateSourceRoot)
     {
+        if (string.IsNullOrWhiteSpace(updateSourceRoot)
+            && ShouldInspectSourceAuthoringBundle(options, InspectSourceAuthoringBundle(workspaceRoot)))
+        {
+            var workspaceSourcePluginDirectoryPath = AnarchyPathCanon.ResolveSourcePluginDirectory(workspaceRoot);
+            return AnarchyPathCanon.CreateRoleReport(
+                rootPath: workspaceRoot,
+                directories:
+                [
+                    CreatePathEntry("plugin_source_directory_path", workspaceSourcePluginDirectoryPath)
+                ],
+                relative:
+                [
+                    CreatePathEntry("plugin_source_directory_relative_path", AnarchyPathCanon.RepoSourcePluginDirectoryRelativePath)
+                ]);
+        }
+
         if (string.IsNullOrWhiteSpace(updateSourceRoot))
         {
             return null;
@@ -3199,6 +3646,38 @@ internal sealed class SetupEngine
                 relative:
                 [
                     CreatePathEntry("plugin_source_directory_relative_path", AnarchyPathCanon.RepoSourcePluginDirectoryRelativePath)
+                ])!;
+        }
+
+        var sourceAuthoringBundle = InspectSourceAuthoringBundle(workspaceRoot);
+        if (ShouldInspectSourceAuthoringBundle(options, sourceAuthoringBundle))
+        {
+            return AnarchyPathCanon.CreateRoleReport(
+                rootPath: sourceAuthoringBundle.PluginRoot,
+                directories:
+                [
+                    CreatePathEntry("contracts_directory_path", AnarchyPathCanon.ResolveBundleFilePath(sourceAuthoringBundle.PluginRoot, AnarchyPathCanon.BundleContractsDirectoryRelativePath)),
+                    CreatePathEntry("runtime_directory_path", AnarchyPathCanon.ResolveBundleFilePath(sourceAuthoringBundle.PluginRoot, AnarchyPathCanon.BundleRuntimeDirectoryRelativePath)),
+                    CreatePathEntry("schemas_directory_path", AnarchyPathCanon.ResolveBundleFilePath(sourceAuthoringBundle.PluginRoot, AnarchyPathCanon.BundleSchemasDirectoryRelativePath)),
+                    CreatePathEntry("scripts_directory_path", AnarchyPathCanon.ResolveBundleFilePath(sourceAuthoringBundle.PluginRoot, AnarchyPathCanon.BundleScriptsDirectoryRelativePath)),
+                    CreatePathEntry("skill_directory_path", AnarchyPathCanon.ResolveBundleFilePath(sourceAuthoringBundle.PluginRoot, AnarchyPathCanon.BundleSkillDirectoryRelativePath))
+                ],
+                files:
+                [
+                    CreatePathEntry("plugin_manifest_file_path", AnarchyPathCanon.ResolveBundleFilePath(sourceAuthoringBundle.PluginRoot, AnarchyPathCanon.BundlePluginManifestFileRelativePath)),
+                    CreatePathEntry("mcp_declaration_file_path", AnarchyPathCanon.ResolveBundleFilePath(sourceAuthoringBundle.PluginRoot, AnarchyPathCanon.BundleMcpFileRelativePath)),
+                    CreatePathEntry("runtime_executable_file_path", AnarchyPathCanon.ResolveBundleFilePath(sourceAuthoringBundle.PluginRoot, AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath)),
+                    CreatePathEntry("schema_manifest_file_path", AnarchyPathCanon.ResolveBundleFilePath(sourceAuthoringBundle.PluginRoot, AnarchyPathCanon.BundleSchemaManifestFileRelativePath)),
+                    CreatePathEntry("skill_file_path", AnarchyPathCanon.ResolveBundleFilePath(sourceAuthoringBundle.PluginRoot, AnarchyPathCanon.BundleSkillFileRelativePath))
+                ],
+                relative:
+                [
+                    CreatePathEntry("plugin_source_directory_relative_path", AnarchyPathCanon.RepoSourcePluginDirectoryRelativePath),
+                    CreatePathEntry("plugin_manifest_file_relative_path", AnarchyPathCanon.BundlePluginManifestFileRelativePath),
+                    CreatePathEntry("mcp_declaration_file_relative_path", AnarchyPathCanon.BundleMcpFileRelativePath),
+                    CreatePathEntry("runtime_executable_file_relative_path", AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath),
+                    CreatePathEntry("schema_manifest_file_relative_path", AnarchyPathCanon.BundleSchemaManifestFileRelativePath),
+                    CreatePathEntry("skill_file_relative_path", AnarchyPathCanon.BundleSkillFileRelativePath)
                 ])!;
         }
 
@@ -3680,6 +4159,44 @@ internal sealed record LegacyUserProfileInspection(
     string[] Findings)
 {
     public bool HasLegacySurface => LegacyPluginRootPresent || LegacyCodexCustomMcpEntryPresent;
+}
+
+// Purpose: Summarizes the repo-authored plugin bundle when the setup executable is run from the AI-Links source repo.
+// Expected input: Filesystem evidence under plugins/anarchy-ai.
+// Expected output: Immutable source-bundle facts that stay separate from consumer install-state evidence.
+// Critical dependencies: source-authoring boundary and the current embedded plugin-bundle surface list.
+internal sealed record SourceAuthoringBundleInspection(
+    bool Present,
+    string PluginRoot,
+    bool PluginManifestExists,
+    bool McpExists,
+    bool RuntimeExists,
+    bool SkillExists,
+    bool SchemaManifestExists,
+    string[] MissingCoreContracts,
+    bool ExperimentalContractExists)
+{
+    public static SourceAuthoringBundleInspection Empty { get; } = new(
+        Present: false,
+        PluginRoot: string.Empty,
+        PluginManifestExists: false,
+        McpExists: false,
+        RuntimeExists: false,
+        SkillExists: false,
+        SchemaManifestExists: false,
+        MissingCoreContracts: [],
+        ExperimentalContractExists: false);
+
+    public bool IsComplete =>
+        Present
+        && PluginManifestExists
+        && McpExists
+        && RuntimeExists
+        && SkillExists
+        && SchemaManifestExists
+        && MissingCoreContracts.Length == 0;
+
+    public string State => IsComplete ? "complete" : Present ? "partial" : "absent";
 }
 
 // Purpose: Exposes the embedded plugin bundle and portable-schema payload resources carried by the setup executable.

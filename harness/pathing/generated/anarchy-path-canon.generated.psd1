@@ -1,9 +1,9 @@
-﻿@{
+@{
   version = '0.1.0'
   names = @{
     default_plugin_name = 'anarchy-ai'
-    repo_scoped_marketplace_name_template = 'anarchy-ai-local-<repo-slug>'
-    repo_scoped_plugin_directory_name_template = 'anarchy-ai-local-<repo-slug>-<stable-path-hash>'
+    repo_scoped_marketplace_name_template = 'anarchy-ai-repo-<repo-slug>'
+    repo_scoped_plugin_directory_name_template = 'anarchy-ai'
     runtime_executable_file_name = 'AnarchyAi.Mcp.Server.exe'
     setup_executable_file_name = 'AnarchyAi.Setup.exe'
     user_profile_marketplace_name = 'anarchy-ai-user-profile'
@@ -12,6 +12,9 @@
     bundle_assets_directory_relative_path = 'assets'
     bundle_contracts_directory_relative_path = 'contracts'
     bundle_mcp_file_relative_path = '.mcp.json'
+    bundle_narrative_record_template_file_relative_path = 'templates/narratives/record.template.json'
+    bundle_narrative_register_template_file_relative_path = 'templates/narratives/register.template.json'
+    bundle_narrative_templates_directory_relative_path = 'templates/narratives'
     bundle_pathing_directory_relative_path = 'pathing'
     bundle_pathing_psd1_file_relative_path = 'pathing/anarchy-path-canon.generated.psd1'
     bundle_plugin_manifest_file_relative_path = '.codex-plugin/plugin.json'
@@ -24,6 +27,7 @@
     bundle_scripts_directory_relative_path = 'scripts'
     bundle_skill_directory_relative_path = 'skills/anarchy-ai-harness'
     bundle_skill_file_relative_path = 'skills/anarchy-ai-harness/SKILL.md'
+    bundle_templates_directory_relative_path = 'templates'
     bundle_terms_file_relative_path = 'TERMS.md'
     legacy_user_profile_plugin_parent_directory_relative_path = 'plugins'
     portable_schema_payload_directory_relative_path = 'portable-schema'
@@ -84,6 +88,7 @@
       'anarchy-user-profile'
     )
     owned_marketplace_name_prefixes = @(
+      'anarchy-ai-repo-'
       'anarchy-ai-local-'
       'anarchy-ai-herringms-local-'
       'anarchy-local-'
@@ -111,6 +116,7 @@
       'schemas'
       'scripts'
       'skills'
+      'templates'
       '.mcp.json'
       'README.md'
       'PRIVACY.md'

@@ -145,9 +145,9 @@
     ],
     "paths": {
       "source": {
-        "root_path": "C:\\path\\to\\workspace\\plugins\\anarchy-ai-<repo-slug>-<stable-path-hash>",
+        "root_path": "C:\\path\\to\\workspace\\plugins\\anarchy-ai",
         "files": {
-          "runtime_executable_file_path": "C:\\path\\to\\workspace\\plugins\\anarchy-ai-<repo-slug>-<stable-path-hash>\\<bundle-runtime-executable-file>"
+          "runtime_executable_file_path": "C:\\path\\to\\workspace\\plugins\\anarchy-ai\\<bundle-runtime-executable-file>"
         },
         "relative": {
           "runtime_executable_file_relative_path": "<bundle-runtime-executable-relative-path>"

@@ -114,6 +114,14 @@ internal static class AnarchyPathCanon
 
     public static string BundlePathingPsd1FileRelativePath => GeneratedAnarchyPathCanon.BundlePathingPsd1FileRelativePath;
 
+    public static string BundleTemplatesDirectoryRelativePath => GeneratedAnarchyPathCanon.BundleTemplatesDirectoryRelativePath;
+
+    public static string BundleNarrativeTemplatesDirectoryRelativePath => GeneratedAnarchyPathCanon.BundleNarrativeTemplatesDirectoryRelativePath;
+
+    public static string BundleNarrativeRegisterTemplateFileRelativePath => GeneratedAnarchyPathCanon.BundleNarrativeRegisterTemplateFileRelativePath;
+
+    public static string BundleNarrativeRecordTemplateFileRelativePath => GeneratedAnarchyPathCanon.BundleNarrativeRecordTemplateFileRelativePath;
+
     public static string UserProfileInstallRootDirectoryRelativePath => GeneratedAnarchyPathCanon.UserProfileInstallRootDirectoryRelativePath;
 
     public static string UserProfilePluginParentDirectoryRelativePath => GeneratedAnarchyPathCanon.UserProfilePluginParentDirectoryRelativePath;

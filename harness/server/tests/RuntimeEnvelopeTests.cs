@@ -190,6 +190,53 @@ public sealed class RuntimeEnvelopeTests
         Assert.Equal("presence_only_workspace_specific_divergence_expected", agentsEntry.GetProperty("hash_mode").GetString());
         Assert.False(agentsEntry.TryGetProperty("observed_sha256", out _));
         Assert.False(agentsEntry.TryGetProperty("expected_sha256", out _));
+
+        var narrativeArc = inventory.GetProperty("narrative_arc_structure");
+        var narrativeRegister = narrativeArc.GetProperty("register");
+        Assert.Equal(".agents/anarchy-ai/narratives/register.json", narrativeRegister.GetProperty("path").GetString());
+        Assert.Equal("missing", narrativeRegister.GetProperty("presence_state").GetString());
+        Assert.Equal("planned_to_deliver", narrativeRegister.GetProperty("delivery_plan_state").GetString());
+        Assert.Equal("presence_only_workspace_specific_narrative_expected_to_diverge", narrativeArc.GetProperty("hash_mode").GetString());
+    }
+
+    /// <summary>
+    /// Confirms that gov2gov non-destructive apply seeds the minimal narrative register and projects directory when the narrative schema travels with a consumer workspace.
+    /// </summary>
+    /// <remarks>Critical dependencies: AGENTS-schema-narrative carrying register templates and gov2gov non-destructive apply behavior.</remarks>
+    [Fact]
+    public void Gov2GovMigration_NonDestructiveApplySeedsNarrativeArcSurfaces()
+    {
+        using var workspace = TempWorkspace.Create();
+        WritePlaceholderFiles(workspace.Path, GovernedAgentsFiles);
+        var runner = new Gov2GovMigrationRunner(new SchemaRealityInspector());
+
+        var result = runner.Run(
+            workspace.Path,
+            "AGENTS-schema-family",
+            "copied_only",
+            ["schema_files_present_without_materialization"],
+            null,
+            "non_destructive_apply");
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(result));
+        var root = document.RootElement;
+        var actionsTaken = root.GetProperty("actions_taken").EnumerateArray().Select(item => item.GetString()).ToArray();
+
+        Assert.Contains("seeded_narrative_register:.agents/anarchy-ai/narratives/register.json", actionsTaken);
+        Assert.Contains("created_narrative_projects_directory:.agents/anarchy-ai/narratives/projects", actionsTaken);
+
+        var registerPath = Path.Combine(workspace.Path, ".agents", "anarchy-ai", "narratives", "register.json");
+        using var register = JsonDocument.Parse(File.ReadAllText(registerPath));
+        Assert.True(register.RootElement.TryGetProperty("records", out var records));
+        Assert.Equal(JsonValueKind.Array, records.ValueKind);
+        Assert.True(Directory.Exists(Path.Combine(workspace.Path, ".agents", "anarchy-ai", "narratives", "projects")));
+
+        var narrativeRegister = root
+            .GetProperty("post_migration_inventory")
+            .GetProperty("narrative_arc_structure")
+            .GetProperty("register");
+        Assert.Equal("present", narrativeRegister.GetProperty("presence_state").GetString());
+        Assert.Equal("delivered_this_run", narrativeRegister.GetProperty("delivery_plan_state").GetString());
     }
 
     /// <summary>

@@ -68,9 +68,14 @@ function Write-IfChanged {
     New-Item -ItemType Directory -Path $directory -Force | Out-Null
   }
 
+  if (-not $Content.EndsWith("`n", [System.StringComparison]::Ordinal)) {
+    $Content += [Environment]::NewLine
+  }
+
   $existing = if (Test-Path $Path) { Get-Content $Path -Raw } else { '' }
   if (-not [string]::Equals($existing, $Content, [System.StringComparison]::Ordinal)) {
-    Set-Content -Path $Path -Value $Content -Encoding UTF8
+    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllText($Path, $Content, $utf8NoBom)
   }
 }
 
@@ -84,6 +89,10 @@ $authorUrl = [string]$canon.metadata.author_url
 $homepageUrl = [string]$canon.metadata.homepage_url
 $repositoryUrl = [string]$canon.metadata.repository_url
 $developerName = [string]$canon.metadata.developer_name
+$pluginManifestVersion = [string]$canon.metadata.plugin_manifest_version
+if ([string]::IsNullOrWhiteSpace($pluginManifestVersion)) {
+  throw "Branding canon metadata.plugin_manifest_version is required so Codex cache invalidation is release-explicit."
+}
 $privacyPolicyUrl = [string]$canon.metadata.privacy_policy_url
 $termsOfServiceUrl = [string]$canon.metadata.terms_of_service_url
 $defaultUpdateSourceZipUrl = [string]$canon.metadata.default_update_source_zip_url
@@ -118,6 +127,7 @@ internal static class GeneratedAnarchyBranding
     public const string HomepageUrl = "$(Convert-ToCSharpStringLiteral $homepageUrl)";
     public const string RepositoryUrl = "$(Convert-ToCSharpStringLiteral $repositoryUrl)";
     public const string DeveloperName = "$(Convert-ToCSharpStringLiteral $developerName)";
+    public const string PluginManifestVersion = "$(Convert-ToCSharpStringLiteral $pluginManifestVersion)";
     public const string PrivacyPolicyUrl = "$(Convert-ToCSharpStringLiteral $privacyPolicyUrl)";
     public const string TermsOfServiceUrl = "$(Convert-ToCSharpStringLiteral $termsOfServiceUrl)";
     public const string DefaultUpdateSourceZipUrl = "$(Convert-ToCSharpStringLiteral $defaultUpdateSourceZipUrl)";
@@ -157,6 +167,7 @@ $psd1 = @"
     homepage_url = '$homepageUrl'
     repository_url = '$repositoryUrl'
     developer_name = '$developerName'
+    plugin_manifest_version = '$pluginManifestVersion'
     privacy_policy_url = '$privacyPolicyUrl'
     terms_of_service_url = '$termsOfServiceUrl'
     default_update_source_zip_url = '$defaultUpdateSourceZipUrl'
@@ -198,6 +209,7 @@ $props = @"
     <AnarchyBrandingHomepageUrl>$(Convert-ToXmlText $homepageUrl)</AnarchyBrandingHomepageUrl>
     <AnarchyBrandingRepositoryUrl>$(Convert-ToXmlText $repositoryUrl)</AnarchyBrandingRepositoryUrl>
     <AnarchyBrandingDeveloperName>$(Convert-ToXmlText $developerName)</AnarchyBrandingDeveloperName>
+    <AnarchyBrandingPluginManifestVersion>$(Convert-ToXmlText $pluginManifestVersion)</AnarchyBrandingPluginManifestVersion>
     <AnarchyBrandingPrivacyPolicyUrl>$(Convert-ToXmlText $privacyPolicyUrl)</AnarchyBrandingPrivacyPolicyUrl>
     <AnarchyBrandingTermsOfServiceUrl>$(Convert-ToXmlText $termsOfServiceUrl)</AnarchyBrandingTermsOfServiceUrl>
     <AnarchyBrandingDefaultUpdateSourceZipUrl>$(Convert-ToXmlText $defaultUpdateSourceZipUrl)</AnarchyBrandingDefaultUpdateSourceZipUrl>

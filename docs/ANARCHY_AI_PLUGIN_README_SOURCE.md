@@ -1,4 +1,4 @@
-﻿# Anarchy-AI Plugin
+# Anarchy-AI Plugin
 
 > This README is generated from `docs/ANARCHY_AI_PLUGIN_README_SOURCE.md` by `harness/setup/scripts/build-self-contained-exe.ps1`.
 > Keep install-story prose authored here so the published plugin bundle stays destination-relative and honest.
@@ -44,6 +44,8 @@ This README should never teach source-repo-relative install paths or up-level so
   - `./runtime/win-x64/`
 - bundled canonical schemas:
   - `./schemas/`
+- bundled narrative templates:
+  - `./templates/narratives/`
 - bundled skill:
   - `./skills/anarchy-ai-harness/`
 
@@ -67,6 +69,7 @@ The plugin provides:
 - a local MCP declaration through `.mcp.json`
 - direct launch of the bundled `.NET 8` self-contained single-file runtime inside the plugin
 - a bundled canonical schema family plus hash manifest under `./schemas/`
+- narrative register and record templates under `./templates/narratives/` because `AGENTS-schema-narrative.json` carries the arc/register lane
 - a skill that teaches when to use the five bounded core runtime tools and how to discover the experimental `direction_assist_test` module
 - a repo-bootstrap script at `./scripts/bootstrap-anarchy-ai.ps1` as a compatibility/fallback lane for repo-local install, assess, and bundle refresh after the bundle already exists
 - a runtime lock script at `./scripts/stop-anarchy-ai.ps1` for assessing, safely releasing, or forcibly releasing the bundled Anarchy-AI runtime lock

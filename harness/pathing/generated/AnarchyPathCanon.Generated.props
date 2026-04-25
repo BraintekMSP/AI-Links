@@ -1,4 +1,4 @@
-﻿<Project>
+<Project>
   <PropertyGroup>
     <AnarchyCanonRepoSourcePluginDirectoryRelativePath>plugins/anarchy-ai</AnarchyCanonRepoSourcePluginDirectoryRelativePath>
     <AnarchyCanonPluginPayloadPrefix>SetupPayload/plugins/anarchy-ai/</AnarchyCanonPluginPayloadPrefix>
