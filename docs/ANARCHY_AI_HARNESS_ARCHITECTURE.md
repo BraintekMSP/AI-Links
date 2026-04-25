@@ -27,6 +27,8 @@ Current operating boundary:
 - when the harness needs consequence, it should create observable state, a callable check, or a next action item instead of only adding stronger prose
 - if Anarchy-AI is external ceremony, it fails; if it is policy beside the work, it fails; if it is a tool the agent only uses when reminded, it fails; if it slows the path without improving the actor's immediate odds of success, it gets bypassed
 - adoption is an implementation concern: a harness surface is only alive in an environment when people and agents can discover it, own it, and use it under pressure without leaving the work path
+- this is continuity with the existing underlay thesis, not a new thesis: make the better-context path easier, clearer, and more recoverable than the shortcut
+- zero trust is not the harness goal; tokens, devices, vaults, humans, and AI agents are still trust-bearing surfaces, so Anarchy-AI should complement normal security tools by making risky shortcuts visibly more expensive, not by claiming to remove trust
 
 ## Shared Core
 
