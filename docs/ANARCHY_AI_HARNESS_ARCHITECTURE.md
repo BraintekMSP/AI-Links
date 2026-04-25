@@ -25,6 +25,8 @@ Current operating boundary:
 - schemas do not self-fulfill; they describe route shape, authority, vocabulary, and desired state, but the harness must materialize, verify, reconcile, and record operative state
 - careful language is product behavior here: the harness should make the correct path easy to traverse rather than adding rules that the host cannot actually enforce
 - when the harness needs consequence, it should create observable state, a callable check, or a next action item instead of only adding stronger prose
+- if Anarchy-AI is external ceremony, it fails; if it is policy beside the work, it fails; if it is a tool the agent only uses when reminded, it fails; if it slows the path without improving the actor's immediate odds of success, it gets bypassed
+- adoption is an implementation concern: a harness surface is only alive in an environment when people and agents can discover it, own it, and use it under pressure without leaving the work path
 
 ## Shared Core
 

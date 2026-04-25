@@ -17,3 +17,5 @@ commitments-that-must-survive-scope-evolution:
 - Install lifecycle truth belongs in declared install plans, adapter outputs, install-state records, diagnostics, and repeatable proof artifacts rather than in the setup executable's success message alone.
 - Schemas cannot self-fulfill: they can make terrain legible, but a harness, helper, or human-confirmed verification lane must materialize and observe the state they describe.
 - When a schema or startup surface needs stronger behavior, the first product move should be an easier path, clearer wording, or observable harness state, not another unbacked wall.
+- Anarchy-AI must not become external ceremony or policy beside the work; if it is a tool the agent only uses when reminded, or if it slows the path without improving the actor's immediate odds of success, it will be routed around by humans and AI agents alike.
+- A system is only alive where it is adopted, owned, and used under pressure; future harness changes should make better-context work easier to perform than worse-context work instead of adding control-plane ideals that are not alive in the work path.

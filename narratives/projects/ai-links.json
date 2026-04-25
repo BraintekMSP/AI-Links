@@ -15,7 +15,7 @@
     ],
     "cadence": "monthly",
     "status": "active",
-    "last-updated": "2026-04-24",
+    "last-updated": "2026-04-25",
     "owner": "Mike Herring"
   },
 
@@ -387,6 +387,18 @@
         "finalized-by": "Mike Herring"
       },
       "status": "resolved"
+    },
+    {
+      "id": "e040",
+      "date": "2026-04-25",
+      "type": "correction",
+      "summary": "Anarchy adoption doctrine corrected after the vibe-coding discussion -- enforcement or control-plane ideals that are not adopted and owned inside the active work system become friction, and friction is routed around by humans and AI agents alike -- if Anarchy-AI is external ceremony, policy beside the work, a tool agents only use when reminded, or a slowdown that does not improve the actor's immediate odds of success, it fails -- future harness changes must make better-context work easier to perform than worse-context work",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "Codex",
+        "finalized-by": "Mike Herring"
+      },
+      "status": "resolved"
     }
   ],
 
@@ -577,6 +589,14 @@
       "decided-by": "Mike Herring",
       "requested-by": "Mike Herring (explicitly told Codex to ignore the stale plugin, respect scratchpad #1, and avoid adding rules/walls where careful language plus easier terrain is the actual product move)",
       "reversed": false
+    },
+    {
+      "id": "d016",
+      "date": "2026-04-25",
+      "decision": "Anarchy-AI must be alive in the work path, not adjacent ceremony -- if it is external ceremony, policy beside the work, a tool the agent only uses when reminded, or friction that does not improve the actor's immediate odds of success, it will be bypassed -- future changes should make better-context work easier to perform than worse-context work and should treat adoption, ownership, and under-pressure use as implementation concerns",
+      "decided-by": "Mike Herring",
+      "requested-by": "Mike Herring (corrected the model after a Forbes vibe-coding discussion: systems that are not adopted and owned by all active parts are not alive there, and friction will be circumvented by AI agents as well as people)",
+      "reversed": false
     }
   ],
 
@@ -627,5 +647,5 @@
     ]
   },
 
-  "handoff-note": "next session should read this Arc record before reading the scratchpads or pen test -- the scratchpads were inputs to the decisions recorded here, not replacements for them -- open threads are e012, e013, e016-e019, e025, e028-e030, e035, and e036; they are parked intentionally, not forgotten, and d013 clarifies that visible open threads are continuity infrastructure rather than a cleanliness failure -- e011 (TheLinks sync) is closed by e033 with commit 7e70530 on TheLinks branch governance-schema -- e027 is closed by d010/e032 and e025 is now evidence-assisted by post_migration_inventory but still needs the WO2/TheLinks-style history investigation before it fully closes -- d011 (canonical provenance definition) and d012 (narrative is the strongest durable home for provenance) are this session's deepest theory shifts; e035 is the small concrete vocabulary upgrade derived from them, e036 is the design surface that should not be touched until observed muddling pulls on it -- restraint-as-feature is a load-bearing posture (observed-patterns.good); future sessions facing 'should we add layer X for symmetry' should re-read it before deciding -- ECC positioning is corrected by d014: ECC is a different product class and an inspiration surface; Anarchy-AI can aspire to complement ECC and systems like it by providing proof/provenance substrate rather than competing in ECC's lifecycle class or implying partnership/equality -- d015/e039 are the harness boundary correction: schemas cannot self-fulfill, plugin visibility is adapter evidence not source truth, and the next harness maturity lane is install lifecycle discipline rather than stronger prose walls -- the terms-to-skills walk-back is the canonical example of why schema-shape proposals must be pressure-tested against a live artifact before landing -- 'skills sucks' is the canonical example of a BECAUSE clause that fails the precision bar, kept in observed-patterns.bad for that reason"
+  "handoff-note": "next session should read this Arc record before reading the scratchpads or pen test -- the scratchpads were inputs to the decisions recorded here, not replacements for them -- open threads are e012, e013, e016-e019, e025, e028-e030, e035, and e036; they are parked intentionally, not forgotten, and d013 clarifies that visible open threads are continuity infrastructure rather than a cleanliness failure -- e011 (TheLinks sync) is closed by e033 with commit 7e70530 on TheLinks branch governance-schema -- e027 is closed by d010/e032 and e025 is now evidence-assisted by post_migration_inventory but still needs the WO2/TheLinks-style history investigation before it fully closes -- d011 (canonical provenance definition) and d012 (narrative is the strongest durable home for provenance) are this session's deepest theory shifts; e035 is the small concrete vocabulary upgrade derived from them, e036 is the design surface that should not be touched until observed muddling pulls on it -- restraint-as-feature is a load-bearing posture (observed-patterns.good); future sessions facing 'should we add layer X for symmetry' should re-read it before deciding -- ECC positioning is corrected by d014: ECC is a different product class and an inspiration surface; Anarchy-AI can aspire to complement ECC and systems like it by providing proof/provenance substrate rather than competing in ECC's lifecycle class or implying partnership/equality -- d015/e039 are the harness boundary correction: schemas cannot self-fulfill, plugin visibility is adapter evidence not source truth, and the next harness maturity lane is install lifecycle discipline rather than stronger prose walls -- d016/e040 are the adoption doctrine correction: Anarchy fails if it is external ceremony, policy beside the work, reminder-only tooling, or friction that does not improve the actor's immediate odds of success; all future changes should make better-context work easier than worse-context work -- the terms-to-skills walk-back is the canonical example of why schema-shape proposals must be pressure-tested against a live artifact before landing -- 'skills sucks' is the canonical example of a BECAUSE clause that fails the precision bar, kept in observed-patterns.bad for that reason"
 }
