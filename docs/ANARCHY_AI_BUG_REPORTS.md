@@ -187,8 +187,15 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
   - Divergence can be interpreted as objection to normal repo-level documentation growth.
 - Evidence:
   - Operator confusion around why `AGENTS.md` richness appeared coupled to integrity signals.
+- Required product direction:
+  - Schema integrity comparison should name the canonical source used for the comparison.
+  - Preferred canonical sources are:
+    - explicit local AI-Links source path when the operator provides one
+    - current public AI-Links release when local source is not provided
+  - Embedded bundle comparison remains useful as install evidence, but should not silently become the only answer to "current canonical schema" when a fresher local or public source is available.
 - Acceptance:
   - Result payload and docs include explicit “canonical surfaces compared” section.
+  - Result payload includes the canonical source lane used for schema comparison (`local_source`, `public_release`, or `embedded_bundle`) and the source path or release reference when known.
 
 ### AA-BUG-008: No intentional-divergence allowlist for canonical schema evolution
 
