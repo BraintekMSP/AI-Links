@@ -279,6 +279,17 @@ Expected result shape:
   - target fields such as `recorded_target_id`, `recorded_target_kind`, and `recorded_target_root`
   - workspace fields such as `recorded_workspace_root` and `recorded_workspace_schema_targeted`
   - operation evidence such as `recorded_managed_operation_count`
+- `codex_materialization` when Codex is targeted
+  - `marketplace_name`
+  - `plugin_name`
+  - `codex_config_path`
+  - `config_plugin_key`
+  - `codex_plugin_enabled`
+  - `expected_cache_root`
+  - `source_plugin_manifest_version`
+  - `cache_entries`
+  - `source_version_present_in_cache`
+  - bounded findings such as `source_plugin_version_not_materialized_in_codex_cache`
 - `paths`
   - `paths.origin`
   - `paths.source`
@@ -436,6 +447,7 @@ Current inferred behavior that still needs direct local proof:
 
 - Codex may retain stale tool-surface indexing for a stable server key
 - Codex may materialize an installed-copy cache under `~/.codex/plugins/cache/...` only after restart or first use
+- Codex may render a repo-local marketplace/plugin source in the Plugins UI before the matching plugin manifest version is materialized in the chat/runtime cache
 
 Inferred behavior stays labeled as inferred. Only observed behavior promotes to settled platform truth.
 
@@ -538,9 +550,11 @@ These caveats do not block handing out the generated setup executable, but they 
 3. Codex plugin UI compatibility is a host-adapter lane.
    - Setup/runtime distribution can be valid while Codex plugin UI indexing or cache state is stale.
    - Do not use plugin-card visibility alone as proof that setup or runtime source is wrong.
+   - Do not use plugin-card visibility alone as proof that the active chat/runtime cache matches the source bundle version.
    - Use setup status, smoke install, extracted runtime checks, and direct tool reachability as the stronger evidence path.
 4. Codex cache invalidation depends on host behavior and manifest version movement.
    - The setup build now sources `plugin.json.version` from branding canon instead of a hard-coded build-script literal.
    - A plugin-facing release should bump that version before distribution.
    - When both repo-local and user-profile lanes are enabled in Codex, the active surfaced skill cache may still require fresh-session evidence rather than assumption.
+   - Setup's `codex_materialization` report can show source/cache disagreement, but it still cannot prove which cache a running chat selected unless a live runtime/tool call reports that path.
 

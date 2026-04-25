@@ -292,8 +292,32 @@ What this proves:
 
 What this does not yet prove:
 
-- fresh-session Codex plugin UI surfacing from a repo-local install
-- cross-device repeatability
+- active chat/runtime selection from that repo-local bundle
+- cache materialization at the same plugin manifest version
+- cross-device repeatability beyond filesystem and UI source visibility
+
+Additional field observation on `2026-04-25`:
+
+- a Workorders repo-local source bundle synced to a second device at `plugins/anarchy-ai`
+- that source bundle's plugin manifest reported `version = 0.1.9`
+- Codex Plugins UI showed the marketplace dropdown entry `Anarchy-AI Repo (Workorders)`
+- the plugin detail page showed the Anarchy-AI MCP server plus the harness, structured-commit, and structured-review skills
+- the same machine's Codex plugin cache still showed `anarchy-ai-repo-workorders/anarchy-ai/0.1.8` and user-profile cache `anarchy-ai-user-profile/anarchy-ai/0.1.7`, with no `0.1.9` cache directory
+- the plugin detail information row showed `Category = anarchy-ai-repo-workorders, Productivity`, which indicates Codex is exposing marketplace root identity/category separately from plugin manifest `interface.category`
+- local Codex config stores plugin enable-state as `[plugins."anarchy-ai@anarchy-ai-repo-workorders"] enabled = true`, which explains `Remove from Codex` as a host-owned state separate from source files and cache directories
+- rebuilt setup assess against Workorders reported the same split directly:
+  - source plugin manifest version `0.1.9`
+  - config plugin key `anarchy-ai@anarchy-ai-repo-workorders`
+  - Codex plugin enabled `true`
+  - cache entries `[0.1.8]`
+  - `source_version_present_in_cache = false`
+  - finding `source_plugin_version_not_materialized_in_codex_cache`
+
+Interpretation:
+
+- repo-local source and marketplace visibility can update before Codex materializes the matching chat/runtime cache
+- plugin UI visibility is evidence of source/catalog recognition, not proof that the active chat session is using the same version
+- setup/status diagnostics must treat source bundle, marketplace source visibility, Codex enable-state, Codex cache, and active runtime as separate surfaces
 
 ### 14. Plugin manifest version is now release-canon driven and smoke-installed as `0.1.9`
 
@@ -318,7 +342,8 @@ What this does not yet prove:
 
 - Codex will invalidate an older enabled home-profile cache on every device
 - Codex will prefer repo-local skill metadata over home-profile skill metadata when both lanes are enabled
-- the work computer will surface `anarchy-ai-user-profile/anarchy-ai/0.1.9` or `anarchy-ai-repo-<repo-slug>/anarchy-ai/0.1.9` without additional host-side cache refresh behavior
+- the work computer will materialize `anarchy-ai-user-profile/anarchy-ai/0.1.9` or `anarchy-ai-repo-<repo-slug>/anarchy-ai/0.1.9` without additional host-side cache refresh behavior
+- a Codex UI card showing the 0.1.9 source bundle implies that chat/runtime cache activation has also moved to 0.1.9
 
 ### 15. Gov2gov now inventories and seeds schema-carried narrative arc surfaces
 
@@ -422,25 +447,28 @@ Promotion test:
 3. observe whether Codex materializes the documented cache path or config entry
 4. repeat after a no-op reinstall if needed
 
-### C. Repo-local Codex lane has not been observed producing a callable plugin
+### C. Repo-local Codex UI source visibility is observed, but cache/runtime activation remains unresolved
 
 Why this remains inferred:
 
 - OpenAI Codex docs describe `$REPO_ROOT/.agents/plugins/marketplace.json` + `$REPO_ROOT/plugins/` as a peer install scope to home-local
 - the Anarchy-AI installer writes that repo-local shape correctly on disk
-- the repo-local lane has NOT been observed surfacing the Anarchy-AI plugin in Codex's plugin UI on the installing machine; the only observed working surface for repo-local is the direct MCP server (runtime callable as an MCP endpoint), not a Codex-native plugin entry
-- the last observation of any repo-local working behavior was roughly one week prior to this entry, on a single local-host deploy; nothing more recent and nothing cross-machine has been captured
+- a Workorders repo-local install/source sync has now been observed in Codex's Plugins UI on a second device
+- that UI observation did not update the Codex plugin cache to the same manifest version (`0.1.9`), so source visibility and cache/runtime activation are not the same proof surface
+- local config evidence shows the UI install/remove state is a `[plugins."anarchy-ai@anarchy-ai-repo-workorders"] enabled = true` entry, not merely the marketplace file existing
 - the documentation describes the layout as a scope option, not explicitly as an auto-discovery rule
 
-Status summary: **repo-local is currently treated as unproven.** The installer disclosure text reflects this.
+Status summary: **repo-local source visibility is observed; active chat/runtime activation from the matching repo-local cache remains unproven.** The installer disclosure text reflects this distinction.
 
 Promotion test:
 
 1. install repo-local only on a machine with no prior home-local Anarchy install
 2. launch Codex with the repo as working directory in a fresh session
-3. observe whether the Anarchy-AI plugin appears in Codex's plugin surface (plugins list, plugin-UI enablement, or equivalent Codex-native plugin recognition), not just whether an MCP endpoint is callable
-4. if only the MCP endpoint is callable, record that as a partial result and continue treating the plugin lane as unproven
-5. repeat with a second contributor cloning the repo after the repo-local marketplace is committed
+3. observe whether the Anarchy-AI plugin appears in Codex's plugin surface
+4. inspect `~/.codex/config.toml` for `[plugins."anarchy-ai@anarchy-ai-repo-<repo-slug>"] enabled = true`
+5. inspect `~/.codex/plugins/cache/anarchy-ai-repo-<repo-slug>/anarchy-ai/<version>` and confirm it matches the source manifest version
+6. run a harness tool call from the fresh chat and capture the active runtime/version evidence when the tool can report it
+7. repeat with a second contributor cloning the repo after the repo-local marketplace is committed
 
 ### D. Claude Code MCP registration via user-scope `~/.claude.json`
 
@@ -487,7 +515,7 @@ Claim:
 Current status:
 
 - Codex home-local: proven for the documented personal marketplace lane
-- Codex repo-local: Codex-documented on disk, plugin surface unobserved (see inferred item C -- currently treated as unproven)
+- Codex repo-local: Codex-documented on disk and UI source visibility observed on Workorders, but matching cache/runtime activation remains unresolved (see inferred item C)
 - Claude Code: Pass 2 implemented, pending verification (see inferred item D -- installer writes `~/.claude.json` but fresh-session check is not yet captured)
 - Claude Desktop: Pass 2 implemented, pending verification (see inferred item E -- installer writes the detected `claude_desktop_config.json` but fresh-app check on both MSIX and classic is not yet captured)
 - Cursor and other hosts: out of current scope

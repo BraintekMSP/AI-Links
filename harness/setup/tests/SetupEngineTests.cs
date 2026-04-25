@@ -117,6 +117,20 @@ public sealed class SetupEngineTests
     }
 
     /// <summary>
+    /// Verifies that repo-local help does not describe the repo-local runtime as home-local.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts help-text content.</returns>
+    /// <remarks>Critical dependencies: <see cref="SetupEngine.BuildCommandLineHelp(string?)"/> and repo-local lane wording.</remarks>
+    [Fact]
+    public void BuildCommandLineHelp_RepoLocal_DescribesRepoLocalBundle()
+    {
+        var help = SetupEngine.BuildCommandLineHelp(null);
+
+        Assert.Contains("repo-local plugin bundle + repo-local marketplace", help, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("home-local runtime + repo-local marketplace", help, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Confirms that the disclosure text reports both the five core tools and the single experimental test helper.
     /// </summary>
     /// <returns>No direct return value; the method asserts disclosure content.</returns>

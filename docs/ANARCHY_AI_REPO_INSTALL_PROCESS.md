@@ -262,8 +262,19 @@ Expected good result shape:
 - for default `/userprofile` with no `/repo`:
   - `paths.destination.root_path = <current-user-profile>`
   - portable schema seeding stays out of scope
+- when Codex is targeted:
+  - `codex_materialization.source_plugin_manifest_version` reports the source bundle version when the plugin manifest exists
+  - `codex_materialization.codex_plugin_enabled` reports whether `~/.codex/config.toml` has the matching `[plugins."plugin@marketplace"] enabled = true` entry when setup can read it
+  - `codex_materialization.cache_entries` reports the Codex-owned cache entries visible to setup
+  - `codex_materialization.source_version_present_in_cache` tells whether Codex has materialized the same version into its plugin cache
 
 Any other result shape means the harness is partially delivered â€” files present, accessibility incomplete. Count installation as complete only when the expected good result shape is reached.
+
+Host proof note:
+
+- Codex Plugins UI visibility proves source/catalog recognition, not active chat/runtime cache selection.
+- A repo-local plugin card can appear before `~/.codex/plugins/cache/<marketplace>/<plugin>/<version>` catches up.
+- Treat setup readiness, plugin-card visibility, Codex enable-state, cache materialization, and live harness tool calls as separate evidence surfaces.
 
 Install lock behavior:
 

@@ -129,7 +129,29 @@ internal sealed class SetupResult
     public required string[] safe_repairs { get; init; }
     public required string next_action { get; init; }
     public required InstallStateReport install_state { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CodexMaterializationReport? codex_materialization { get; init; }
     public required PathRoleCollection paths { get; init; }
+}
+
+// Purpose: Reports Codex-owned plugin-cache materialization separately from setup-owned install state.
+// Expected input: Filesystem inspection of the selected marketplace/plugin cache root and installed source manifest.
+// Expected output: A JSON-serializable host-cache report that distinguishes source visibility from active cache materialization.
+// Critical dependencies: Codex plugin-cache path shape and setup's marketplace/plugin identity builders.
+internal sealed class CodexMaterializationReport
+{
+    public required string marketplace_name { get; init; }
+    public required string plugin_name { get; init; }
+    public required string codex_config_path { get; init; }
+    public required string config_plugin_key { get; init; }
+    public bool? codex_plugin_enabled { get; init; }
+    public required string expected_cache_root { get; init; }
+    public required bool expected_cache_root_present { get; init; }
+    public string? source_plugin_manifest_version { get; init; }
+    public required string[] cache_entries { get; init; }
+    public string? newest_cache_entry { get; init; }
+    public required bool source_version_present_in_cache { get; init; }
+    public required string[] findings { get; init; }
 }
 
 // Purpose: Reports whether setup can see a durable install-state record for the selected install lane.
@@ -1430,7 +1452,7 @@ internal sealed class SetupEngine
 
         if (installScope == InstallScope.RepoLocal && hostTargets.HasFlag(HostTargets.Codex))
         {
-            disclosureLines.Add("- Repo-local Codex caveat: the installer writes the Codex-documented repo-local shape (marketplace.json + plugins/ bundle), but this lane has not yet been observed producing a callable plugin in Codex's plugin surface. The direct MCP server surface is the only observed working path, and cross-machine / cross-session verification is stale. Treat repo-local as unproven until a promotion test lands in the Environment Truth Matrix. The bundled runtime is also per-machine, so a committed marketplace entry does not carry a working runtime to collaborators.");
+            disclosureLines.Add("- Repo-local Codex caveat: the installer writes the Codex-documented repo-local shape (marketplace.json + plugins/ bundle). Codex can surface that repo-local source in the Plugins UI before its chat cache/runtime materializes the same plugin version, so setup readiness and plugin-card visibility are separate from active runtime proof. The bundled runtime is also per-machine, so a committed marketplace entry does not carry a working runtime to collaborators.");
         }
 
         disclosureLines.Add($"- Host targets: {HostTargetLabels.ToDisplayString(hostTargets)}.");
@@ -1514,7 +1536,7 @@ internal sealed class SetupEngine
             $"  Target repo: {targetRepo}",
             string.Empty,
             "Here's what changes:",
-            $"- /repolocal (home-local runtime + repo-local marketplace, Codex) adds {BuildPluginFolderLabel(InstallScope.RepoLocal, resolvedRepo)}\\ and updates {BuildMarketplacePathLabel(InstallScope.RepoLocal, resolvedRepo)}.",
+            $"- /repolocal (repo-local plugin bundle + repo-local marketplace, Codex) adds {BuildPluginFolderLabel(InstallScope.RepoLocal, resolvedRepo)}\\ and updates {BuildMarketplacePathLabel(InstallScope.RepoLocal, resolvedRepo)}.",
             $"- /userprofile (home-local runtime + home-local marketplace, Codex) adds {BuildPluginFolderLabel(InstallScope.UserProfile, resolvedRepo)}\\ and updates {BuildMarketplacePathLabel(InstallScope.UserProfile, resolvedRepo)}.",
             $"- /repolocal registers {BuildPluginName(InstallScope.RepoLocal, resolvedRepo)} for the selected repo.",
             $"- /userprofile registers {BuildPluginName(InstallScope.UserProfile, resolvedRepo)} for the current user profile.",
@@ -1990,6 +2012,12 @@ internal sealed class SetupEngine
             destinationSkillPath,
             destinationSchemaManifestPath,
             updateSourceRoot);
+        var codexMaterialization = options.HostTargets.HasFlag(HostTargets.Codex)
+            ? InspectCodexMaterialization(
+                options.InstallScope,
+                workspaceRoot,
+                destinationPluginManifestPath)
+            : null;
 
         return new SetupResult
         {
@@ -2015,6 +2043,7 @@ internal sealed class SetupEngine
             safe_repairs = safeRepairs.ToArray(),
             next_action = nextAction,
             install_state = installStateReport,
+            codex_materialization = codexMaterialization,
             paths = resultPaths
         };
     }
@@ -2917,6 +2946,136 @@ internal sealed class SetupEngine
     private static string GetUserProfileDirectory()
     {
         return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+    }
+
+    // Purpose: Reads Codex's host-owned plugin cache for the selected marketplace/plugin identity without treating it as install truth.
+    // Expected input: Install scope, workspace root, and the setup-owned source plugin manifest path.
+    // Expected output: Cache entries and findings that show whether Codex has materialized the source manifest version.
+    // Critical dependencies: AnarchyPathCanon.UserProfilePluginCacheParentDirectoryRelativePath and current Codex cache layout.
+    internal static CodexMaterializationReport InspectCodexMaterialization(
+        InstallScope installScope,
+        string workspaceRoot,
+        string sourcePluginManifestPath)
+    {
+        var marketplaceName = BuildMarketplaceName(installScope, workspaceRoot);
+        var pluginName = BuildPluginName(installScope, workspaceRoot);
+        var configPluginKey = $"{pluginName}@{marketplaceName}";
+        var codexConfigPath = AnarchyPathCanon.ResolveUserProfileCodexConfigFilePath(GetUserProfileDirectory());
+        var codexPluginEnabled = TryReadCodexPluginEnabled(codexConfigPath, configPluginKey);
+        var pluginCacheParent = AnarchyPathCanon.ResolveRelativePath(
+            GetUserProfileDirectory(),
+            AnarchyPathCanon.UserProfilePluginCacheParentDirectoryRelativePath);
+        var expectedCacheRoot = Path.Combine(
+            pluginCacheParent,
+            marketplaceName,
+            pluginName);
+        var sourceVersion = ReadPluginManifestVersion(sourcePluginManifestPath);
+        var cacheEntries = Directory.Exists(expectedCacheRoot)
+            ? Directory.EnumerateDirectories(expectedCacheRoot)
+                .Select(Path.GetFileName)
+                .Where(static name => !string.IsNullOrWhiteSpace(name))
+                .Select(static name => name!)
+                .OrderBy(static name => name, StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+            : [];
+        var sourceVersionPresent = !string.IsNullOrWhiteSpace(sourceVersion)
+            && cacheEntries.Any(entry => string.Equals(entry, sourceVersion, StringComparison.OrdinalIgnoreCase));
+        var findings = new List<string>();
+
+        if (!Directory.Exists(expectedCacheRoot))
+        {
+            findings.Add("codex_cache_root_missing");
+        }
+        else if (cacheEntries.Length == 0)
+        {
+            findings.Add("codex_cache_root_empty");
+        }
+
+        if (!string.IsNullOrWhiteSpace(sourceVersion) && !sourceVersionPresent)
+        {
+            findings.Add("source_plugin_version_not_materialized_in_codex_cache");
+        }
+
+        if (codexPluginEnabled is null)
+        {
+            findings.Add("codex_plugin_enable_state_missing");
+        }
+        else if (codexPluginEnabled == false)
+        {
+            findings.Add("codex_plugin_disabled");
+        }
+
+        return new CodexMaterializationReport
+        {
+            marketplace_name = marketplaceName,
+            plugin_name = pluginName,
+            codex_config_path = codexConfigPath,
+            config_plugin_key = configPluginKey,
+            codex_plugin_enabled = codexPluginEnabled,
+            expected_cache_root = expectedCacheRoot,
+            expected_cache_root_present = Directory.Exists(expectedCacheRoot),
+            source_plugin_manifest_version = sourceVersion,
+            cache_entries = cacheEntries,
+            newest_cache_entry = cacheEntries.LastOrDefault(),
+            source_version_present_in_cache = sourceVersionPresent,
+            findings = findings.ToArray()
+        };
+    }
+
+    // Purpose: Reads Codex's plugin enable-state for a marketplace/plugin key when Codex stores that state in config.toml.
+    // Expected input: Absolute config.toml path and a key shaped as plugin@marketplace.
+    // Expected output: True/false when the key is present with enabled value, otherwise null.
+    // Critical dependencies: Current Codex config section shape: [plugins."plugin@marketplace"].
+    private static bool? TryReadCodexPluginEnabled(string codexConfigPath, string pluginConfigKey)
+    {
+        if (!File.Exists(codexConfigPath))
+        {
+            return null;
+        }
+
+        var configText = File.ReadAllText(codexConfigPath);
+        var sectionPattern = $@"(?ms)^\[plugins\.""{Regex.Escape(pluginConfigKey)}""\]\s*(?<body>.*?)(?=^\[|\z)";
+        var sectionMatch = Regex.Match(configText, sectionPattern, RegexOptions.CultureInvariant);
+        if (!sectionMatch.Success)
+        {
+            return null;
+        }
+
+        var enabledMatch = Regex.Match(
+            sectionMatch.Groups["body"].Value,
+            @"(?mi)^\s*enabled\s*=\s*(?<value>true|false)\s*$",
+            RegexOptions.CultureInvariant);
+        return enabledMatch.Success
+            ? bool.Parse(enabledMatch.Groups["value"].Value)
+            : null;
+    }
+
+    // Purpose: Reads the version field from a plugin manifest when the installed source bundle exposes one.
+    // Expected input: Absolute path to .codex-plugin/plugin.json.
+    // Expected output: Version string or null when unavailable/unparseable.
+    // Critical dependencies: Codex plugin manifest JSON shape.
+    private static string? ReadPluginManifestVersion(string pluginManifestPath)
+    {
+        if (!File.Exists(pluginManifestPath))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(pluginManifestPath));
+            return document.RootElement.TryGetProperty("version", out var versionElement)
+                ? versionElement.GetString()
+                : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
     }
 
     // Purpose: Builds the install-root label shown in setup help and disclosure text.

@@ -436,6 +436,63 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
   - Running the build helper with `-DotnetPath` pointing inside the repo fails before restore/publish work begins.
   - Release/docs language does not imply that target repos should install .NET locally to use the self-contained setup EXE.
 
+### AA-BUG-027: Codex repo-local UI visibility can outrun cache/runtime materialization
+
+- Severity: High
+- Status: Patched diagnostic surface locally; host behavior still open
+- Component: Setup / Codex host adapter / Install-state diagnostics
+- Repro:
+  - Install or sync a repo-local Anarchy-AI bundle into `plugins/anarchy-ai` with plugin manifest `version = 0.1.9`.
+  - Ensure the repo-local marketplace points at `./plugins/anarchy-ai`.
+  - Open Codex Plugins UI and select the repo-local marketplace.
+  - Inspect `~/.codex/plugins/cache` from the same machine/session.
+- Expected:
+  - If Codex shows the repo-local plugin as installed/enabled, the cache/runtime materialization lane either agrees with the source manifest version or the mismatch is explicitly reported.
+- Actual:
+  - The Workorders repo-local source bundle existed at version `0.1.9`.
+  - Codex Plugins UI showed `Anarchy-AI Repo (Workorders)` and the Anarchy-AI detail page with MCP server plus harness, structured-commit, and structured-review skills.
+  - The Codex cache still showed repo-scoped `anarchy-ai-repo-workorders/anarchy-ai/0.1.8` and user-profile `anarchy-ai-user-profile/anarchy-ai/0.1.7`; no `0.1.9` cache directory was present.
+- Evidence:
+  - User screenshots on `2026-04-25` showed:
+    - marketplace dropdown entries for Codex official, Anarchy-AI Repo (Workorders), and Anarchy-AI User Profile
+    - plugin detail page with `Remove from Codex`, `Try in chat`, one MCP server, and three skills
+    - information row `Category = anarchy-ai-repo-workorders, Productivity`
+  - Local Codex config inspection showed plugin enable-state is stored separately from source and cache:
+    - `[plugins."anarchy-ai@anarchy-ai-repo-workorders"] enabled = true`
+    - `[plugins."anarchy-ai@anarchy-ai-user-profile"] enabled = true`
+  - Follow-up filesystem inspection on the work machine reported:
+    - repo-local source manifest `version = 0.1.9`
+    - repo-local marketplace pointing to that source
+    - Codex cache versions only `0.1.8` and `0.1.7`
+  - Rebuilt setup assess against local Workorders repo-local install reported:
+    - `codex_materialization.source_plugin_manifest_version = 0.1.9`
+    - `codex_materialization.config_plugin_key = anarchy-ai@anarchy-ai-repo-workorders`
+    - `codex_materialization.codex_plugin_enabled = true`
+    - `codex_materialization.cache_entries = [0.1.8]`
+    - `codex_materialization.source_version_present_in_cache = false`
+    - finding `source_plugin_version_not_materialized_in_codex_cache`
+- Required product direction:
+  - Model at least five separate surfaces:
+    - setup-owned source bundle
+    - marketplace/UI source visibility
+    - Codex plugin enable-state
+    - Codex-owned cache materialization
+    - active chat/runtime/tool selection
+  - Do not use plugin-card visibility, `Try in chat`, or `Remove from Codex` alone as runtime-version proof.
+  - Keep the repo-local path and marketplace shape; the missing piece is host materialization diagnostics, not another path suffix.
+- Local patch notes:
+  - setup JSON now includes `codex_materialization` for Codex-targeted assess/install/status calls
+  - the report names the Codex config path, plugin enable key/state, marketplace/plugin cache root, source plugin manifest version, cache entries, and whether the source version is present in cache
+  - repo-local disclosure/help now separates repo-local source readiness from Codex cache/runtime proof
+- Acceptance:
+  - Run setup assess/status against Workorders after repo-local `0.1.9` source sync.
+  - Confirm `codex_materialization.source_plugin_manifest_version = 0.1.9`.
+  - Confirm `codex_materialization.config_plugin_key = anarchy-ai@anarchy-ai-repo-workorders`.
+  - Confirm `codex_materialization.codex_plugin_enabled = true` when Codex shows `Remove from Codex`.
+  - Confirm `codex_materialization.cache_entries` reports the currently materialized cache versions.
+  - Confirm `source_plugin_version_not_materialized_in_codex_cache` appears until Codex materializes `0.1.9`.
+  - After Codex materializes `0.1.9`, confirm the finding clears without changing repo-local source paths.
+
 ### AA-BUG-005: Missing setup `self-check` command for active mount diagnostics
 
 - Severity: Medium
