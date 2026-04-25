@@ -477,3 +477,20 @@ Before handing out a local setup executable:
    - no large setup EXE should be staged
    - no refreshed runtime binary should be required for commit
 
+## Current Distribution Caveats
+
+These caveats do not block handing out the generated setup executable, but they define what the executable does and does not prove.
+
+1. Runtime-lock release is not yet first-class.
+   - Setup reports runtime lock failures with bounded repair names.
+   - It does not yet provide `AssessRuntimeLock`, `SafeReleaseRuntimeLock`, or `ForceReleaseRuntimeLock` as setup actions.
+   - If the runtime executable is in use during install/update, close the owning app/session or run the documented release flow before retrying.
+2. Post-install active host verification is still outside install completion.
+   - A successful install proves files, marketplace entries, install-state, and setup-readable readiness.
+   - It does not prove a fresh host session has mounted the plugin or exposed the MCP tools.
+   - Fresh-session host visibility still belongs in the environment truth matrix.
+3. Codex plugin UI compatibility is a host-adapter lane.
+   - Setup/runtime distribution can be valid while Codex plugin UI indexing or cache state is stale.
+   - Do not use plugin-card visibility alone as proof that setup or runtime source is wrong.
+   - Use setup status, smoke install, extracted runtime checks, and direct tool reachability as the stronger evidence path.
+
