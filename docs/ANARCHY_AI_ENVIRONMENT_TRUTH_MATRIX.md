@@ -161,6 +161,38 @@ Proven by a fresh Codex session on `2026-04-15` after the rebuilt no-BOM home-lo
   - Codex-managed cache materialization under `~/.codex/plugins/cache/...`
   - persistent plugin enable-state entries in `~/.codex/config.toml`
 
+### 10. The `2026-04-25` setup deployable carries the current staged MCP runtime
+
+Proven by local build output and a throwaway-repo smoke install on `2026-04-25`:
+
+- build command:
+  - `powershell -ExecutionPolicy Bypass -File .\harness\setup\scripts\build-self-contained-exe.ps1 -Configuration Release`
+- build output:
+  - `status = "completed"`
+  - `plugin_payload_staged = true`
+  - `published_runtime_executable = "C:\\Users\\herri\\AppData\\Local\\Temp\\ai-links-setup-build\\server-publish\\AnarchyAi.Mcp.Server.exe"`
+  - `target_executable = "C:\\Users\\herri\\OneDrive - Braintek LLC\\Documents\\GitHub\\AI-Links\\plugins\\AnarchyAi.Setup.exe"`
+- smoke install:
+  - setup EXE installed into a generated throwaway repo with a `.git` marker
+  - `bootstrap_state = "ready"`
+  - `install_state.state_valid = true`
+  - extracted runtime length was `70808918` bytes, matching the freshly published staged runtime rather than the stale tracked runtime
+- extracted runtime contained current expected tool strings:
+  - `direction_assist_test`
+  - `verify_config_materialization`
+  - `assess_harness_gap_state`
+  - `preflight_session`
+  - `compile_active_work_state`
+  - `run_gov2gov_migration`
+  - `is_schema_real_or_shadow_copied`
+- what this proves:
+  - the local generated setup EXE can carry the current runtime payload without committing the large setup EXE or refreshing the tracked runtime binary
+  - the staged-payload publish path fixed the stale-runtime packaging class recorded as `AA-BUG-018`
+- what this does not yet prove:
+  - fresh Codex plugin surfacing from that throwaway repo
+  - cross-device repeatability
+  - Claude Code or Claude Desktop host surfacing
+
 ## Inferred (Not Yet Fully Proven)
 
 ### A. Codex may materialize an installed-copy cache under `~/.codex/plugins/cache/...`

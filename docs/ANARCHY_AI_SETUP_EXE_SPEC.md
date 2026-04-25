@@ -435,8 +435,45 @@ Its current responsibilities are:
 - sync `plugins/anarchy-ai/schemas/schema-bundle.manifest.json` hashes from current source schema files before publish
 - generate `plugins/anarchy-ai/README.md` from `docs/ANARCHY_AI_PLUGIN_README_SOURCE.md` using destination-relative install facts
 - run both the path-canon audit and the documentation-truth audit before publish succeeds
+- publish the MCP server runtime first
+- stage a temporary plugin payload carrying that freshly published runtime
 - publish the setup project with temp `obj/bin/publish` lanes under `AppData\Local\Temp`
 - refresh the local generated `plugins/AnarchyAi.Setup.exe`
 
 That keeps setup regeneration machine-local and avoids synced-workspace build churn.
+
+## Short Release Checklist
+
+Before handing out a local setup executable:
+
+1. Build setup:
+   - `powershell -ExecutionPolicy Bypass -File .\harness\setup\scripts\build-self-contained-exe.ps1 -Configuration Release`
+2. Confirm build output:
+   - `status = "completed"`
+   - `plugin_payload_staged = true`
+   - `published_runtime_executable` is populated
+   - `copied_to_plugins = true`
+3. Smoke install into a throwaway repo with a `.git` marker:
+   - run `plugins\AnarchyAi.Setup.exe /install /repolocal /repo <throwaway-repo> /silent /json`
+   - require `bootstrap_state = "ready"`
+   - require `install_state.state_valid = true`
+4. Confirm the extracted runtime contains current tool strings:
+   - `direction_assist_test`
+   - `verify_config_materialization`
+   - `assess_harness_gap_state`
+   - `preflight_session`
+   - `compile_active_work_state`
+   - `run_gov2gov_migration`
+   - `is_schema_real_or_shadow_copied`
+5. Run setup tests:
+   - `dotnet test .\harness\setup\tests\AnarchyAi.Setup.Tests.csproj --no-restore -p:RestoreFallbackFolders=`
+6. Run path and documentation audits:
+   - `powershell -ExecutionPolicy Bypass -File .\harness\pathing\scripts\test-path-canon-compliance.ps1`
+   - `powershell -ExecutionPolicy Bypass -File .\docs\scripts\test-documentation-truth-compliance.ps1`
+7. Confirm copied deployable timestamp:
+   - `Get-Item .\plugins\AnarchyAi.Setup.exe`
+   - do not distribute if the timestamp predates the latest successful build output
+8. Confirm source-only repo status:
+   - no large setup EXE should be staged
+   - no refreshed runtime binary should be required for commit
 
