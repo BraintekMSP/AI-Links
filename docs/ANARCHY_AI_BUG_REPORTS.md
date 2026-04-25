@@ -136,6 +136,47 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
   - Smoke install from `plugins/AnarchyAi.Setup.exe` extracts a runtime with current expected tool strings.
   - `git status --short` remains source-only after build; no large setup EXE or refreshed runtime binary is required for commit.
 
+### AA-BUG-019: Codex home install and cache can diverge in exposed metadata
+
+- Severity: Medium
+- Status: Open
+- Component: Codex plugin cache / User-profile install discipline / Host metadata
+- Repro:
+  - Install Anarchy-AI through the user-profile Codex lane with the current setup EXE.
+  - Restart Codex and open a fresh session in Fissure / Docker-Builder-Project.
+  - Ask the session to inspect whether Anarchy is visible and healthy.
+- Expected:
+  - Installed root, Codex cache root, exposed skill metadata, and callable runtime all report the same active version and source lane.
+- Actual:
+  - Fresh-session Anarchy tools were callable and the installed plugin root existed at `C:\Users\herri\.codex\plugins\anarchy-ai`.
+  - The installed bundle and Codex cache on disk showed version `0.1.8`.
+  - The session metadata still advertised an Anarchy skill path under cache version `0.1.7`.
+- Evidence:
+  - Setup install on `2026-04-25` against Fissure returned:
+    - `bootstrap_state = "ready"`
+    - `install_state.state_valid = true`
+    - `actions_taken` included `materialized_plugin_bundle_from_embedded_payload` and `wrote_install_state`
+  - Disk inspection after restart found:
+    - `C:\Users\herri\.codex\plugins\anarchy-ai`
+    - `C:\Users\herri\.codex\plugins\cache\anarchy-ai-user-profile\anarchy-ai\0.1.8`
+  - Fissure-session report stated:
+    - `assess_harness_gap_state` and `preflight_session` returned successfully
+    - installed plugin manifest reports version `0.1.8`
+    - exposed Anarchy skill metadata still referenced cache version `0.1.7`
+- Required product direction:
+  - Do not treat this as full install proof until the active runtime path, skill metadata path, installed root, cache root, and install-state agree in the same fresh session.
+  - Treat home-local install and Codex cache as separate evidence surfaces.
+  - Installation discipline should account for cache invalidation or at least report cache-version disagreement explicitly.
+- Acceptance:
+  - A setup status/doctor or harness diagnostic reports:
+    - installed user-profile plugin root
+    - Codex cache roots and versions for the marketplace/plugin pair
+    - install-state version and recorded runtime path
+    - exposed active skill metadata path when the host makes it available
+    - active runtime path when a live tool call can report it
+  - Fresh-session proof requires metadata/runtime/install-state agreement or explicitly records the mismatch as a caveat.
+  - Truth matrix distinguishes "tools callable" from "cache/home install state fully understood."
+
 ### AA-BUG-005: Missing setup `self-check` command for active mount diagnostics
 
 - Severity: Medium

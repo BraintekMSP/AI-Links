@@ -195,27 +195,42 @@ Proven by local build output and a throwaway-repo smoke install on `2026-04-25`:
 
 ## Inferred (Not Yet Fully Proven)
 
-### A. Codex may materialize an installed-copy cache under `~/.codex/plugins/cache/...`
+### A. Codex materializes an installed-copy cache under `~/.codex/plugins/cache/...`, but active-lane selection remains unresolved
 
-Why this remains inferred:
+Observed on `2026-04-25` during the Fissure / Docker-Builder-Project proving run:
 
-- OpenAI Codex docs describe a Codex-managed cache or installed-copy lane
-- no Anarchy-specific cache directory was observed locally after install and before restart
-- a fresh post-install Codex restart has not yet been captured in this repo as repeatable evidence
+- setup installed the user-profile bundle into `C:\Users\herri\.codex\plugins\anarchy-ai`
+- after Codex restart, an Anarchy cache copy existed at `C:\Users\herri\.codex\plugins\cache\anarchy-ai-user-profile\anarchy-ai\0.1.8`
+- a Fissure-session agent reported callable Anarchy tools and an installed plugin root at `C:\Users\herri\.codex\plugins\anarchy-ai`
+- the same Fissure-session report said exposed skill metadata still referenced cache version `0.1.7` while installed/cache state on disk was `0.1.8`
+
+What this proves:
+
+- Codex's home-local plugin cache is materially involved after restart.
+- Fresh-session host surfacing worked in Fissure after the user-profile install.
+
+What remains unresolved:
+
+- whether Codex selects runtime, skills, and plugin metadata from the same cache generation in every session
+- whether stale skill metadata can persist while runtime/tool calls use a newer cache or installed root
+- which host-owned state invalidates or refreshes stale cache metadata
+- whether this behavior is stable across devices or only this Windows profile
 
 Promotion test:
 
-1. restart Codex after the home install
-2. observe whether a cache or installed-copy lane appears
-3. capture the resulting path and repeat the observation
+1. capture installed root, cache root, exposed skill metadata path, active runtime path, and successful tool call from the same fresh session
+2. repeat after a no-op reinstall and another Codex restart
+3. confirm the exposed skill metadata, callable runtime, and installed/cache versions agree
+4. repeat on a second device before treating cache selection as portable proof
 
 ### B. Codex install-state materialization may still differ from the documented cache/config model
 
 Why this remains inferred:
 
 - OpenAI Codex docs say local plugins install into `~/.codex/plugins/cache/$MARKETPLACE_NAME/$PLUGIN_NAME/local/` and store on/off state in `~/.codex/config.toml`
-- the current Anarchy-AI home-local install now resolves in a fresh session, but no Anarchy-specific cache directory has been observed locally
+- the current Anarchy-AI home-local install now resolves in a fresh session and an Anarchy-specific cache directory has been observed, but the observed cache path uses a versioned folder (`0.1.8`) rather than the documented `local` suffix
 - the current `~/.codex/config.toml` still shows only the curated plugin enable-state entries, not an Anarchy-specific plugin state entry
+- Fissure evidence indicates the home install and cache can disagree at the metadata layer, so config/cache/install-state relationships remain under-specified
 
 Promotion test:
 
@@ -307,12 +322,14 @@ Claim:
 
 Current status:
 
-- inferred
+- partially observed, not fully proven
 
 Why:
 
-- current repo evidence proves the install outputs and on-disk state
-- a fresh post-install Codex session verification is still pending capture in this matrix
+- Fissure / Docker-Builder-Project fresh-session report on `2026-04-25` confirmed Anarchy tools were callable after a user-profile install and Codex restart
+- setup status for the same run reported `bootstrap_state = "ready"` and `install_state.state_valid = true`
+- however, the same report exposed a version mismatch between skill metadata (`0.1.7`) and installed/cache state (`0.1.8`)
+- this proves session surfacing occurred, but does not yet prove clean active-lane selection or repeatable cache invalidation behavior
 
 ### 3. Different-device portability
 
@@ -345,6 +362,8 @@ Promotion test for device portability:
    - assess JSON
    - bundle path
    - marketplace file
+   - Codex cache path and version
+   - exposed skill metadata path when available
 3. If bundle identity is current but surface visibility still looks stale:
    - treat that as a host indexing or cache investigation
    - do not rewrite core runtime truth based only on stale visibility symptoms

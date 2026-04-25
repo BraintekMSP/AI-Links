@@ -11,6 +11,8 @@
 - Added the `AI-Links` authoring boundary: in this source repo the human owner acts as the operative harness, and that repo-specific rule must not be copied into portable schemas, templates, plugin payloads, or consuming repos.
 - Added the affirmative control-plane class boundary: Anarchy-AI is an underlay, not a control plane, and should reject the control-plane category rather than present itself as a successful or failed instance of it.
 - Added `violates-N-prior-decisions` as a non-gating thinking measure for fast-path choices whose local speed may hide cascading violations of prior decisions.
+- Recorded the Fissure fresh-session install result as partial proof with a cache/home metadata caveat: Anarchy tools were callable after restart, but exposed skill metadata still referenced an older cache generation.
+- Added `AA-BUG-019` for Codex home install and cache divergence so install discipline treats installed root, cache root, skill metadata, runtime path, and install-state as separate evidence surfaces.
 - Recorded the correction in the Arc narrative as continuity against context-compression drift.
 
 ## 2026-04-24
