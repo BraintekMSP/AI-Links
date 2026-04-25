@@ -12,6 +12,12 @@
 - Do not self-select a subset and call that complete when the user asked for a repo ingest.
 - For `AI-Links`, treat the repo as intentional operating context, not as a pile of optional reference docs.
 
+## 2.5) AI-Links authoring boundary
+- `AI-Links` is the authoring and source-truth repo for the schema family, harness, installer, docs, and product doctrine.
+- In this repo, the schemas and harness must not be expected to self-fulfill their own design; the human owner is the operative harness for source-authoring judgment, continuity pressure, and promotion decisions.
+- Treat harness output in this repo as evidence and assistance, not as the final authority over source intent.
+- Do not migrate this repo-specific boundary into portable schemas, templates, plugin payloads, or consuming repos unless the human explicitly asks for a portable formulation.
+
 ## 3) Documentation rules
 - `docs/TODO_ai_links.md` is active work only.
 - Completed work moves to `docs/CHANGELOG_ai_links.md`.

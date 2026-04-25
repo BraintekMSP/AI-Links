@@ -29,6 +29,8 @@ Current operating boundary:
 - adoption is an implementation concern: a harness surface is only alive in an environment when people and agents can discover it, own it, and use it under pressure without leaving the work path
 - this is continuity with the existing underlay thesis, not a new thesis: make the better-context path easier, clearer, and more recoverable than the shortcut
 - zero trust is not the harness goal; tokens, devices, vaults, humans, and AI agents are still trust-bearing surfaces, so Anarchy-AI should complement normal security tools by making risky shortcuts visibly more expensive, not by claiming to remove trust
+- `AI-Links` is a source-authoring workspace, not a normal consuming workspace; here the human owner is the operative harness for source intent and promotion decisions, while the runtime harness is evidence/assistance only
+- that source-authoring boundary must not be published into adopting repos as a default rule; consuming repos should receive runtime/materialization/proof lanes, not the claim that their human must replace the harness
 
 ## Shared Core
 

@@ -411,6 +411,18 @@
         "finalized-by": "Mike Herring"
       },
       "status": "resolved"
+    },
+    {
+      "id": "e042",
+      "date": "2026-04-25",
+      "type": "correction",
+      "summary": "AI-Links authoring-boundary correction -- the harness does not need to matter inside AI-Links the same way it matters in adopting repos because AI-Links authors the schema family, harness, installer, and doctrine; in this source workspace Mike acts as the operative harness for source intent, continuity pressure, and promotion decisions -- this is not a portable adopter rule and must not be copied into consumer schemas, templates, plugin payloads, or published install surfaces",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "Codex",
+        "finalized-by": "Mike Herring"
+      },
+      "status": "resolved"
     }
   ],
 
@@ -617,6 +629,14 @@
       "decided-by": "Mike Herring",
       "requested-by": "Mike Herring (corrected context-compressed drift and clarified that Anarchy's carrot is to keep AI and humans on the right path by showing why the faster shortcut is often longer and filled with grief)",
       "reversed": false
+    },
+    {
+      "id": "d018",
+      "date": "2026-04-25",
+      "decision": "AI-Links is the authoring/source-truth workspace where the human owner acts as the operative harness; schemas and runtime harness output in this repo are evidence and assistance, not self-fulfilling authority over their own design -- this boundary is repo-specific and must not transition into adopting repos, which should receive runtime/materialization/proof lanes rather than the claim that the human replaces the harness",
+      "decided-by": "Mike Herring",
+      "requested-by": "Mike Herring (clarified that schemas cannot self-fulfill in their own design, the harness matters elsewhere, and inside AI-Links the human has to act as the harness)",
+      "reversed": false
     }
   ],
 
@@ -667,5 +687,5 @@
     ]
   },
 
-  "handoff-note": "next session should read this Arc record before reading the scratchpads or pen test -- the scratchpads were inputs to the decisions recorded here, not replacements for them -- open threads are e012, e013, e016-e019, e025, e028-e030, e035, and e036; they are parked intentionally, not forgotten, and d013 clarifies that visible open threads are continuity infrastructure rather than a cleanliness failure -- e011 (TheLinks sync) is closed by e033 with commit 7e70530 on TheLinks branch governance-schema -- e027 is closed by d010/e032 and e025 is now evidence-assisted by post_migration_inventory but still needs the WO2/TheLinks-style history investigation before it fully closes -- d011 (canonical provenance definition) and d012 (narrative is the strongest durable home for provenance) are this session's deepest theory shifts; e035 is the small concrete vocabulary upgrade derived from them, e036 is the design surface that should not be touched until observed muddling pulls on it -- restraint-as-feature is a load-bearing posture (observed-patterns.good); future sessions facing 'should we add layer X for symmetry' should re-read it before deciding -- ECC positioning is corrected by d014: ECC is a different product class and an inspiration surface; Anarchy-AI can aspire to complement ECC and systems like it by providing proof/provenance substrate rather than competing in ECC's lifecycle class or implying partnership/equality -- d015/e039 are the harness boundary correction: schemas cannot self-fulfill, plugin visibility is adapter evidence not source truth, and the next harness maturity lane is install lifecycle discipline rather than stronger prose walls -- d016/e040 are the adoption doctrine correction: Anarchy fails if it is external ceremony, policy beside the work, reminder-only tooling, or friction that does not improve the actor's immediate odds of success; all future changes should make better-context work easier than worse-context work -- d017/e041 clarify continuity and trust posture: this is not a thesis change, literal zero trust is a fallacy, and Anarchy complements security controls by making the right path easier and shortcut grief visible -- the terms-to-skills walk-back is the canonical example of why schema-shape proposals must be pressure-tested against a live artifact before landing -- 'skills sucks' is the canonical example of a BECAUSE clause that fails the precision bar, kept in observed-patterns.bad for that reason"
+  "handoff-note": "next session should read this Arc record before reading the scratchpads or pen test -- the scratchpads were inputs to the decisions recorded here, not replacements for them -- open threads are e012, e013, e016-e019, e025, e028-e030, e035, and e036; they are parked intentionally, not forgotten, and d013 clarifies that visible open threads are continuity infrastructure rather than a cleanliness failure -- e011 (TheLinks sync) is closed by e033 with commit 7e70530 on TheLinks branch governance-schema -- e027 is closed by d010/e032 and e025 is now evidence-assisted by post_migration_inventory but still needs the WO2/TheLinks-style history investigation before it fully closes -- d011 (canonical provenance definition) and d012 (narrative is the strongest durable home for provenance) are this session's deepest theory shifts; e035 is the small concrete vocabulary upgrade derived from them, e036 is the design surface that should not be touched until observed muddling pulls on it -- restraint-as-feature is a load-bearing posture (observed-patterns.good); future sessions facing 'should we add layer X for symmetry' should re-read it before deciding -- ECC positioning is corrected by d014: ECC is a different product class and an inspiration surface; Anarchy-AI can aspire to complement ECC and systems like it by providing proof/provenance substrate rather than competing in ECC's lifecycle class or implying partnership/equality -- d015/e039 are the harness boundary correction: schemas cannot self-fulfill, plugin visibility is adapter evidence not source truth, and the next harness maturity lane is install lifecycle discipline rather than stronger prose walls -- d016/e040 are the adoption doctrine correction: Anarchy fails if it is external ceremony, policy beside the work, reminder-only tooling, or friction that does not improve the actor's immediate odds of success; all future changes should make better-context work easier than worse-context work -- d017/e041 clarify continuity and trust posture: this is not a thesis change, literal zero trust is a fallacy, and Anarchy complements security controls by making the right path easier and shortcut grief visible -- d018/e042 add the AI-Links-only authoring boundary: Mike acts as the operative harness in the source repo, and that repo-specific rule must not move into portable schemas, templates, plugin payloads, or adopting repos -- the terms-to-skills walk-back is the canonical example of why schema-shape proposals must be pressure-tested against a live artifact before landing -- 'skills sucks' is the canonical example of a BECAUSE clause that fails the precision bar, kept in observed-patterns.bad for that reason"
 }
