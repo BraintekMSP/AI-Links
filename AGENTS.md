@@ -40,6 +40,7 @@
 - Do not recommend broad cleanup or deletion without explicit inventory and rollback planning.
 - For destructive cleanup, inventory first, quarantine before delete, and revalidate the exact absolute target path in the same execution scope immediately before the move/remove action.
 - Do not rely on command sequencing as a safety gate; destructive follow-up actions must be explicitly guarded by success checks and failure handling.
+- Treat mojibake as encoding corruption, not content. When corrupted punctuation or replacement characters are found, correct them directly while preserving the intended meaning; do not ask whether to keep corrupted text.
 
 ## 5) Public-safe rules
 - Keep names, examples, and prompts generic.

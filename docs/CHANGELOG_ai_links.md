@@ -8,6 +8,7 @@
 - Added artifact-location discipline to the portable governance guidance and harness gap assessment so repo-local `bin`, `obj`, `.tmp`, and equivalent generated directories are reported as repo-integrity risks with relocation guidance instead of deletion instructions.
 - Advanced the Anarchy-AI package target to `0.2.0`, skipping `0.1.13` cache proof because the remediation changes doctrine, portable heuristics, runtime/package behavior, and validation.
 - Corrected active README/spec mojibake as encoding corruption and added active-doc mojibake checks so corrupted punctuation does not persist in current delivery surfaces.
+- Promoted mojibake handling into a repo-wide tracked-text hygiene rule, corrected remaining scratchpad corruption, and made corrupted punctuation an automatic fix-in-place class when meaning is clear.
 - Tightened mirror-sync validation so `chat-history-capture` must stay aligned across plugin, `.claude`, and `.codex` mirrors.
 - Rebuilt and installed the user-profile bundle as source `0.2.0`; Codex cache materialization was still host-owned and remained on `0.1.11` until a future restart/reindex.
 

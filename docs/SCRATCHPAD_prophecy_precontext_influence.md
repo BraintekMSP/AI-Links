@@ -1211,7 +1211,7 @@ The idea borrows from EOS (Entrepreneurial Operating System) where a "rock" is a
 
 Applied to AI sessions:
 
-- **Modes:** design mode, plan mode, governance mode, execution mode. Emphasis on "mode" â€” each mode has different permitted actions and different completion criteria.
+- **Modes:** design mode, plan mode, governance mode, execution mode. Emphasis on "mode" - each mode has different permitted actions and different completion criteria.
 - **Prompt-as-meeting:** each prompt represents a two-week meeting and a rock check-in. Status is binary: on-track or off-track.
 - **30-prompt horizon:** what must be accomplished in approximately 30 prompts (analogous to 90 days). These are the rocks.
 - **120-prompt vision:** what does the 120-prompt future look like? This is the directional anchor that rocks serve.
@@ -1219,7 +1219,7 @@ Applied to AI sessions:
 This is genuinely a harness concept, not a schema concept. The schema says what the rules are. The harness says "and we're checking every prompt whether you're on track."
 
 Why this might work:
-- Rocks are binary â€” no partial credit, no "next clean move" escape
+- Rocks are binary - no partial credit, no "next clean move" escape
 - The check-in cadence creates recurring accountability that doesn't depend on the agent self-reporting
 - The 30/120 split forces the agent to hold both short-term deliverables and long-term direction simultaneously
 - Mode declarations constrain what's permitted per prompt, reducing the "I'll just quickly fix this other thing" drift

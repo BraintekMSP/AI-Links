@@ -207,6 +207,28 @@ $mojibakeMarkers = @(
   [string][char]0xFFFD
 )
 
+$repoWideTextExtensions = @(
+  '.cmd',
+  '.cs',
+  '.csproj',
+  '.editorconfig',
+  '.gitignore',
+  '.json',
+  '.md',
+  '.props',
+  '.ps1',
+  '.psd1',
+  '.psm1',
+  '.sln',
+  '.toml',
+  '.txt',
+  '.xml',
+  '.yaml',
+  '.yml'
+)
+
+$strictUtf8 = New-Object System.Text.UTF8Encoding($false, $true)
+
 foreach ($rule in $activeDocRules) {
   $relativePath = [string]$rule.path
   $absolutePath = Join-Path $RepoRoot ($relativePath.Replace('/', '\'))
@@ -236,6 +258,42 @@ foreach ($rule in $activeDocRules) {
   foreach ($marker in $mojibakeMarkers) {
     if ($content.Contains($marker)) {
       Add-Finding -Findings $findings -RelativePath $relativePath -FindingType 'mojibake_marker' -Detail ("Found common mojibake marker: {0}" -f $marker)
+    }
+  }
+}
+
+$trackedFiles = & git -C $RepoRoot ls-files
+if ($LASTEXITCODE -ne 0) {
+  throw 'Unable to enumerate tracked files with git ls-files.'
+}
+
+foreach ($relativePath in $trackedFiles) {
+  if ([string]::IsNullOrWhiteSpace($relativePath)) {
+    continue
+  }
+
+  $normalizedPath = $relativePath.Replace('\', '/')
+  $extension = [System.IO.Path]::GetExtension($normalizedPath).ToLowerInvariant()
+  if ($repoWideTextExtensions -notcontains $extension) {
+    continue
+  }
+
+  $absolutePath = Join-Path $RepoRoot ($normalizedPath.Replace('/', '\'))
+  if (-not (Test-Path $absolutePath)) {
+    continue
+  }
+
+  try {
+    $content = [System.IO.File]::ReadAllText($absolutePath, $strictUtf8)
+  }
+  catch {
+    Add-Finding -Findings $findings -RelativePath $normalizedPath -FindingType 'utf8_decode_failure' -Detail 'Tracked text file could not be read as strict UTF-8.'
+    continue
+  }
+
+  foreach ($marker in $mojibakeMarkers) {
+    if ($content.Contains($marker)) {
+      Add-Finding -Findings $findings -RelativePath $normalizedPath -FindingType 'mojibake_marker' -Detail ("Found common mojibake marker: {0}" -f $marker)
     }
   }
 }
