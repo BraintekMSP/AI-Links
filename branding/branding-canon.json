@@ -12,7 +12,7 @@
     "homepage_url": "https://github.com/BraintekMSP/AI-Links",
     "repository_url": "https://github.com/BraintekMSP/AI-Links",
     "developer_name": "Matt Herring",
-    "plugin_manifest_version": "0.2.0",
+    "plugin_manifest_version": "0.2.1",
     "privacy_policy_url": "https://github.com/BraintekMSP/AI-Links/blob/main/plugins/anarchy-ai/PRIVACY.md",
     "terms_of_service_url": "https://github.com/BraintekMSP/AI-Links/blob/main/LICENSE",
     "default_update_source_zip_url": "https://github.com/BraintekMSP/AI-Links/archive/refs/heads/main.zip",
@@ -25,7 +25,7 @@
     "plugin_default_prompt_lines": [
       "Use Anarchy-AI as the runtime harness for the AGENTS Heuristic Underlay.",
       "Run preflight_session before complex changes or when the repo context feels incomplete, stale, or expensive to rebuild in chat.",
-      "Use assess_harness_gap_state when install, runtime, schema, or adoption state is unclear, and use run_gov2gov_migration to plan non-destructive AGENTS migration when current files are partial or drifting."
+      "Use assess_harness_gap_state when install, runtime, schema, underlay readiness, or adoption state is unclear, and use run_gov2gov_migration to plan non-destructive AGENTS migration when current files are partial or drifting."
     ]
   },
   "relative_paths": {

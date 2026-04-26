@@ -4032,6 +4032,9 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
 
     private const string DirectionAssistCapability = "direction_assist_test";
     private const string DirectionAssistContractFile = "direction-assist-test.contract.json";
+    private const string NarrativeSchemaFileName = "AGENTS-schema-narrative.json";
+    private const string NarrativeRegisterRelativePath = ".agents/anarchy-ai/narratives/register.json";
+    private const string NarrativeProjectsDirectoryRelativePath = ".agents/anarchy-ai/narratives/projects";
 
     // Purpose: Assesses the current workspace and discovered plugin root for install/runtime/adoption gaps.
     // Expected input: Absolute workspace root, optional host context, and optional expected capability list.
@@ -4099,8 +4102,10 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         var schemaRecommendedAction = GetString(schemaElement, "recommended_next_action");
         var schemaActiveReasons = GetStringArray(schemaElement, "active_reasons");
         var artifactHygiene = AssessArtifactHygiene(resolvedWorkspaceRoot);
+        var underlayReadiness = AssessUnderlayReadiness(resolvedWorkspaceRoot, pluginRoot);
 
         var missingComponents = new List<string>();
+        missingComponents.AddRange(underlayReadiness.MissingComponents);
 
         if (!runtimeExists)
         {
@@ -4239,6 +4244,13 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         agentActions.Add("treat_schema_state_as_input_not_completion");
         safeRepairs.AddRange(schemaSafeRepairs);
         safeRepairs.AddRange(artifactHygiene.SafeRepairs);
+
+        if (ShouldPromoteUnderlayReadinessActions(consumerMaterialGovernanceCheck, normalizedExpectedCapabilities))
+        {
+            safeRepairs.AddRange(underlayReadiness.SafeRepairs);
+            agentActions.AddRange(underlayReadiness.AgentActions);
+        }
+
         var assessmentPaths = BuildAssessmentPaths(
             resolvedWorkspaceRoot,
             pluginRoot,
@@ -4262,6 +4274,25 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
                 integrity_state = integrityState,
                 possession_state = possessionState,
                 active_reasons = schemaActiveReasons
+            },
+            underlay_readiness = new
+            {
+                readiness_state = underlayReadiness.ReadinessState,
+                portable_schema_state = underlayReadiness.PortableSchemaState,
+                missing_portable_schema_files = underlayReadiness.MissingPortableSchemaFiles,
+                narrative_schema_available = underlayReadiness.NarrativeSchemaAvailable,
+                narrative_templates_available = underlayReadiness.NarrativeTemplatesAvailable,
+                missing_narrative_templates = underlayReadiness.MissingNarrativeTemplates,
+                narrative_register_present = underlayReadiness.NarrativeRegisterPresent,
+                narrative_register_valid = underlayReadiness.NarrativeRegisterValid,
+                narrative_projects_directory_present = underlayReadiness.NarrativeProjectsDirectoryPresent,
+                narrative_record_count = underlayReadiness.NarrativeRecordCount,
+                governed_agents_family_present = underlayReadiness.GovernedAgentsFamilyPresent,
+                repo_utilization_state = underlayReadiness.RepoUtilizationState,
+                observed_surfaces = underlayReadiness.ObservedSurfaces,
+                utilization_gaps = underlayReadiness.UtilizationGaps,
+                safe_repairs = underlayReadiness.SafeRepairs,
+                agent_actions = underlayReadiness.AgentActions
             },
             artifact_hygiene = new
             {
@@ -4339,6 +4370,169 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         }
 
         return "external_runtime_only";
+    }
+
+    // Purpose: Reports whether the portable underlay is merely available, scaffolded, or actually used by repo-specific narrative/governance surfaces.
+    // Expected input: Workspace root and selected plugin root.
+    // Expected output: Underlay readiness classification, observed surfaces, utilization gaps, and non-destructive repair guidance.
+    // Critical dependencies: RuntimeEnvelopeBuilder portable schema lists, narrative template paths, and repo narrative path conventions.
+    private static UnderlayReadinessAssessment AssessUnderlayReadiness(string workspaceRoot, string pluginRoot)
+    {
+        var missingPortableSchemaFiles = RuntimeEnvelopeBuilder.PortableSchemaFamily
+            .Where(fileName => !File.Exists(Path.Combine(workspaceRoot, fileName)))
+            .ToArray();
+        var existingPortableSchemaFiles = RuntimeEnvelopeBuilder.PortableSchemaFamily
+            .Except(missingPortableSchemaFiles, StringComparer.Ordinal)
+            .ToArray();
+
+        var portableSchemaState = existingPortableSchemaFiles.Length == 0
+            ? "missing"
+            : missingPortableSchemaFiles.Length == 0
+                ? "complete"
+                : "partial";
+
+        var narrativeSchemaAvailable = File.Exists(Path.Combine(workspaceRoot, NarrativeSchemaFileName));
+        var registerTemplatePath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleNarrativeRegisterTemplateFileRelativePath);
+        var recordTemplatePath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleNarrativeRecordTemplateFileRelativePath);
+        var missingNarrativeTemplates = new[]
+            {
+                File.Exists(registerTemplatePath) ? null : AnarchyPathCanon.BundleNarrativeRegisterTemplateFileRelativePath,
+                File.Exists(recordTemplatePath) ? null : AnarchyPathCanon.BundleNarrativeRecordTemplateFileRelativePath
+            }
+            .Where(static value => !string.IsNullOrWhiteSpace(value))
+            .Cast<string>()
+            .ToArray();
+        var narrativeTemplatesAvailable = missingNarrativeTemplates.Length == 0;
+
+        var narrativeRegisterPath = Path.Combine(workspaceRoot, NarrativeRegisterRelativePath);
+        var narrativeProjectsDirectoryPath = Path.Combine(workspaceRoot, NarrativeProjectsDirectoryRelativePath);
+        var narrativeRegisterPresent = File.Exists(narrativeRegisterPath);
+        var narrativeProjectsDirectoryPresent = Directory.Exists(narrativeProjectsDirectoryPath);
+        var narrativeRegisterValid = narrativeRegisterPresent && IsValidJsonFile(narrativeRegisterPath);
+        var narrativeRecordCount = narrativeProjectsDirectoryPresent
+            ? Directory.EnumerateFiles(narrativeProjectsDirectoryPath, "*.json", SearchOption.TopDirectoryOnly).Count()
+            : 0;
+        var governedAgentsFamilyPresent = RuntimeEnvelopeBuilder.GovernedAgentsStructure
+            .All(fileName => File.Exists(Path.Combine(workspaceRoot, fileName)));
+
+        var observedSurfaces = new List<string>();
+        observedSurfaces.AddRange(existingPortableSchemaFiles.Select(static fileName => $"portable_schema:{fileName}"));
+        if (narrativeRegisterPresent) { observedSurfaces.Add($"narrative_register:{NarrativeRegisterRelativePath}"); }
+        if (narrativeProjectsDirectoryPresent) { observedSurfaces.Add($"narrative_projects_directory:{NarrativeProjectsDirectoryRelativePath}"); }
+        if (narrativeRecordCount > 0) { observedSurfaces.Add($"narrative_records:{narrativeRecordCount}"); }
+        if (governedAgentsFamilyPresent) { observedSurfaces.Add("governed_agents_family_present"); }
+
+        var utilizationGaps = new List<string>();
+        utilizationGaps.AddRange(missingPortableSchemaFiles.Select(static fileName => $"missing_portable_schema:{fileName}"));
+        if (!narrativeSchemaAvailable) { utilizationGaps.Add($"narrative_schema_missing:{NarrativeSchemaFileName}"); }
+        utilizationGaps.AddRange(missingNarrativeTemplates.Select(static template => $"missing_narrative_template:{template}"));
+        if (!narrativeRegisterPresent) { utilizationGaps.Add($"narrative_register_missing:{NarrativeRegisterRelativePath}"); }
+        else if (!narrativeRegisterValid) { utilizationGaps.Add($"narrative_register_invalid_json:{NarrativeRegisterRelativePath}"); }
+        if (!narrativeProjectsDirectoryPresent) { utilizationGaps.Add($"narrative_projects_directory_missing:{NarrativeProjectsDirectoryRelativePath}"); }
+        if (narrativeRecordCount == 0) { utilizationGaps.Add("narrative_records_absent"); }
+        if (!governedAgentsFamilyPresent) { utilizationGaps.Add("governed_agents_family_absent"); }
+
+        var repoUtilizationState = governedAgentsFamilyPresent
+            ? "governed_agents_family_present"
+            : narrativeRecordCount > 0
+                ? "narrative_records_present"
+                : narrativeRegisterPresent || narrativeProjectsDirectoryPresent
+                    ? "narrative_scaffolded_no_records"
+                    : "none";
+
+        var readinessState = portableSchemaState switch
+        {
+            "missing" => "portable_underlay_unavailable",
+            "partial" => "portable_underlay_partial",
+            _ when repoUtilizationState == "none" => "portable_underlay_available_no_repo_utilization",
+            _ when repoUtilizationState == "narrative_scaffolded_no_records" => "portable_underlay_available_narrative_scaffolded",
+            _ => "portable_underlay_utilized"
+        };
+
+        var safeRepairs = new List<string>();
+        if (portableSchemaState is "missing" or "partial")
+        {
+            safeRepairs.Add("run_underlay_refresh_apply");
+        }
+
+        if (narrativeSchemaAvailable && (!narrativeRegisterPresent || !narrativeProjectsDirectoryPresent))
+        {
+            safeRepairs.Add("seed_narrative_register_and_projects_from_underlay");
+        }
+
+        if (!narrativeTemplatesAvailable)
+        {
+            safeRepairs.Add("refresh_user_profile_plugin_or_rebuild_payload_templates");
+        }
+
+        if (narrativeRecordCount == 0)
+        {
+            safeRepairs.Add("create_initial_narrative_arc_record_when_project_decisions_exist");
+        }
+
+        var agentActions = new List<string>
+        {
+            "inspect_underlay_readiness_before_declaring_adoption",
+            "do_not_treat_schema_availability_as_repo_utilization"
+        };
+
+        if (readinessState == "portable_underlay_available_no_repo_utilization")
+        {
+            agentActions.Add("materialize_narrative_surfaces_before_arc_capture");
+        }
+
+        var missingComponents = missingNarrativeTemplates
+            .Select(static template => $"missing_narrative_template:{template}")
+            .ToArray();
+
+        return new UnderlayReadinessAssessment(
+            readinessState,
+            portableSchemaState,
+            missingPortableSchemaFiles,
+            narrativeSchemaAvailable,
+            narrativeTemplatesAvailable,
+            missingNarrativeTemplates,
+            narrativeRegisterPresent,
+            narrativeRegisterValid,
+            narrativeProjectsDirectoryPresent,
+            narrativeRecordCount,
+            governedAgentsFamilyPresent,
+            repoUtilizationState,
+            observedSurfaces.Distinct(StringComparer.Ordinal).ToArray(),
+            utilizationGaps.Distinct(StringComparer.Ordinal).ToArray(),
+            safeRepairs.Distinct(StringComparer.Ordinal).ToArray(),
+            agentActions.Distinct(StringComparer.Ordinal).ToArray(),
+            missingComponents);
+    }
+
+    private static bool ShouldPromoteUnderlayReadinessActions(string consumerMaterialGovernanceCheck, string[] expectedCapabilities)
+    {
+        return consumerMaterialGovernanceCheck != "not_applicable" ||
+               expectedCapabilities.Contains("repo_underlay", StringComparer.Ordinal) ||
+               expectedCapabilities.Contains("narrative", StringComparer.Ordinal) ||
+               expectedCapabilities.Contains("arc", StringComparer.Ordinal) ||
+               expectedCapabilities.Contains("underlay_readiness", StringComparer.Ordinal);
+    }
+
+    private static bool IsValidJsonFile(string filePath)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(filePath));
+            return document.RootElement.ValueKind is JsonValueKind.Object or JsonValueKind.Array;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     private static readonly string[] GeneratedArtifactDirectoryNames =
@@ -4903,6 +5097,29 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         string[] ObservedArtifactPaths,
         string[] RecommendedArtifactLanes,
         string[] SafeRepairs);
+
+    // Purpose: Carries portable-underlay readiness and repo-utilization facts separately from install/runtime adoption.
+    // Expected input: AssessUnderlayReadiness output.
+    // Expected output: Immutable assessment record for tool output and optional repair propagation.
+    // Critical dependencies: Narrative schema/register conventions and RuntimeEnvelopeBuilder portable schema inventory.
+    private sealed record UnderlayReadinessAssessment(
+        string ReadinessState,
+        string PortableSchemaState,
+        string[] MissingPortableSchemaFiles,
+        bool NarrativeSchemaAvailable,
+        bool NarrativeTemplatesAvailable,
+        string[] MissingNarrativeTemplates,
+        bool NarrativeRegisterPresent,
+        bool NarrativeRegisterValid,
+        bool NarrativeProjectsDirectoryPresent,
+        int NarrativeRecordCount,
+        bool GovernedAgentsFamilyPresent,
+        string RepoUtilizationState,
+        string[] ObservedSurfaces,
+        string[] UtilizationGaps,
+        string[] SafeRepairs,
+        string[] AgentActions,
+        string[] MissingComponents);
 }
 
 // Purpose: Runs preflight by combining active-work, harness-gap, and schema-reality assessment into one bounded readiness decision.

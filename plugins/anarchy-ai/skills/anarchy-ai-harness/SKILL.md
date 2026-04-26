@@ -20,7 +20,7 @@ Use this skill when:
 ## Tool order
 
 1. Call `preflight_session` before complex changes or when the agent is unsure whether the harness should take the first turn.
-2. Call `assess_harness_gap_state` when installation, registration, runtime, adoption state, or generated artifact hygiene is unclear.
+2. Call `assess_harness_gap_state` when installation, registration, runtime, underlay readiness, adoption state, or generated artifact hygiene is unclear.
 3. Call `compile_active_work_state` when the current work needs to be normalized into one bounded packet.
 4. Call `is_schema_real_or_shadow_copied` before trusting a schema package.
 5. For `partial` or `copied_only` schema reality, call `run_gov2gov_migration`.
@@ -42,6 +42,7 @@ Use this skill when:
 - Treat `preflight_session` as the default entry for complex changes.
 - Treat `schema_reality_state`, `integrity_state`, and `possession_state` as separate result axes.
 - Treat install presence and full adoption as different conditions.
+- Treat `underlay_readiness` as the distinction between portable schema/template availability and actual repo utilization. A repo can have the narrative schema available while still having no narrative register, projects directory, or arc records.
 - Treat `artifact_hygiene` findings as relocation guidance, not permission to delete generated output.
 - Use `compile_active_work_state` when the agent is at risk of working directly from chat turbulence instead of bounded operational state.
 - Prefer `plan_only` first when the user asked for diagnosis.

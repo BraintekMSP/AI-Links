@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Runtime.CompilerServices;
+using AnarchyAi.Pathing;
 using Xunit;
 
 namespace AnarchyAi.Mcp.Server.Tests;
@@ -115,6 +116,85 @@ public sealed class HarnessGapAssessorTests
     }
 
     /// <summary>
+    /// Confirms that a repo with portable schemas but no narrative/register usage reports availability separately from utilization.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts serialized JSON structure.</returns>
+    /// <remarks>Critical dependencies: underlay readiness output and narrative schema/register path conventions.</remarks>
+    [Fact]
+    public void Assess_ReportsPortableUnderlayAvailableWithoutRepoUtilization()
+    {
+        var tempRoot = CreateTempWorkspace();
+        try
+        {
+            SeedPortableSchemaFiles(tempRoot);
+            SeedNarrativeTemplates(tempRoot);
+
+            var assessor = new HarnessGapAssessor(new SchemaRealityInspector());
+            var result = assessor.Assess(tempRoot, "generic", ["repo_underlay"]);
+
+            using var document = JsonDocument.Parse(JsonSerializer.Serialize(result));
+            var underlayReadiness = document.RootElement.GetProperty("underlay_readiness");
+            Assert.Equal("portable_underlay_available_no_repo_utilization", underlayReadiness.GetProperty("readiness_state").GetString());
+            Assert.Equal("complete", underlayReadiness.GetProperty("portable_schema_state").GetString());
+            Assert.True(underlayReadiness.GetProperty("narrative_schema_available").GetBoolean());
+            Assert.True(underlayReadiness.GetProperty("narrative_templates_available").GetBoolean());
+            Assert.False(underlayReadiness.GetProperty("narrative_register_present").GetBoolean());
+            Assert.False(underlayReadiness.GetProperty("narrative_projects_directory_present").GetBoolean());
+            Assert.Equal(0, underlayReadiness.GetProperty("narrative_record_count").GetInt32());
+            Assert.Equal("none", underlayReadiness.GetProperty("repo_utilization_state").GetString());
+
+            var utilizationGaps = ReadStringArray(underlayReadiness, "utilization_gaps");
+            Assert.Contains("narrative_register_missing:.agents/anarchy-ai/narratives/register.json", utilizationGaps);
+            Assert.Contains("narrative_records_absent", utilizationGaps);
+
+            var safeRepairs = ReadStringArray(underlayReadiness, "safe_repairs");
+            Assert.Contains("seed_narrative_register_and_projects_from_underlay", safeRepairs);
+
+            var topLevelAgentActions = ReadStringArray(document.RootElement, "agent_actions");
+            Assert.Contains("do_not_treat_schema_availability_as_repo_utilization", topLevelAgentActions);
+        }
+        finally
+        {
+            DeleteTempWorkspace(tempRoot);
+        }
+    }
+
+    /// <summary>
+    /// Confirms that an underlay with narrative register scaffolding but no records reports scaffolded state instead of full utilization.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts serialized JSON structure.</returns>
+    /// <remarks>Critical dependencies: narrative register validity and record-count readiness classification.</remarks>
+    [Fact]
+    public void Assess_ReportsNarrativeScaffoldedWithoutRecords()
+    {
+        var tempRoot = CreateTempWorkspace();
+        try
+        {
+            SeedPortableSchemaFiles(tempRoot);
+            SeedNarrativeTemplates(tempRoot);
+            var narrativeDirectory = Path.Combine(tempRoot, ".agents", "anarchy-ai", "narratives");
+            Directory.CreateDirectory(Path.Combine(narrativeDirectory, "projects"));
+            File.WriteAllText(Path.Combine(narrativeDirectory, "register.json"), "{\"records\":[]}");
+
+            var assessor = new HarnessGapAssessor(new SchemaRealityInspector());
+            var result = assessor.Assess(tempRoot, "generic", ["repo_underlay"]);
+
+            using var document = JsonDocument.Parse(JsonSerializer.Serialize(result));
+            var underlayReadiness = document.RootElement.GetProperty("underlay_readiness");
+            Assert.Equal("portable_underlay_available_narrative_scaffolded", underlayReadiness.GetProperty("readiness_state").GetString());
+            Assert.Equal("narrative_scaffolded_no_records", underlayReadiness.GetProperty("repo_utilization_state").GetString());
+            Assert.True(underlayReadiness.GetProperty("narrative_register_present").GetBoolean());
+            Assert.True(underlayReadiness.GetProperty("narrative_register_valid").GetBoolean());
+            Assert.Equal(0, underlayReadiness.GetProperty("narrative_record_count").GetInt32());
+            Assert.Contains("narrative_records_absent", ReadStringArray(underlayReadiness, "utilization_gaps"));
+        }
+        finally
+        {
+            DeleteTempWorkspace(tempRoot);
+        }
+    }
+
+    /// <summary>
     /// Locates the repo root from source location first, then explicit/current/runtime fallbacks.
     /// </summary>
     /// <returns>The absolute repo root path containing <c>AGENTS.md</c>.</returns>
@@ -180,6 +260,35 @@ public sealed class HarnessGapAssessorTests
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Cast<string>()
             .ToArray();
+    }
+
+    /// <summary>
+    /// Seeds placeholder portable schema-family files into a temporary workspace.
+    /// </summary>
+    /// <param name="workspaceRoot">Temporary workspace root.</param>
+    /// <remarks>Critical dependencies: <see cref="RuntimeEnvelopeBuilder.PortableSchemaFamily"/>.</remarks>
+    private static void SeedPortableSchemaFiles(string workspaceRoot)
+    {
+        foreach (var fileName in RuntimeEnvelopeBuilder.PortableSchemaFamily)
+        {
+            var path = Path.Combine(workspaceRoot, fileName);
+            File.WriteAllText(path, fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? "{}" : "# temp");
+        }
+    }
+
+    /// <summary>
+    /// Seeds the narrative templates expected by underlay readiness into the temp repo-local plugin bundle path.
+    /// </summary>
+    /// <param name="workspaceRoot">Temporary workspace root.</param>
+    /// <remarks>Critical dependencies: <see cref="AnarchyPathCanon.BundleNarrativeRegisterTemplateFileRelativePath"/> and record template path.</remarks>
+    private static void SeedNarrativeTemplates(string workspaceRoot)
+    {
+        var pluginRoot = Path.Combine(workspaceRoot, "plugins", "anarchy-ai");
+        var registerTemplatePath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleNarrativeRegisterTemplateFileRelativePath);
+        var recordTemplatePath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleNarrativeRecordTemplateFileRelativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(registerTemplatePath)!);
+        File.WriteAllText(registerTemplatePath, "{\"records\":[]}");
+        File.WriteAllText(recordTemplatePath, "{\"header\":{}}");
     }
 
     /// <summary>

@@ -101,6 +101,8 @@ The environment must be able to answer:
 - is it callable
 - is the repo bootstrapped
 - is the schema package materially real
+- are portable underlay schemas/templates available but not yet used by this repo
+- are narrative arc surfaces scaffolded, absent, or carrying records
 - is the host adapter missing or degraded
 
 That is why `assess_harness_gap_state` exists as a first-class contract.

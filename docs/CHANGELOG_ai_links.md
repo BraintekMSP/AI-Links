@@ -4,6 +4,7 @@
 
 ### Anarchy-AI 0.2.0 remediation
 
+- Added `underlay_readiness` to harness gap assessment so agents can see when portable schemas/templates are available but the repo has not yet materialized or used narrative arc surfaces.
 - Promoted `chat-history-capture` into the portable narrative heuristic layer while keeping the plugin skill as the richer execution/checking lane for preflight, timestamp provenance, JSON validation, and cache/source/runtime checks.
 - Added artifact-location discipline to the portable governance guidance and harness gap assessment so repo-local `bin`, `obj`, `.tmp`, and equivalent generated directories are reported as repo-integrity risks with relocation guidance instead of deletion instructions.
 - Advanced the Anarchy-AI package target to `0.2.0`, skipping `0.1.13` cache proof because the remediation changes doctrine, portable heuristics, runtime/package behavior, and validation.

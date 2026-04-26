@@ -127,6 +127,8 @@ Older legacy `mcp_servers.anarchy-ai-herringms` entries are cleanup evidence onl
   - installation state
   - runtime state
   - schema state
+  - underlay readiness so schema/template availability is not mistaken for repo utilization
+  - narrative utilization facts such as register presence, projects directory presence, and record count
   - artifact hygiene state for repo-local generated build/cache/runtime/scratch directories
   - adoption state
   - missing components and safe repairs

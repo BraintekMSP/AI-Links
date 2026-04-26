@@ -1,6 +1,6 @@
 {
   "contract_name": "harness_gap_state_contract",
-  "contract_version": "0.2.0",
+  "contract_version": "0.2.1",
   "function_name": "assess_harness_gap_state",
   "purpose": "Assess installation, runtime, schema, startup, and adoption gaps so the harness can report what is missing and what to do next.",
   "input_contract": {
@@ -60,6 +60,78 @@
     "schema_state": {
       "type": "object",
       "description": "Condensed schema reality, integrity, and possession summary."
+    },
+    "underlay_readiness": {
+      "type": "object",
+      "description": "Non-mutating readiness result that separates portable schema/template availability from actual repo utilization of narrative and governed AGENTS surfaces.",
+      "fields": {
+        "readiness_state": {
+          "type": "enum",
+          "values": [
+            "portable_underlay_unavailable",
+            "portable_underlay_partial",
+            "portable_underlay_available_no_repo_utilization",
+            "portable_underlay_available_narrative_scaffolded",
+            "portable_underlay_utilized"
+          ]
+        },
+        "portable_schema_state": {
+          "type": "enum",
+          "values": [
+            "missing",
+            "partial",
+            "complete"
+          ]
+        },
+        "missing_portable_schema_files": {
+          "type": "string_array"
+        },
+        "narrative_schema_available": {
+          "type": "boolean"
+        },
+        "narrative_templates_available": {
+          "type": "boolean"
+        },
+        "missing_narrative_templates": {
+          "type": "string_array"
+        },
+        "narrative_register_present": {
+          "type": "boolean"
+        },
+        "narrative_register_valid": {
+          "type": "boolean"
+        },
+        "narrative_projects_directory_present": {
+          "type": "boolean"
+        },
+        "narrative_record_count": {
+          "type": "integer"
+        },
+        "governed_agents_family_present": {
+          "type": "boolean"
+        },
+        "repo_utilization_state": {
+          "type": "enum",
+          "values": [
+            "none",
+            "narrative_scaffolded_no_records",
+            "narrative_records_present",
+            "governed_agents_family_present"
+          ]
+        },
+        "observed_surfaces": {
+          "type": "string_array"
+        },
+        "utilization_gaps": {
+          "type": "string_array"
+        },
+        "safe_repairs": {
+          "type": "string_array"
+        },
+        "agent_actions": {
+          "type": "string_array"
+        }
+      }
     },
     "artifact_hygiene": {
       "type": "object",
@@ -147,6 +219,34 @@
       "possession_state": "unpossessed",
       "active_reasons": [
         "schema_present_not_governing"
+      ]
+    },
+    "underlay_readiness": {
+      "readiness_state": "portable_underlay_available_no_repo_utilization",
+      "portable_schema_state": "complete",
+      "missing_portable_schema_files": [],
+      "narrative_schema_available": true,
+      "narrative_templates_available": true,
+      "missing_narrative_templates": [],
+      "narrative_register_present": false,
+      "narrative_register_valid": false,
+      "narrative_projects_directory_present": false,
+      "narrative_record_count": 0,
+      "governed_agents_family_present": false,
+      "repo_utilization_state": "none",
+      "observed_surfaces": [
+        "portable_schema:AGENTS-schema-narrative.json"
+      ],
+      "utilization_gaps": [
+        "narrative_register_missing:.agents/anarchy-ai/narratives/register.json",
+        "narrative_records_absent"
+      ],
+      "safe_repairs": [
+        "seed_narrative_register_and_projects_from_underlay"
+      ],
+      "agent_actions": [
+        "inspect_underlay_readiness_before_declaring_adoption",
+        "do_not_treat_schema_availability_as_repo_utilization"
       ]
     },
     "adoption_state": "partially_adopted",

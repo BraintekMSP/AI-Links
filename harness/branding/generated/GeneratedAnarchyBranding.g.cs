@@ -12,7 +12,7 @@ internal static class GeneratedAnarchyBranding
     public const string HomepageUrl = "https://github.com/BraintekMSP/AI-Links";
     public const string RepositoryUrl = "https://github.com/BraintekMSP/AI-Links";
     public const string DeveloperName = "Matt Herring";
-    public const string PluginManifestVersion = "0.2.0";
+    public const string PluginManifestVersion = "0.2.1";
     public const string PrivacyPolicyUrl = "https://github.com/BraintekMSP/AI-Links/blob/main/plugins/anarchy-ai/PRIVACY.md";
     public const string TermsOfServiceUrl = "https://github.com/BraintekMSP/AI-Links/blob/main/LICENSE";
     public const string DefaultUpdateSourceZipUrl = "https://github.com/BraintekMSP/AI-Links/archive/refs/heads/main.zip";
@@ -34,6 +34,6 @@ internal static class GeneratedAnarchyBranding
     {
         "Use Anarchy-AI as the runtime harness for the AGENTS Heuristic Underlay.",
         "Run preflight_session before complex changes or when the repo context feels incomplete, stale, or expensive to rebuild in chat.",
-        "Use assess_harness_gap_state when install, runtime, schema, or adoption state is unclear, and use run_gov2gov_migration to plan non-destructive AGENTS migration when current files are partial or drifting."
+        "Use assess_harness_gap_state when install, runtime, schema, underlay readiness, or adoption state is unclear, and use run_gov2gov_migration to plan non-destructive AGENTS migration when current files are partial or drifting."
     };
 }
