@@ -46,6 +46,8 @@ This README should never teach source-repo-relative install paths or up-level so
   - `./schemas/`
 - bundled narrative templates:
   - `./templates/narratives/`
+- bundled underlay awareness template:
+  - `./templates/AGENTS.md.awareness-note.template`
 - bundled skill:
   - `./skills/anarchy-ai-harness/`
 
@@ -71,6 +73,8 @@ The plugin provides:
 - a bundled canonical schema family plus hash manifest under `./schemas/`
 - narrative register and record templates under `./templates/narratives/` because `AGENTS-schema-narrative.json` carries the arc/register lane
 - a skill that teaches when to use the five bounded core runtime tools and how to discover the experimental `direction_assist_test` module
+- a runtime-free `/underlay` setup lane that seeds portable schema and narrative discipline into a repo without installing the runtime plugin or touching host config
+- a plan-first `/refresh` setup lane that aligns only portable schema files and requires `/apply` before overwriting
 - a repo-bootstrap script at `./scripts/bootstrap-anarchy-ai.ps1` as a compatibility/fallback lane for repo-local install, assess, and bundle refresh after the bundle already exists
 - a runtime lock script at `./scripts/stop-anarchy-ai.ps1` for assessing, safely releasing, or forcibly releasing the bundled Anarchy-AI runtime lock
 - a safe retirement script at `./scripts/remove-anarchy-ai.ps1` for inventorying, quarantining, or fully removing repo-local, user-profile, and documented plugin-cache surfaces without treating repo-authored source truth as disposable
@@ -83,9 +87,12 @@ The setup executable help and disclosure surfaces are intentionally generated fr
 
 - what destination-relative surfaces install will create
 - which lane is being chosen:
+  - `repo-underlay`
   - `repo-local`
   - `user-profile`
 - what install will and will not change
+
+Repo-local runtime install is a proving/debug carrier. Commit the portable underlay surfaces when intended; do not commit installed runtime bundles, marketplace pointers, PDB/EXE/runtime files, or local test JSONL residue into consumer repos.
 
 For Codex, the primary user-profile lane is the plugin marketplace lane:
 
@@ -186,7 +193,8 @@ Human-friendly Windows quick cleanup:
 - double-click `scripts/Remove Anarchy-AI.cmd`
 - it performs safe quarantine-first cleanup across every reachable repo-local, user-profile, and documented plugin-cache surface for the current user
 - it keeps the console open and explains what was preserved
-- it does not rewrite shared `~/.codex/config.toml` by default
+- it rewrites shared `~/.codex/config.toml` only to remove Anarchy-owned Codex plugin enable-state
+- it leaves legacy custom-MCP config untouched unless the advanced opt-in flag is used
 
 The dedicated retirement commands are:
 
@@ -217,7 +225,8 @@ The retirement script:
 - backs up mutable files before editing or retiring them
 - removes Anarchy-only marketplace files after backup instead of leaving empty branded marketplace shells behind
 - detects both current and legacy installed plugin roots before retirement work
-- leaves shared `~/.codex/config.toml` untouched by default unless `-IncludeLegacyCustomMcpConfig` is explicitly requested
+- removes Anarchy-owned Codex plugin enable-state from `~/.codex/config.toml` while preserving unrelated Codex plugin, window, and project trust sections
+- leaves legacy custom-MCP blocks in `~/.codex/config.toml` untouched unless `-IncludeLegacyCustomMcpConfig` is explicitly requested
 - quarantines before delete so rollback remains possible unless `-Mode Remove` is explicitly chosen
 - clears owned optional custom-MCP fallback blocks such as `mcp_servers.anarchy-ai` and older legacy `mcp_servers.anarchy-ai-herringms` entries when present
 - retires documented plugin-cache roots when they exist, but does not guess at broader Codex app databases or private host state
@@ -227,7 +236,7 @@ Marketplace files are treated as shared registries:
 - the live `marketplace.json` stays in place
 - the script removes only Anarchy-AI entries from the live `plugins` array
 - non-Anarchy plugin entries are preserved unchanged
-- if Anarchy-AI was the only plugin, the file remains a valid empty marketplace object after rewrite
+- if Anarchy-AI was the only plugin, the file is backed up and retired instead of leaving an empty branded marketplace shell
 
 ## Current Boundaries
 

@@ -153,11 +153,29 @@ Setup writes and maintains this plugin entry shape:
 
 ### 3. Portable root schema family
 
-If the target repo is adopting the AGENTS Heuristic Underlay, setup now seeds missing portable schema-family files into repo root during install by default.
+If the target repo is adopting the AGENTS Heuristic Underlay, prefer the runtime-free underlay lane first:
+
+```powershell
+.\plugins\AnarchyAi.Setup.exe /underlay /repo "C:\path\to\target-repo" /silent /json
+```
+
+This seeds portable discipline without installing the runtime plugin, writing marketplace state, registering an MCP server, or touching host config.
+
+Runtime install lanes still seed missing portable schema-family files into repo root when a workspace is targeted, but repo-local runtime install is now a proving/debug carrier rather than the default committed repo-truth lane.
 
 If those repo-root schema files already exist, install leaves them in place.
 
-Use explicit schema refresh only when you want the embedded portable schema family to overwrite repo-root copies.
+Use explicit schema refresh only when you want the embedded portable schema family to overwrite repo-root copies. Refresh is plan-first:
+
+```powershell
+.\plugins\AnarchyAi.Setup.exe /refresh /repo "C:\path\to\target-repo" /silent /json
+```
+
+Apply requires deliberate opt-in:
+
+```powershell
+.\plugins\AnarchyAi.Setup.exe /refresh /apply /repo "C:\path\to\target-repo" /silent /json
+```
 
 That set is:
 
@@ -183,6 +201,8 @@ Because `AGENTS-schema-narrative.json` carries the narrative register/record sha
 These templates are not project arcs by themselves. They are the carried surface that lets runtime tools materialize a missing `.agents/anarchy-ai/narratives/register.json` without inventing the shape from chat.
 
 `run_gov2gov_migration` now treats the narrative register and projects directory as non-destructive materialization targets when the narrative schema is present or planned for delivery. It seeds only missing surfaces and leaves existing narrative content untouched.
+
+The underlay lane also seeds a missing narrative register from `register.template.json`. The seeded open-thread ids are made unique per workspace at materialization time, opened dates are written at materialization time, and owner is `consumer-workspace-owner` rather than a named AI-Links author.
 
 ## Exact installation steps in another repo
 
@@ -288,7 +308,7 @@ Install lock behavior:
 
 ### Step 4. Default schema seeding and optional schema refresh
 
-Plain install now seeds missing portable schema-family files by default.
+Plain install still seeds missing portable schema-family files by default, but `/underlay` is the cleaner repo-travel lane when the runtime is not being installed.
 
 Scope note:
 
@@ -296,11 +316,25 @@ Scope note:
 - `/userprofile` seeds only when `/repo "<path>"` is provided explicitly.
 - default `/userprofile` with blank `/repo` keeps portable schema seeding out of scope, reports `portable_schema_family_not_targeted`, and still returns `paths.destination` for the user-profile target.
 
-If you want install to overwrite repo-root schema files from the embedded portable schema family, run:
+If you want to inspect schema drift without writing, run:
 
 ```powershell
-.\plugins\AnarchyAi.Setup.exe /install /repolocal /refreshschemas
+.\plugins\AnarchyAi.Setup.exe /refresh /repo "C:\path\to\target-repo" /silent /json
 ```
+
+If you want to overwrite repo-root schema files from the embedded portable schema family, run:
+
+```powershell
+.\plugins\AnarchyAi.Setup.exe /refresh /apply /repo "C:\path\to\target-repo" /silent /json
+```
+
+Deprecated compatibility:
+
+```powershell
+.\plugins\AnarchyAi.Setup.exe /install /repolocal /refreshschemas /apply
+```
+
+`/refreshschemas` used to write by default. It is deprecated because that convenience path bypassed the newer plan-first safety discipline.
 
 ### Step 5. Refresh the delivered bundle when needed
 
@@ -324,13 +358,20 @@ Refresh the plugin bundle and root portable schema family together:
 .\plugins\AnarchyAi.Setup.exe /update /userprofile /repo "C:\path\to\target-repo" /refreshschemas /sourcepath "C:\path\to\AI-Links"
 ```
 
+This command updates the runtime bundle and returns a portable schema refresh plan. Add `/apply` only when update should actually overwrite portable schema files:
+
+```powershell
+.\plugins\AnarchyAi.Setup.exe /update /userprofile /repo "C:\path\to\target-repo" /refreshschemas /apply /sourcepath "C:\path\to\AI-Links"
+```
+
 Current update behavior:
 
 - refreshes the selected plugin bundle surfaces in either:
   - repo-local `./plugins/anarchy-ai/`
   - user-profile `~/.codex/plugins/anarchy-ai/`
 - seeds missing portable root schema files during install by default
-- force-refreshes the root portable schema family only when `/refreshschemas` is passed
+- plans portable schema refresh when `/refreshschemas` is passed
+- applies portable schema overwrite only when `/apply` is also passed
 - returns bounded update state in the JSON result
 - replacing a running `AnarchyAi.Mcp.Server.exe` in place requires stopping the active runtime first â€” update the bundled runtime only after release
 
@@ -396,7 +437,8 @@ double-click plugins\Remove Anarchy-AI.cmd
 ```
 
 That path runs safe quarantine-first cleanup, removes every reachable live Anarchy-AI surface for the current repo/user context, preserves repo-authored source truth, and keeps the console open with a plain-language summary.
-It does not rewrite shared `~/.codex/config.toml` by default.
+It rewrites shared `~/.codex/config.toml` only for Anarchy-owned Codex plugin enable-state such as `[plugins."anarchy-ai@anarchy-ai-repo-<repo-slug>"]`; unrelated Codex plugin, window, and project trust sections are preserved.
+Legacy custom-MCP blocks such as `[mcp_servers.anarchy-ai]` remain opt-in cleanup only.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File <installed-plugin-root>\scripts\remove-anarchy-ai.ps1 -Mode Assess
@@ -427,7 +469,7 @@ Recommended defaults for the retirement helper:
 
 Use the `.ps1` lane when an agent or power user needs exact control over mode, targets, or automation. Use `Remove Anarchy-AI.cmd` when a human simply wants the plugin gone responsibly.
 
-That script inventories first, preserves repo-authored source truth, backs up mutable files before rewrite or retirement, removes Anarchy-only marketplace files after backup instead of leaving empty branded shells behind, detects both current and legacy installed plugin roots, and retires the documented plugin-cache lane without guessing at broader Codex-private app databases.
+That script inventories first, preserves repo-authored source truth, backs up mutable files before rewrite or retirement, removes Anarchy-only marketplace files after backup instead of leaving empty branded shells behind, detects both current and legacy installed plugin roots, removes owned Codex plugin enable-state, and retires the documented plugin-cache lane without guessing at broader Codex-private app databases.
 
 Legacy custom-MCP fallback blocks such as current `mcp_servers.anarchy-ai` and older `mcp_servers.anarchy-ai-herringms` entries are now an explicit advanced cleanup path only. They are not touched by the human click-once flow or the helper defaults.
 
@@ -620,16 +662,17 @@ Current scope:
 ## Minimum checklist for another repo
 
 1. Copy `plugins/AnarchyAi.Setup.exe` into the target repo `plugins/` folder.
-2. Run `AnarchyAi.Setup.exe /install /repolocal` or `AnarchyAi.Setup.exe /install /userprofile`, or double-click it and choose the lane in the GUI.
-3. Use install to provision or update the matching marketplace root with `INSTALLED_BY_DEFAULT`.
-4. Run `AnarchyAi.Setup.exe /assess` with the same lane and require `bootstrap_state = ready`.
-5. Install now seeds missing portable schema-family files by default; use `/refreshschemas` only when repo-root schema copies should be overwritten from the embedded payload.
-6. Use `AnarchyAi.Setup.exe /update` when the carried bundle needs to be refreshed.
-7. Add a startup/control-plane instruction that complex changes start with `preflight_session`.
-8. Verify schema reality before trusting copied schema presence.
-9. Use gov2gov planning where existing authority surfaces must be reconciled.
+2. Run `AnarchyAi.Setup.exe /underlay` when the repo should carry portable discipline without runtime install.
+3. Run `AnarchyAi.Setup.exe /install /repolocal` only for proving/debug runtime placement, or `AnarchyAi.Setup.exe /install /userprofile` for the normal host runtime lane.
+4. Use runtime install to provision or update the matching marketplace root with `INSTALLED_BY_DEFAULT`.
+5. Run `AnarchyAi.Setup.exe /assess` with the same runtime lane and require `bootstrap_state = ready` when runtime was installed.
+6. Use `/refresh` to inspect schema drift and `/refresh /apply` only when repo-root schema copies should be overwritten from the embedded payload.
+7. Use `AnarchyAi.Setup.exe /update` when the carried bundle needs to be refreshed.
+8. Add startup guidance that complex changes start with `preflight_session` when the runtime is available.
+9. Verify schema reality before trusting copied schema presence.
+10. Use gov2gov planning where existing authority surfaces must be reconciled.
 
-When every one of those nine items is true, the system counts as fully delivered, accessible, operational, and real in the target repo. Any gap keeps the system in partial adoption.
+When every applicable item is true, the system counts as fully delivered, accessible, operational, and real in the target repo. Any gap keeps the system in partial adoption.
 
 ## Portability evidence checklist
 

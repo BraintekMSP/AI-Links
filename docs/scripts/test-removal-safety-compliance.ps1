@@ -4,8 +4,8 @@ Validates the Anarchy-AI retirement helpers against the recent live cleanup inci
 .DESCRIPTION
 Creates temporary user-profile fixtures inside the repo workspace, then proves the machine-facing
 retirement helper detects legacy bundles, retires Anarchy-only marketplace files instead of leaving
-empty shells, and preserves unrelated Codex config sections unless explicit legacy custom-MCP cleanup
-is requested.
+empty shells, removes Anarchy plugin enable-state, and preserves unrelated Codex config sections
+unless explicit legacy custom-MCP cleanup is requested.
 .PARAMETER RepoRoot
 Absolute repo root used to locate the helper and create workspace-safe temporary fixtures.
 .OUTPUTS
@@ -150,6 +150,12 @@ function New-RemovalFixture {
 [plugins."teams@openai-curated"]
 enabled = true
 
+[plugins."anarchy-ai@anarchy-ai-user-profile"]
+enabled = true
+
+[plugins."anarchy-ai@anarchy-ai-repo-workorders"]
+enabled = true
+
 [mcp_servers.anarchy-ai]
 command = "C:\temp\AnarchyAi.Mcp.Server.exe"
 cwd = "C:\temp"
@@ -195,6 +201,7 @@ $defaultInventory = @($defaultAssess.result.inventory)
 Assert-Condition -Condition (@($defaultInventory | Where-Object { $_.surface_kind -eq 'legacy_plugin_root_directory' -and $_.path -eq [string]$defaultFixture.legacy_plugin_root }).Count -eq 1) -Message 'Default assess did not detect the legacy home-local plugin root.'
 Assert-Condition -Condition (@($defaultInventory | Where-Object { $_.surface_kind -eq 'marketplace_file' }).Count -eq 1) -Message 'Default assess did not inventory the user-profile marketplace file.'
 Assert-Condition -Condition (@($defaultInventory | Where-Object { $_.surface_kind -eq 'codex_config_file' }).Count -eq 0) -Message 'Default assess should not inventory shared Codex config.'
+Assert-Condition -Condition (@($defaultInventory | Where-Object { $_.surface_kind -eq 'codex_plugin_enable_state_file' }).Count -eq 1) -Message 'Default assess did not inventory Anarchy Codex plugin enable-state.'
 Assert-Condition -Condition (@($defaultAssess.result.findings | Where-Object { $_ -eq 'legacy_custom_mcp_block_present_not_targeted_by_default' }).Count -eq 1) -Message 'Default assess did not report the preserved legacy custom MCP block.'
 
 $defaultCleanup = Invoke-RemovalHelperJson -HelperPath $helperPath -Parameters @{
@@ -211,13 +218,16 @@ Assert-Condition -Condition (-not (Test-Path -LiteralPath $defaultFixture.cache_
 
 $defaultConfigContent = Get-Content -LiteralPath $defaultFixture.config_path -Raw
 Assert-Condition -Condition ($defaultConfigContent -match '\[mcp_servers\.anarchy-ai\]') -Message 'Default cleanup should leave legacy custom MCP config untouched.'
+Assert-Condition -Condition ($defaultConfigContent -notmatch '\[plugins\."anarchy-ai@anarchy-ai-user-profile"\]') -Message 'Default cleanup should remove user-profile Anarchy plugin enable-state.'
+Assert-Condition -Condition ($defaultConfigContent -notmatch '\[plugins\."anarchy-ai@anarchy-ai-repo-workorders"\]') -Message 'Default cleanup should remove repo-scoped Anarchy plugin enable-state.'
+Assert-Condition -Condition ($defaultConfigContent -match '\[plugins\."teams@openai-curated"\]') -Message 'Default cleanup should preserve unrelated curated plugin config.'
 Assert-Condition -Condition ($defaultConfigContent -match '\[windows\]') -Message 'Default cleanup should preserve unrelated windows config.'
 Assert-Condition -Condition ($defaultConfigContent -match "\[projects\.'C:\\Temp\\TestRepo'\]") -Message 'Default cleanup should preserve unrelated project trust config.'
 
 $optInCleanup = Invoke-RemovalHelperJson -HelperPath $helperPath -Parameters @{
   Mode = 'Quarantine'
   UserProfileRoot = [string]$optInFixture.user_profile_root
-  Targets = @('user_profile')
+  Targets = @('user_profile', 'device_app')
   QuarantineRoot = $optInQuarantineRoot
   IncludeLegacyCustomMcpConfig = $true
 }
@@ -225,6 +235,8 @@ $optInCleanup = Invoke-RemovalHelperJson -HelperPath $helperPath -Parameters @{
 Assert-Condition -Condition ($optInCleanup.exit_code -eq 0) -Message 'Opt-in legacy custom MCP cleanup failed.'
 $optInConfigContent = Get-Content -LiteralPath $optInFixture.config_path -Raw
 Assert-Condition -Condition ($optInConfigContent -notmatch '\[mcp_servers\.anarchy-ai\]') -Message 'Opt-in cleanup did not remove the owned custom MCP block.'
+Assert-Condition -Condition ($optInConfigContent -notmatch '\[plugins\."anarchy-ai@anarchy-ai-user-profile"\]') -Message 'Opt-in cleanup did not remove user-profile Anarchy plugin enable-state.'
+Assert-Condition -Condition ($optInConfigContent -notmatch '\[plugins\."anarchy-ai@anarchy-ai-repo-workorders"\]') -Message 'Opt-in cleanup did not remove repo-scoped Anarchy plugin enable-state.'
 Assert-Condition -Condition ($optInConfigContent -match '\[windows\]') -Message 'Opt-in cleanup removed unrelated windows config.'
 Assert-Condition -Condition ($optInConfigContent -match "\[projects\.'C:\\Temp\\TestRepo'\]") -Message 'Opt-in cleanup removed unrelated project trust config.'
 Assert-Condition -Condition ($optInConfigContent -match '\[plugins\."teams@openai-curated"\]') -Message 'Opt-in cleanup removed unrelated curated plugin config.'

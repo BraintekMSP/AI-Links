@@ -174,6 +174,37 @@ public sealed class SetupEngineTests
         Assert.Equal(InstallScope.UserProfile, options.InstallScope);
     }
 
+    [Fact]
+    public void CliParser_UnderlayRefreshApply_MapsToRuntimeFreeRepoLane()
+    {
+        var options = CliParser.Parse(["/underlay", "/refresh", "/apply", "/repo", "C:\\repo", "/silent", "/json"]);
+
+        Assert.Equal(OperationMode.Underlay, options.Mode);
+        Assert.Equal(InstallScope.RepoLocal, options.InstallScope);
+        Assert.True(options.RefreshPortableSchemaFamily);
+        Assert.True(options.ApplyChanges);
+    }
+
+    [Fact]
+    public void CliParser_RefreshSchemasAlias_IsPlanFirstUntilApplyIsExplicit()
+    {
+        var options = CliParser.Parse(["/install", "/repolocal", "/refreshschemas", "/repo", "C:\\repo", "/silent", "/json"]);
+
+        Assert.Equal(OperationMode.Install, options.Mode);
+        Assert.True(options.RefreshPortableSchemaFamily);
+        Assert.True(options.RefreshSchemasAliasUsed);
+        Assert.False(options.ApplyChanges);
+    }
+
+    [Fact]
+    public void ProgramCliExitState_TreatsRefreshPlanAsSuccessful()
+    {
+        Assert.True(Program.IsSuccessfulCliBootstrapState("refresh_plan_ready"));
+        Assert.True(Program.IsSuccessfulCliBootstrapState("ready"));
+        Assert.True(Program.IsSuccessfulCliBootstrapState("source_authoring_bundle_ready"));
+        Assert.False(Program.IsSuccessfulCliBootstrapState("bootstrap_needed"));
+    }
+
     /// <summary>
     /// Confirms that CLI help exposes the lifecycle status lane instead of forcing agents to infer install state from files.
     /// </summary>
@@ -383,6 +414,136 @@ public sealed class SetupEngineTests
         Assert.Contains("install_state_missing", status.install_state.findings);
         Assert.Contains("install_state_missing", status.missing_components);
         Assert.Contains("run_install_to_write_install_state", status.safe_repairs);
+    }
+
+    [Fact]
+    public void Execute_Underlay_SeedsPortableDisciplineWithoutRuntimeOrMarketplace()
+    {
+        using var tempRepo = CreateTempRepo();
+        var engine = new SetupEngine();
+
+        var result = engine.Execute(new SetupOptions
+        {
+            Mode = OperationMode.Underlay,
+            InstallScope = InstallScope.RepoLocal,
+            RepoPath = tempRepo.Path,
+            HostContext = "codex",
+            HostTargets = HostTargets.Codex,
+            Silent = true,
+            JsonOutput = true
+        });
+
+        Assert.Equal("underlay", result.setup_operation);
+        Assert.Equal("repo_underlay", result.install_scope);
+        Assert.Equal("none", result.registration_mode);
+        Assert.False(result.runtime_present);
+        Assert.False(result.marketplace_registered);
+        Assert.False(result.host_config_modified);
+        Assert.Contains("materialized_repo_underlay", result.actions_taken);
+        Assert.True(File.Exists(Path.Combine(tempRepo.Path, "AGENTS-schema-governance.json")));
+        Assert.True(File.Exists(Path.Combine(tempRepo.Path, ".agents", "anarchy-ai", "narratives", "register.json")));
+        Assert.True(Directory.Exists(Path.Combine(tempRepo.Path, ".agents", "anarchy-ai", "narratives", "projects")));
+        Assert.True(File.Exists(Path.Combine(tempRepo.Path, "AGENTS.md")));
+        Assert.True(File.Exists(Path.Combine(tempRepo.Path, ".gitignore")));
+        Assert.False(Directory.Exists(Path.Combine(tempRepo.Path, "plugins", "anarchy-ai")));
+        Assert.False(File.Exists(Path.Combine(tempRepo.Path, ".agents", "plugins", "marketplace.json")));
+
+        using var register = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempRepo.Path, ".agents", "anarchy-ai", "narratives", "register.json")));
+        var openThreads = register.RootElement.GetProperty("open-threads");
+        Assert.Equal(2, openThreads.GetArrayLength());
+        Assert.All(openThreads.EnumerateArray(), thread =>
+        {
+            Assert.StartsWith("ot-", thread.GetProperty("id").GetString(), StringComparison.Ordinal);
+            Assert.Equal("consumer-workspace-owner", thread.GetProperty("owner").GetString());
+            Assert.True(thread.TryGetProperty("auto-close-trigger", out _));
+        });
+    }
+
+    [Fact]
+    public void Execute_Underlay_LeavesExistingAgentsMdUnchanged()
+    {
+        using var tempRepo = CreateTempRepo();
+        var agentsPath = Path.Combine(tempRepo.Path, "AGENTS.md");
+        const string existingAgents = "# Existing authority\n";
+        File.WriteAllText(agentsPath, existingAgents, Encoding.UTF8);
+
+        var result = new SetupEngine().Execute(new SetupOptions
+        {
+            Mode = OperationMode.Underlay,
+            InstallScope = InstallScope.RepoLocal,
+            RepoPath = tempRepo.Path,
+            Silent = true,
+            JsonOutput = true
+        });
+
+        Assert.Contains("agents_md_already_present_left_unchanged", result.actions_taken);
+        Assert.Equal(existingAgents, File.ReadAllText(agentsPath));
+    }
+
+    [Fact]
+    public void Execute_Refresh_IsPlanFirstAndDoesNotOverwriteUntilApply()
+    {
+        using var tempRepo = CreateTempRepo();
+        var schemaPath = Path.Combine(tempRepo.Path, "AGENTS-schema-governance.json");
+        const string localSchema = "{\"local\":true}";
+        File.WriteAllText(schemaPath, localSchema, Encoding.UTF8);
+
+        var plan = new SetupEngine().Execute(new SetupOptions
+        {
+            Mode = OperationMode.Refresh,
+            InstallScope = InstallScope.RepoLocal,
+            RepoPath = tempRepo.Path,
+            RefreshPortableSchemaFamily = true,
+            Silent = true,
+            JsonOutput = true
+        });
+
+        Assert.True(plan.refresh_plan_only);
+        Assert.Contains("AGENTS-schema-governance.json", plan.refreshed_files);
+        Assert.Equal(localSchema, File.ReadAllText(schemaPath));
+        Assert.Empty(plan.backup_files);
+
+        var apply = new SetupEngine().Execute(new SetupOptions
+        {
+            Mode = OperationMode.Refresh,
+            InstallScope = InstallScope.RepoLocal,
+            RepoPath = tempRepo.Path,
+            RefreshPortableSchemaFamily = true,
+            ApplyChanges = true,
+            Silent = true,
+            JsonOutput = true
+        });
+
+        Assert.False(apply.refresh_plan_only);
+        Assert.Contains("AGENTS-schema-governance.json", apply.refreshed_files);
+        Assert.NotEqual(localSchema, File.ReadAllText(schemaPath));
+        Assert.Contains(apply.backup_files, backup => backup.Contains("AGENTS-schema-governance.json", StringComparison.Ordinal));
+        Assert.True(File.Exists(Path.Combine(tempRepo.Path, apply.backup_files.Single(backup => backup.Contains("AGENTS-schema-governance.json", StringComparison.Ordinal)))));
+    }
+
+    [Fact]
+    public void DisableDuplicateCodexLanesInConfigText_DisablesOnlyOwnedNonSelectedLanes()
+    {
+        const string config = """
+        [plugins."anarchy-ai@anarchy-ai-user-profile"]
+        enabled = true
+
+        [plugins."anarchy-ai@anarchy-ai-repo-workorders"]
+        enabled = true
+
+        [plugins."teams@openai-curated"]
+        enabled = true
+        """;
+
+        var result = SetupEngine.DisableDuplicateCodexLanesInConfigText(
+            config,
+            "anarchy-ai@anarchy-ai-repo-workorders");
+
+        Assert.True(result.DuplicateDetected);
+        Assert.Equal(["anarchy-ai@anarchy-ai-user-profile"], result.DisabledLanes);
+        Assert.Contains("[plugins.\"anarchy-ai@anarchy-ai-user-profile\"]", result.UpdatedText);
+        Assert.Contains("enabled = false", result.UpdatedText);
+        Assert.Contains("[plugins.\"teams@openai-curated\"]\r\nenabled = true", result.UpdatedText.Replace("\n", "\r\n"));
     }
 
     /// <summary>

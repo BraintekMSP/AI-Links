@@ -23,6 +23,9 @@
 - Added `AA-BUG-025`, bundled concrete narrative register/record templates, and widened `run_gov2gov_migration` so schema-carried narrative arc surfaces are inventoried and seeded non-destructively when missing.
 - Added `AA-BUG-026` and a build-helper guard so .NET SDK/runtime prerequisites and package caches stay in non-workspace user/machine-local lanes instead of synced repo trees.
 - Added `AA-BUG-027` and a setup `codex_materialization` report after Workorders screenshots showed Codex can render a repo-local plugin source and enabled state in the UI while its plugin cache remains on older versions.
+- Added `AA-BUG-028` and patched retirement cleanup so Codex plugin enable-state in `~/.codex/config.toml` is treated as a first-class Anarchy install surface, while legacy custom-MCP cleanup remains opt-in.
+- Added `AA-BUG-029` and split setup into `/underlay`, plan-first `/refresh`, and primary runtime install lanes so portable repo discipline can travel without committing runtime bundles or silently overwriting schemas.
+- Added `AA-BUG-030` and patched CLI success-state handling so plan-only `/refresh` returns a successful exit code; direct windowless EXE smoke remains a release-proof caveat after the UI surfaced during manual smoke attempts.
 - Recorded the correction in the Arc narrative as continuity against context-compression drift.
 
 ## 2026-04-24

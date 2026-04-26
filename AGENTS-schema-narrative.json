@@ -171,6 +171,7 @@
         "summary":      { "type": "string", "required": true,  "role": "what is unresolved" },
         "opened-date":  { "type": "string", "required": true,  "role": "ISO 8601 date" },
         "owner":        { "type": "string", "role": "who is responsible for resolving this thread" },
+        "auto-close-trigger": { "type": "string", "role": "observable event that lets an agent close the thread without guessing" },
         "stale":        { "type": "bool",   "role": "true when no activity past the declared stale window for this record -- stale open threads are a signal-cue" },
         "stale-window": { "type": "string", "role": "how long without activity before this thread is considered stale -- overrides record default if set" }
       }

@@ -98,9 +98,17 @@ Current lanes:
 - `repo-local`
   - plugin bundle under `./plugins/anarchy-ai`
   - marketplace under `./.agents/plugins/marketplace.json`
+  - proving/debug runtime carrier, not the default committed repo-truth lane
 - `user-profile`
   - plugin bundle under `~/.codex/plugins/anarchy-ai`
   - marketplace under `~/.agents/plugins/marketplace.json`
+- `repo-underlay`
+  - portable schema and narrative discipline in the repo
+  - no runtime bundle, no marketplace registration, no MCP server registration, no host config write
+
+`/underlay` is the default repo-travel lane for consumers who need the discipline to follow the repo without committing a runtime bundle or host-owned plugin state.
+
+`/refresh` is the deliberate schema-alignment lane. It is plan-first by default and overwrites portable schema files only when `/apply` is supplied. The deprecated `/refreshschemas` alias remains accepted for old scripts, but it is also plan-first unless `/apply` is supplied because the old write-by-default behavior was a safety defect.
 
 The generated marketplace root should be repo-scoped for repo-local installs, not globally reused.
 Keep the top-level marketplace `name` branded and readable because current Codex plugin surfaces can expose that identifier directly even though the official docs describe `interface.displayName` as the marketplace title.
@@ -154,9 +162,55 @@ Source-authoring assessment boundary:
 - the absent generated consumer marketplace is not a blocking missing component in this read-only source-authoring state
 - `paths.origin` points at the source repo, and `paths.source` points at `plugins/anarchy-ai`
 - because the plain repo-local consumer target is also `plugins/anarchy-ai`, setup must block `/install /repolocal` and `/update /repolocal` when the selected repo is the `AI-Links` source repo
+- setup must also block `/underlay` and `/refresh` against the `AI-Links` source repo when that would treat the authoring repo as a consumer target
 - the next action for this state is source-build/user-profile-install guidance, not unbounded self-registration
 
 ## GUI / CLI Behavior Split
+
+### CLI runtime-free lanes
+
+`/underlay` materializes portable terrain only:
+
+- seeds missing canonical portable schema files
+- seeds `.agents/anarchy-ai/narratives/register.json` from the carried template when missing
+- ensures `.agents/anarchy-ai/narratives/projects/` exists
+- creates a small AGENTS.md awareness stub only when AGENTS.md is absent
+- adds Anarchy-scoped `.gitignore` lines for runtime/install residue
+- returns `install_scope = repo_underlay`
+- returns `runtime_present = false`, `marketplace_registered = false`, and `host_config_modified = false`
+
+`/underlay` never overwrites existing AGENTS, schema, or narrative artifacts. Divergence is reported as audit work unless `/refresh` is also requested.
+
+`/refresh` aligns only the canonical portable schema family. It never touches AGENTS.md, AGENTS companion files, narrative register/project contents, marketplace files, runtime bundles, or host config.
+
+Default `/refresh` output is a plan:
+
+- `refresh_plan_only = true`
+- `refreshed_files` means files that would change
+- `unchanged_files` means files already aligned
+- `backup_files` is empty because nothing was written
+
+`/refresh /apply` writes the changed portable schema files and creates timestamped `.bak` files beside overwritten files. Re-running after alignment is a no-op.
+
+There is intentionally no `/uninstall-underlay`, `/revert-underlay`, or setup mode that tries to un-shape cognition. Underlay effects are not symmetrically reversible: removing files does not erase the understanding, code, or narrative decisions formed while the underlay was present. A consumer can manually revert repo files when they deliberately want less context; setup should not package that as an automatic reversal lane.
+
+### Duplicate Codex lane discipline
+
+Install/update operations that select a primary runtime lane (`/userprofile` or `/repolocal`) may disable other enabled Anarchy Codex plugin lanes to prevent duplicate skills.
+
+Contract:
+
+- auto-disable runs only during install/update for primary runtime lanes
+- it never runs during `/underlay`, `/refresh`, `/assess`, or `/status`
+- it sets `enabled = false` in `~/.codex/config.toml`
+- it never deletes plugin files or marketplace entries
+- it never touches non-Anarchy plugins
+
+Machine-readable output includes:
+
+- `selected_codex_primary_lane`
+- `disabled_duplicate_codex_lanes`
+- `duplicate_codex_skill_lanes_detected`
 
 ### No arguments
 
@@ -201,6 +255,8 @@ Primary operations:
 - `/assess`
 - `/install`
 - `/update`
+- `/underlay`
+- `/refresh`
 - `/status`
 - `/doctor`, `/selfcheck`, and `/self-check` as status aliases
 - `/repolocal`
@@ -215,6 +271,7 @@ Primary flags:
 - `/host codex|claude|cursor|generic`
 - `/sourcepath "<path>"`
 - `/sourceurl "<url>"`
+- `/apply`
 - `/refreshschemas`
 
 Recommended Windows-style usage:
@@ -226,6 +283,9 @@ AnarchyAi.Setup.exe /assess /userprofile /silent /json
 AnarchyAi.Setup.exe /status /userprofile /silent /json
 AnarchyAi.Setup.exe /update /userprofile /silent /json /sourcepath "C:\path\to\AI-Links"
 AnarchyAi.Setup.exe /install /repolocal /repo "C:\path\to\other-repo" /silent /json
+AnarchyAi.Setup.exe /underlay /repo "C:\path\to\other-repo" /silent /json
+AnarchyAi.Setup.exe /refresh /repo "C:\path\to\other-repo" /silent /json
+AnarchyAi.Setup.exe /refresh /apply /repo "C:\path\to\other-repo" /silent /json
 ```
 
 ### CLI rules
@@ -239,7 +299,9 @@ AnarchyAi.Setup.exe /install /repolocal /repo "C:\path\to\other-repo" /silent /j
 - `/doctor`, `/selfcheck`, and `/self-check` are aliases for `/status`
 - `/sourcepath` allows local source refresh without depending on public TLS
 - install seeds missing portable root schema files when a workspace root is targeted (`/repolocal`, or `/userprofile` with explicit `/repo`)
-- `/refreshschemas` means force-refresh the portable root schema family only when a workspace root is targeted
+- `/underlay` seeds portable schema and narrative discipline into a repo without installing runtime, marketplace, MCP, or host config surfaces
+- `/refresh` reports portable schema alignment by default and writes only when `/apply` is supplied
+- `/refreshschemas` is a deprecated compatibility alias for portable schema refresh during install/update; it is also plan-first unless `/apply` is supplied because its old write-by-default behavior was a safety defect
 - help aliases should print plain-text usage plus a generated repo-availability summary instead of raw JSON
 - the help summary should tell the actor what Anarchy-AI adds here and what it changes in the repo
 
@@ -448,6 +510,7 @@ Current inferred behavior that still needs direct local proof:
 - Codex may retain stale tool-surface indexing for a stable server key
 - Codex may materialize an installed-copy cache under `~/.codex/plugins/cache/...` only after restart or first use
 - Codex may render a repo-local marketplace/plugin source in the Plugins UI before the matching plugin manifest version is materialized in the chat/runtime cache
+- Codex may fail to uninstall an enabled plugin through the UI while leaving plugin enable-state under `~/.codex/config.toml`
 
 Inferred behavior stays labeled as inferred. Only observed behavior promotes to settled platform truth.
 
@@ -557,4 +620,8 @@ These caveats do not block handing out the generated setup executable, but they 
    - A plugin-facing release should bump that version before distribution.
    - When both repo-local and user-profile lanes are enabled in Codex, the active surfaced skill cache may still require fresh-session evidence rather than assumption.
    - Setup's `codex_materialization` report can show source/cache disagreement, but it still cannot prove which cache a running chat selected unless a live runtime/tool call reports that path.
+5. Codex plugin enable-state is a separate retirement surface.
+   - Codex stores enabled plugin state in `~/.codex/config.toml` under `[plugins."plugin@marketplace"]`.
+   - The retirement helper removes only Anarchy-owned plugin enable-state by default and preserves unrelated Codex plugin, window, and project trust sections.
+   - Legacy custom-MCP config blocks remain opt-in cleanup through `-IncludeLegacyCustomMcpConfig`.
 

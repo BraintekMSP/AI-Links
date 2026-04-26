@@ -1,7 +1,7 @@
 {
     "bundle_name":  "anarchy-ai-canonical-schema-bundle",
-    "bundle_version":  "0.1.5",
-    "generated_utc":  "2026-04-23T01:00:00Z",
+    "bundle_version":  "0.1.6",
+    "generated_utc":  "2026-04-25T00:00:00Z",
     "files":  [
                   {
                       "file_name":  "AGENTS-schema-governance.json",
@@ -13,7 +13,7 @@
                   },
                   {
                       "file_name":  "AGENTS-schema-narrative.json",
-                      "sha256":  "554e92c31bb391872fbc48a4c781416ae51eb5b7fef7caa202acaf1fcf1b9845"
+                      "sha256":  "375f81751dfa47ef1ecb4e6ee0242d9d2cc7a45c9b7f04f815bd44e5ccca7b88"
                   },
                   {
                       "file_name":  "AGENTS-schema-gov2gov-migration.json",

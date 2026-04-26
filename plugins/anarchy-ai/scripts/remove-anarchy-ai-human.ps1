@@ -159,6 +159,7 @@ function Get-FriendlySurfaceLabel {
     'plugin_root_directory' { return 'installed plugin bundle' }
     'legacy_plugin_root_directory' { return 'legacy plugin bundle' }
     'codex_config_file' { return 'optional custom MCP config' }
+    'codex_plugin_enable_state_file' { return 'Codex plugin enable-state' }
     'plugin_cache_directory' { return 'documented plugin cache' }
     default { return $SurfaceKind.Replace('_', ' ') }
   }

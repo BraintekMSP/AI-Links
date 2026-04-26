@@ -493,6 +493,109 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
   - Confirm `source_plugin_version_not_materialized_in_codex_cache` appears until Codex materializes `0.1.9`.
   - After Codex materializes `0.1.9`, confirm the finding clears without changing repo-local source paths.
 
+### AA-BUG-028: Codex uninstall failure left plugin enable-state outside retirement coverage
+
+- Severity: High
+- Status: Patched local (pending rebuild/distribution and Workorders repeat)
+- Component: Removal / Codex host adapter / Install lifecycle discipline
+- Repro:
+  - Enable both Anarchy repo-local and user-profile plugin lanes in Codex.
+  - Let repo-local source sync to `plugins/anarchy-ai` at manifest `version = 0.1.9` while Codex cache remains on older versions.
+  - Click Codex UI `Remove from Codex` for the repo-local Anarchy plugin.
+- Expected:
+  - Removal or repair tooling accounts for Codex's host-owned enable-state in `~/.codex/config.toml`.
+  - Anarchy-owned plugin enable entries are removable without touching unrelated Codex plugin settings.
+  - Legacy custom-MCP blocks remain opt-in cleanup because they are fallback/debug state, not the Codex plugin enable lane.
+- Actual:
+  - Codex surfaced `Failed to uninstall plugin`.
+  - Repo-local source remained at `0.1.9`, Codex repo-scoped cache remained at `0.1.8`, and user-profile cache remained older in the reported session.
+  - The Anarchy retirement helper covered marketplace files, plugin roots, cache directories, and opt-in legacy custom-MCP config, but did not inventory `[plugins."anarchy-ai@..."]` enable-state sections.
+- Evidence:
+  - User screenshot on `2026-04-25` showed the Codex plugin detail page toast `Failed to uninstall plugin`.
+  - Local config shape uses plugin enable-state sections such as:
+    - `[plugins."anarchy-ai@anarchy-ai-repo-workorders"] enabled = true`
+    - `[plugins."anarchy-ai@anarchy-ai-user-profile"] enabled = true`
+  - Removal safety tests previously asserted default cleanup should not inventory shared Codex config at all, which was correct for legacy custom MCP blocks but incomplete for Codex's current plugin enable-state.
+- Required product direction:
+  - Treat Codex plugin enable-state as its own install lifecycle surface.
+  - Keep it separate from legacy `mcp_servers.*` fallback cleanup.
+  - Remove only owned Anarchy plugin enable sections where both the plugin id and marketplace id are Anarchy-owned.
+  - Preserve curated or unrelated sections such as `[plugins."teams@openai-curated"]`, `[windows]`, and `[projects.*]`.
+- Local patch notes:
+  - `remove-anarchy-ai.ps1` now detects owned `[plugins."anarchy-ai@<owned-marketplace>"]` sections.
+  - device-app cleanup inventories `codex_plugin_enable_state_file` when Anarchy plugin enable-state is present.
+  - quarantine/remove rewrites the Codex config after backup to remove only the owned plugin enable-state sections.
+  - legacy custom-MCP cleanup remains gated behind `-IncludeLegacyCustomMcpConfig`.
+  - removal safety regression fixtures now prove Anarchy plugin enable-state removal while preserving unrelated Codex plugin and workspace config.
+- Acceptance:
+  - Run `docs/scripts/test-removal-safety-compliance.ps1`.
+  - Confirm default assess reports `codex_plugin_enable_state_file` when owned plugin enable-state exists.
+  - Confirm default quarantine removes Anarchy `[plugins."anarchy-ai@..."]` sections.
+  - Confirm default quarantine preserves legacy `[mcp_servers.anarchy-ai]`.
+  - Confirm opt-in cleanup with `-IncludeLegacyCustomMcpConfig` removes the legacy MCP block as well.
+  - Rebuild setup and repeat on a Workorders-style stale Codex cache/uninstall-failure state.
+
+### AA-BUG-029: Runtime install and portable underlay were conflated
+
+- Severity: High
+- Status: Patched local (rebuilt deployable; pending consumer repeat)
+- Component: Setup / Install lifecycle discipline / Repo hygiene
+- Repro:
+  - Run repo-local install in a consumer repo.
+  - Inspect the working tree before commit.
+- Expected:
+  - Portable schemas and narrative discipline can travel with the repo without committing runtime bundles, marketplace pointers, PDB/EXE/runtime files, or host-owned cache state.
+  - Schema refresh is deliberate and plan-first.
+  - Duplicate Anarchy Codex lanes are detected and bounded to one selected primary runtime lane.
+- Actual:
+  - `/repolocal` installed the runtime bundle and seeded portable schemas in one lane.
+  - Consumer repos then saw large untracked runtime artifacts under `plugins/anarchy-ai/**` plus `.agents/plugins/marketplace.json`.
+  - `/refreshschemas` existed as a write-by-default convenience path.
+  - Multiple enabled Anarchy Codex lanes surfaced duplicate skills.
+- Evidence:
+  - Fissure reported 41 untracked Anarchy install artifacts including a large runtime executable and PDB.
+  - Codex screenshots showed duplicate Anarchy skills from user-profile and repo-scoped plugin caches.
+  - Workorders and Docker-Builder-Project evidence showed repo-local and user-profile lanes could both be enabled while cache materialization lagged source.
+- Product direction:
+  - Split `/underlay` from `/repolocal`.
+  - Treat `/repolocal` as proving/debug runtime carrier, not committed repo truth.
+  - Make `/refresh` plan-first and require `/apply`.
+  - Keep deprecated `/refreshschemas` accepted but plan-first unless `/apply` is supplied; the old write-by-default behavior was the defect.
+  - Auto-disable duplicate Anarchy Codex lanes only during primary runtime install/update, never during `/underlay`, `/refresh`, `/assess`, or `/status`.
+- Local patch notes:
+  - setup parser now accepts `/underlay`, `/refresh`, and `/apply`.
+  - `/underlay` seeds missing portable schemas, narrative register/project directory, AGENTS.md awareness stub when absent, and Anarchy-scoped `.gitignore` lines without runtime or marketplace writes.
+  - `/refresh` reports planned schema drift by default and writes timestamped `.bak` files only with `/apply`.
+  - duplicate Codex lane cleanup sets other owned Anarchy plugin sections to `enabled = false` and preserves unrelated plugins.
+- Acceptance:
+  - Setup tests cover underlay seeding, AGENTS.md non-modification, refresh plan/apply, deprecated alias plan-first behavior, and duplicate-lane text rewriting.
+  - Smoke `/underlay` into a throwaway repo and confirm no runtime bundle, marketplace, MCP, or host config writes.
+  - Smoke `/refresh /apply` and confirm only canonical portable schema files change with backups.
+  - Repeat on a Workorders-style duplicate-lane state and confirm only non-selected Anarchy lanes are disabled.
+
+### AA-BUG-030: Plan-only refresh returned a failure exit code and direct EXE smoke surfaced UI
+
+- Severity: Medium
+- Status: Patched local for exit-code contract; direct windowless EXE smoke proof pending
+- Component: Setup / CLI automation / Release proof
+- Repro:
+  - Run `/refresh /repo <repo> /silent /json` against a repo with portable schema drift.
+  - Observe JSON output with `bootstrap_state = refresh_plan_ready`.
+  - Automation receives exit code `1` even though the plan was produced successfully.
+- Expected:
+  - Plan-only refresh is a successful CLI operation.
+  - `/silent /json` release smoke should be safe for automation and should not require closing a GUI.
+- Actual:
+  - `refresh_plan_ready` returned exit code `1`, causing smoke harnesses to treat a valid plan as failure.
+  - During manual deployable smoke attempts, the user observed the setup UI launching and closed it, so direct EXE smoke was stopped rather than normalized as proof.
+- Local patch notes:
+  - `Program.IsSuccessfulCliBootstrapState` now treats `ready`, `source_authoring_bundle_ready`, and `refresh_plan_ready` as successful CLI states.
+  - Setup tests now cover `refresh_plan_ready` as a successful CLI state while preserving `bootstrap_needed` as non-success.
+- Acceptance:
+  - Setup tests pass.
+  - Rebuilt deployable carries the exit-code fix.
+  - Before release promotion, run a controlled windowless direct EXE smoke for `/underlay`, `/refresh`, and `/refresh /apply` without launching the GUI.
+
 ### AA-BUG-005: Missing setup `self-check` command for active mount diagnostics
 
 - Severity: Medium

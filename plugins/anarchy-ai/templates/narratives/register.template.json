@@ -1,3 +1,21 @@
 {
-  "records": []
+  "records": [],
+  "open-threads": [
+    {
+      "id": "{{workspace_open_thread_install_id}}",
+      "summary": "decide whether to install Anarchy runtime in this workspace (user-profile or repo-local)",
+      "opened-date": "{{materialized_date}}",
+      "owner": "consumer-workspace-owner",
+      "stale": false,
+      "auto-close-trigger": "a runtime install lane registers a marketplace entry for this workspace"
+    },
+    {
+      "id": "{{workspace_open_thread_gov2gov_id}}",
+      "summary": "decide whether to run gov2gov migration to align portable schemas with canon",
+      "opened-date": "{{materialized_date}}",
+      "owner": "consumer-workspace-owner",
+      "stale": false,
+      "auto-close-trigger": "gov2gov runs in any mode against this workspace"
+    }
+  ]
 }

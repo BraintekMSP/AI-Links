@@ -1,0 +1,7 @@
+# AGENTS.md
+
+This is a small Anarchy-AI awareness stub, not the workspace authority file.
+
+Populate this file with repository-specific operating context. Use `AGENTS-schema-triage.md` as the entry point for understanding the carried schema family, and use gov2gov discipline to audit or align portable schema copies over time.
+
+The Anarchy underlay seeds context terrain. It does not install the runtime plugin, register an MCP server, or author this repository's decisions for you.

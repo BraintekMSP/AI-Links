@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -23,7 +24,9 @@ internal enum OperationMode
     Assess,
     Install,
     Update,
-    Status
+    Status,
+    Underlay,
+    Refresh
 }
 
 // Purpose: Declares the two install lanes supported by the setup executable.
@@ -97,6 +100,8 @@ internal sealed class SetupOptions
     public bool Silent { get; init; }
     public bool JsonOutput { get; init; }
     public bool RefreshPortableSchemaFamily { get; init; }
+    public bool ApplyChanges { get; init; }
+    public bool RefreshSchemasAliasUsed { get; init; }
     public string UpdateSourceZipUrl { get; init; } = AnarchyBranding.DefaultUpdateSourceZipUrl;
     public string UpdateSourcePath { get; init; } = string.Empty;
     public string RepoPath { get; init; } = string.Empty;
@@ -121,6 +126,14 @@ internal sealed class SetupResult
     public required bool runtime_present { get; init; }
     public required bool marketplace_registered { get; init; }
     public required bool installed_by_default { get; init; }
+    public bool host_config_modified { get; init; }
+    public bool refresh_plan_only { get; init; }
+    public string[] refreshed_files { get; init; } = [];
+    public string[] unchanged_files { get; init; } = [];
+    public string[] backup_files { get; init; } = [];
+    public string? selected_codex_primary_lane { get; init; }
+    public string[] disabled_duplicate_codex_lanes { get; init; } = [];
+    public bool duplicate_codex_skill_lanes_detected { get; init; }
     public bool source_authoring_bundle_present { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? source_authoring_bundle_state { get; init; }
@@ -233,7 +246,7 @@ internal static class Program
             var result = engine.Execute(options);
             Console.OutputEncoding = Encoding.UTF8;
             Console.WriteLine(JsonSerializer.Serialize(result, ProgramJson.Options));
-            return result.bootstrap_state is "ready" or "source_authoring_bundle_ready" ? 0 : 1;
+            return IsSuccessfulCliBootstrapState(result.bootstrap_state) ? 0 : 1;
         }
         catch (Exception ex)
         {
@@ -245,6 +258,11 @@ internal static class Program
             }, ProgramJson.Options));
             return 2;
         }
+    }
+
+    internal static bool IsSuccessfulCliBootstrapState(string bootstrapState)
+    {
+        return bootstrapState is "ready" or "source_authoring_bundle_ready" or "refresh_plan_ready";
     }
 }
 
@@ -1216,6 +1234,9 @@ internal static class CliParser
         var silent = false;
         var jsonOutput = false;
         var refreshPortableSchemaFamily = false;
+        var applyChanges = false;
+        var refreshSwitchSeen = false;
+        var refreshSchemasAliasUsed = false;
         var updateSourceZipUrl = AnarchyBranding.DefaultUpdateSourceZipUrl;
         var updateSourcePath = string.Empty;
         var repoPath = string.Empty;
@@ -1232,6 +1253,18 @@ internal static class CliParser
                     break;
                 case "install":
                     mode = OperationMode.Install;
+                    break;
+                case "underlay":
+                    mode = OperationMode.Underlay;
+                    installScope = InstallScope.RepoLocal;
+                    break;
+                case "refresh":
+                    refreshSwitchSeen = true;
+                    refreshPortableSchemaFamily = true;
+                    if (mode == OperationMode.Assess)
+                    {
+                        mode = OperationMode.Refresh;
+                    }
                     break;
                 case "repolocal":
                     installScope = InstallScope.RepoLocal;
@@ -1254,8 +1287,16 @@ internal static class CliParser
                 case "json":
                     jsonOutput = true;
                     break;
+                case "apply":
+                    applyChanges = true;
+                    break;
                 case "refreshschemas":
+                    refreshSchemasAliasUsed = true;
                     refreshPortableSchemaFamily = true;
+                    if (mode == OperationMode.Assess)
+                    {
+                        mode = OperationMode.Refresh;
+                    }
                     break;
                 case "repo":
                     repoPath = ReadValue(args, ref i, normalized);
@@ -1292,6 +1333,21 @@ internal static class CliParser
             hostTargets = HostTargets.Codex;
         }
 
+        if (mode == OperationMode.Underlay && installScope != InstallScope.RepoLocal)
+        {
+            throw new ArgumentException("/underlay is repo-scoped and cannot be combined with /userprofile.");
+        }
+
+        if (refreshSwitchSeen && mode is OperationMode.Install or OperationMode.Update)
+        {
+            throw new ArgumentException("/refresh is a standalone or /underlay operation. Use deprecated /refreshschemas [/apply] for install/update compatibility.");
+        }
+
+        if (applyChanges && !refreshPortableSchemaFamily)
+        {
+            throw new ArgumentException("/apply requires /refresh or /refreshschemas.");
+        }
+
         return new SetupOptions
         {
             Mode = mode,
@@ -1301,6 +1357,8 @@ internal static class CliParser
             Silent = silent,
             JsonOutput = jsonOutput,
             RefreshPortableSchemaFamily = refreshPortableSchemaFamily,
+            ApplyChanges = applyChanges,
+            RefreshSchemasAliasUsed = refreshSchemasAliasUsed,
             UpdateSourceZipUrl = updateSourceZipUrl,
             UpdateSourcePath = updateSourcePath,
             RepoPath = repoPath
@@ -1372,6 +1430,11 @@ internal sealed class SetupEngine
         AnarchyPathCanon.BundleNarrativeRegisterTemplateFileRelativePath,
         AnarchyPathCanon.BundleNarrativeRecordTemplateFileRelativePath
     ];
+
+    private const string AgentsAwarenessNoteTemplateRelativePath = "templates/AGENTS.md.awareness-note.template";
+    private const string ConsumerNarrativeRegisterRelativePath = ".agents/anarchy-ai/narratives/register.json";
+    private const string ConsumerNarrativeProjectsDirectoryRelativePath = ".agents/anarchy-ai/narratives/projects";
+    private const string ConsumerDirectionAssistTestRegisterRelativePath = ".agents/anarchy-ai/direction-assist-test.jsonl";
 
     private static IReadOnlyList<string> PortableSchemaFiles => AnarchyPathCanon.PortableSchemaFiles;
 
@@ -1524,8 +1587,10 @@ internal sealed class SetupEngine
             string.Empty,
             "Usage:",
             "  AnarchyAi.Setup.exe /assess [/repolocal|/userprofile] [/repo <path>] [/codex] [/claudecode] [/claudedesktop] [/allhosts] [/json] [/silent]",
-            "  AnarchyAi.Setup.exe /install [/repolocal|/userprofile] [/repo <path>] [/codex] [/claudecode] [/claudedesktop] [/allhosts] [/refreshschemas] [/json] [/silent]",
-            "  AnarchyAi.Setup.exe /update [/repolocal|/userprofile] [/repo <path>] [/codex] [/claudecode] [/claudedesktop] [/allhosts] [/sourcepath <path>] [/sourceurl <url>] [/refreshschemas] [/json] [/silent]",
+            "  AnarchyAi.Setup.exe /underlay [/repo <path>] [/refresh] [/apply] [/json] [/silent]",
+            "  AnarchyAi.Setup.exe /refresh [/repo <path>] [/apply] [/json] [/silent]",
+            "  AnarchyAi.Setup.exe /install [/repolocal|/userprofile] [/repo <path>] [/codex] [/claudecode] [/claudedesktop] [/allhosts] [/refreshschemas [/apply]] [/json] [/silent]",
+            "  AnarchyAi.Setup.exe /update [/repolocal|/userprofile] [/repo <path>] [/codex] [/claudecode] [/claudedesktop] [/allhosts] [/sourcepath <path>] [/sourceurl <url>] [/refreshschemas [/apply]] [/json] [/silent]",
             "  AnarchyAi.Setup.exe /status [/repolocal|/userprofile] [/repo <path>] [/codex] [/claudecode] [/claudedesktop] [/allhosts] [/json] [/silent]",
             "  AnarchyAi.Setup.exe /? | -? | /h | -h | /help | -help | --help | --?",
             string.Empty,
@@ -1536,7 +1601,10 @@ internal sealed class SetupEngine
             $"  Target repo: {targetRepo}",
             string.Empty,
             "Here's what changes:",
+            "- /underlay seeds portable schema and narrative discipline into a repo. It does NOT install the runtime plugin, register an MCP server, create marketplace entries, or touch host config.",
+            "- /refresh is plan-first schema alignment for the canonical portable schema files; add /apply to overwrite and create timestamped .bak files.",
             $"- /repolocal (repo-local plugin bundle + repo-local marketplace, Codex) adds {BuildPluginFolderLabel(InstallScope.RepoLocal, resolvedRepo)}\\ and updates {BuildMarketplacePathLabel(InstallScope.RepoLocal, resolvedRepo)}.",
+            "- /repolocal is a proving/debug runtime carrier, not the default committed repo-truth lane.",
             $"- /userprofile (home-local runtime + home-local marketplace, Codex) adds {BuildPluginFolderLabel(InstallScope.UserProfile, resolvedRepo)}\\ and updates {BuildMarketplacePathLabel(InstallScope.UserProfile, resolvedRepo)}.",
             $"- /repolocal registers {BuildPluginName(InstallScope.RepoLocal, resolvedRepo)} for the selected repo.",
             $"- /userprofile registers {BuildPluginName(InstallScope.UserProfile, resolvedRepo)} for the current user profile.",
@@ -1547,18 +1615,21 @@ internal sealed class SetupEngine
             $"- /claudedesktop auto-detects MSIX vs classic Claude Desktop and merges mcpServers.{BuildMcpServerName()} into the active claude_desktop_config.json (read-merge-write; creates a .bak on first modification; no-op when no install is detected). Requires a full app restart; older MSIX builds may ignore mcpServers (upstream issue) -- update and retry. Unverified on this machine -- promotion pending.",
             $"- Makes {CoreToolNames.Length} core + {ExperimentalToolNames.Length} test harness tool available to supported hosts.",
             "- Writes and reads a versioned install-state record so later assess/status runs can inspect lifecycle state without trusting plugin UI visibility.",
-            "- Does not rewrite AGENTS.md.",
+            "- Does not modify existing AGENTS.md; /underlay creates a small awareness stub only when AGENTS.md is absent.",
             schemaSeedingLine,
-            "- Leaves existing root schema files in place unless /refreshschemas is passed.",
+            "- Leaves existing root schema files in place unless /refresh /apply or deprecated /refreshschemas /apply is passed.",
             string.Empty,
             "Flags:",
             "  /repolocal             Install or assess through the selected repo root.",
             "  /userprofile           Install or assess through the current user profile.",
+            "  /underlay              Seed repo-portable Anarchy discipline without runtime, marketplace, MCP, or host config changes.",
+            "  /refresh               Plan portable schema alignment; compose with /underlay or run standalone.",
+            "  /apply                 Apply a planned schema refresh; without this, refresh is read-only/plan-first.",
             "  /status                Read-only lifecycle status; /doctor, /selfcheck, and /self-check are aliases.",
             "  /repo <path>            Override repo auto-detection.",
             "  /sourcepath <path>      Refresh from a local AI-Links source path.",
             "  /sourceurl <url>        Refresh from a zip source URL.",
-            "  /refreshschemas         Force-refresh the portable schema family into repo root.",
+            "  /refreshschemas         Deprecated alias for portable schema refresh; plan-first unless /apply is also supplied.",
             "  /json                   Emit JSON result for assess/install/update operations.",
             "  /silent                 Suppress GUI/prompt behavior for CLI use.",
             "  /host <name>            Carry host context such as codex, claude, cursor, or generic.",
@@ -1608,6 +1679,14 @@ internal sealed class SetupEngine
 
         var updateRequested = options.Mode == OperationMode.Update;
         var updateState = updateRequested ? "in_progress" : "not_requested";
+        var runtimeFreeOperation = options.Mode is OperationMode.Underlay or OperationMode.Refresh;
+        var refreshResult = RefreshSchemaResult.Empty;
+        var duplicateLaneResult = CodexDuplicateLaneResult.Empty;
+
+        if (options.RefreshSchemasAliasUsed)
+        {
+            updateNotes.Add("/refreshschemas is deprecated because it used to overwrite schema files as a convenience path; use /refresh /apply for deliberate schema alignment.");
+        }
 
         var blockSourceAuthoringConsumerWrite = ShouldBlockSourceAuthoringConsumerWrite(options, sourceAuthoringBundle);
 
@@ -1618,6 +1697,18 @@ internal sealed class SetupEngine
             missingComponents.Add("source_authoring_repo_consumer_install_blocked");
             safeRepairs.Add("use_source_build_lane_or_user_profile_install");
             updateState = updateRequested ? "blocked_source_authoring_repo" : updateState;
+        }
+        else if (options.Mode == OperationMode.Underlay)
+        {
+            MaterializeUnderlay(workspaceRoot, options, actionsTaken);
+            if (options.RefreshPortableSchemaFamily)
+            {
+                refreshResult = RefreshEmbeddedPortableSchemaFamily(workspaceRoot, options.ApplyChanges, actionsTaken);
+            }
+        }
+        else if (options.Mode == OperationMode.Refresh)
+        {
+            refreshResult = RefreshEmbeddedPortableSchemaFamily(workspaceRoot, options.ApplyChanges, actionsTaken);
         }
         else if (options.Mode == OperationMode.Install)
         {
@@ -1666,7 +1757,7 @@ internal sealed class SetupEngine
                 }
                 else if (options.RefreshPortableSchemaFamily)
                 {
-                    ExtractEmbeddedPortableSchemaFamily(workspaceRoot, actionsTaken);
+                    refreshResult = RefreshEmbeddedPortableSchemaFamily(workspaceRoot, options.ApplyChanges, actionsTaken);
                 }
                 else
                 {
@@ -1778,6 +1869,28 @@ internal sealed class SetupEngine
         }
 
         if ((options.Mode == OperationMode.Install || options.Mode == OperationMode.Update)
+            && options.HostTargets.HasFlag(HostTargets.Codex)
+            && string.Equals(normalizedHostContext, "codex", StringComparison.Ordinal))
+        {
+            try
+            {
+                duplicateLaneResult = DisableDuplicateCodexLanesForSelectedPrimaryLane(options, workspaceRoot, actionsTaken);
+            }
+            catch (IOException ex)
+            {
+                updateNotes.Add(ex.Message);
+                missingComponents.Add("duplicate_codex_lane_cleanup_failed");
+                safeRepairs.Add("inventory_and_disable_duplicate_anarchy_codex_lanes");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                updateNotes.Add(ex.Message);
+                missingComponents.Add("duplicate_codex_lane_cleanup_failed");
+                safeRepairs.Add("inventory_and_disable_duplicate_anarchy_codex_lanes");
+            }
+        }
+
+        if ((options.Mode == OperationMode.Install || options.Mode == OperationMode.Update)
             && options.InstallScope == InstallScope.UserProfile
             && string.Equals(normalizedHostContext, "codex", StringComparison.Ordinal))
         {
@@ -1818,12 +1931,12 @@ internal sealed class SetupEngine
         var skillExists = File.Exists(skillPath);
         var schemaManifestExists = File.Exists(schemaManifestPath);
         var pluginRootExists = Directory.Exists(inspectedPluginRoot);
-        var inspectChildBundleSurfaces = pluginRootExists
+        var inspectChildBundleSurfaces = !runtimeFreeOperation && (pluginRootExists
             || pluginManifestExists
             || mcpExists
             || runtimeExists
             || skillExists
-            || schemaManifestExists;
+            || schemaManifestExists);
 
         if (inspectChildBundleSurfaces && !pluginManifestExists) { missingComponents.Add("codex_plugin_manifest_missing"); }
         if (inspectChildBundleSurfaces && !mcpExists) { missingComponents.Add("codex_mcp_declaration_missing"); }
@@ -1871,23 +1984,29 @@ internal sealed class SetupEngine
             }
         }
 
-        var pluginManifestInspection = InspectPluginManifest(pluginManifestPath, options.InstallScope, workspaceRoot);
+        var pluginManifestInspection = runtimeFreeOperation
+            ? new PluginManifestInspection(false, false, true, [])
+            : InspectPluginManifest(pluginManifestPath, options.InstallScope, workspaceRoot);
         missingComponents.UnionWith(pluginManifestInspection.Findings);
-        var marketplaceInspection = InspectMarketplace(marketplacePath, options.InstallScope, workspaceRoot);
+        var marketplaceInspection = runtimeFreeOperation
+            ? new MarketplaceInspection(false, false, false, false, true, true, [])
+            : InspectMarketplace(marketplacePath, options.InstallScope, workspaceRoot);
         missingComponents.UnionWith(marketplaceInspection.Findings);
-        var mcpInspection = InspectMcpConfiguration(mcpPath);
+        var mcpInspection = runtimeFreeOperation
+            ? new McpConfigurationInspection(false, true, true, [])
+            : InspectMcpConfiguration(mcpPath);
         missingComponents.UnionWith(mcpInspection.Findings);
         var marketplaceMissingFinding = BuildMarketplaceMissingFinding(options.InstallScope);
         var marketplaceMissingPluginsArrayFinding = BuildMarketplaceMissingPluginsArrayFinding(options.InstallScope);
-        if (!marketplaceInspection.Exists && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
+        if (!runtimeFreeOperation && !marketplaceInspection.Exists && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
         {
             missingComponents.Add(marketplaceMissingFinding);
         }
-        if (marketplaceInspection.Exists && !marketplaceInspection.HasPluginsArray && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
+        if (!runtimeFreeOperation && marketplaceInspection.Exists && !marketplaceInspection.HasPluginsArray && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
         {
             missingComponents.Add(marketplaceMissingPluginsArrayFinding);
         }
-        if (marketplaceInspection.Exists && !marketplaceInspection.IsValidJson && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
+        if (!runtimeFreeOperation && marketplaceInspection.Exists && !marketplaceInspection.IsValidJson && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
         {
             missingComponents.Add("marketplace_json_invalid");
         }
@@ -1901,8 +2020,9 @@ internal sealed class SetupEngine
         var legacyUserProfileInspection = InspectLegacyUserProfileSurfaces(options.InstallScope, normalizedHostContext, marketplaceRegistrationReady);
         missingComponents.UnionWith(legacyUserProfileInspection.Findings);
 
-        if (!runtimeExists) { safeRepairs.Add("publish_or_restore_bundled_runtime"); }
-        if ((!marketplaceInspection.HasAnarchyPluginEntry || !marketplaceInspection.InstalledByDefault)
+        if (!runtimeFreeOperation && !runtimeExists) { safeRepairs.Add("publish_or_restore_bundled_runtime"); }
+        if (!runtimeFreeOperation
+            && (!marketplaceInspection.HasAnarchyPluginEntry || !marketplaceInspection.InstalledByDefault)
             && !blockSourceAuthoringConsumerWrite)
         {
             safeRepairs.Add(useSourceAuthoringBundleForReadOnlyInspection
@@ -1936,14 +2056,16 @@ internal sealed class SetupEngine
             safeRepairs.Add("inventory_and_remove_stale_codex_custom_mcp_entry");
         }
 
-        var installStateReport = InspectInstallState(
-            options,
-            normalizedHostContext,
-            workspaceRoot,
-            pluginRoot,
-            marketplacePath,
-            runtimePath,
-            installStateWritten);
+        var installStateReport = runtimeFreeOperation
+            ? BuildRuntimeFreeInstallStateReport()
+            : InspectInstallState(
+                options,
+                normalizedHostContext,
+                workspaceRoot,
+                pluginRoot,
+                marketplacePath,
+                runtimePath,
+                installStateWritten);
         if (options.Mode == OperationMode.Status)
         {
             missingComponents.UnionWith(installStateReport.findings);
@@ -1980,7 +2102,9 @@ internal sealed class SetupEngine
                 : runtimeExists
                     ? "runtime_only"
                     : "bootstrap_needed";
-        var registrationMode = DetermineRegistrationMode(options.InstallScope, normalizedHostContext, legacyUserProfileInspection);
+        var registrationMode = runtimeFreeOperation
+            ? "none"
+            : DetermineRegistrationMode(options.InstallScope, normalizedHostContext, legacyUserProfileInspection);
 
         var nextAction = hasLockedBundleSurfaceSkip
             ? "release_runtime_lock_and_retry_install"
@@ -2001,6 +2125,18 @@ internal sealed class SetupEngine
             _ => "restore_runtime_or_complete_bundle"
         };
 
+        if (runtimeFreeOperation && !blockSourceAuthoringConsumerWrite)
+        {
+            bootstrapState = refreshResult.RefreshNeeded && !options.ApplyChanges
+                ? "refresh_plan_ready"
+                : "ready";
+            nextAction = refreshResult.RefreshNeeded && !options.ApplyChanges
+                ? "run_refresh_with_apply_to_materialize"
+                : options.Mode == OperationMode.Underlay
+                    ? "review_underlay_artifacts"
+                    : "review_refresh_result";
+        }
+
         var resultPaths = BuildSetupResultPaths(
             options,
             workspaceRoot,
@@ -2012,7 +2148,7 @@ internal sealed class SetupEngine
             destinationSkillPath,
             destinationSchemaManifestPath,
             updateSourceRoot);
-        var codexMaterialization = options.HostTargets.HasFlag(HostTargets.Codex)
+        var codexMaterialization = options.HostTargets.HasFlag(HostTargets.Codex) && !runtimeFreeOperation
             ? InspectCodexMaterialization(
                 options.InstallScope,
                 workspaceRoot,
@@ -2026,14 +2162,23 @@ internal sealed class SetupEngine
             registration_mode = registrationMode,
             host_context = normalizedHostContext,
             host_targets = HostTargetLabels.ToLabelArray(options.HostTargets),
-            install_scope = BuildInstallScopeJsonLabel(options.InstallScope),
+            install_scope = BuildInstallScopeJsonLabel(options),
             update_requested = updateRequested,
             update_state = updateState,
             update_source_zip_url = options.UpdateSourceZipUrl,
             update_notes = updateNotes.ToArray(),
-            runtime_present = runtimeExists,
-            marketplace_registered = marketplaceInspection.HasAnarchyPluginEntry,
-            installed_by_default = marketplaceInspection.InstalledByDefault,
+            runtime_present = !runtimeFreeOperation && runtimeExists,
+            marketplace_registered = !runtimeFreeOperation && marketplaceInspection.HasAnarchyPluginEntry,
+            installed_by_default = !runtimeFreeOperation && marketplaceInspection.InstalledByDefault,
+            host_config_modified = duplicateLaneResult.DisabledLanes.Length > 0
+                || actionsTaken.Contains("removed_legacy_codex_custom_mcp_entry"),
+            refresh_plan_only = options.RefreshPortableSchemaFamily && !options.ApplyChanges,
+            refreshed_files = refreshResult.RefreshedFiles,
+            unchanged_files = refreshResult.UnchangedFiles,
+            backup_files = refreshResult.BackupFiles,
+            selected_codex_primary_lane = duplicateLaneResult.SelectedPrimaryLane,
+            disabled_duplicate_codex_lanes = duplicateLaneResult.DisabledLanes,
+            duplicate_codex_skill_lanes_detected = duplicateLaneResult.DuplicateLanesDetected,
             source_authoring_bundle_present = sourceAuthoringBundle.Present,
             source_authoring_bundle_state = sourceAuthoringBundle.Present
                 ? sourceAuthoringBundle.State
@@ -2344,6 +2489,201 @@ internal sealed class SetupEngine
         actionsTaken.Add(copiedAny
             ? "seeded_missing_portable_schema_family_from_embedded_payload"
             : "portable_schema_family_already_present");
+    }
+
+    private static void MaterializeUnderlay(string repoRoot, SetupOptions options, HashSet<string> actionsTaken)
+    {
+        if (string.IsNullOrWhiteSpace(repoRoot))
+        {
+            throw new DirectoryNotFoundException("/underlay requires a repo root. Pass /repo <path> or run from a repo root.");
+        }
+
+        SeedMissingEmbeddedPortableSchemaFamily(repoRoot, actionsTaken);
+        SeedNarrativeRegister(repoRoot, actionsTaken);
+        EnsureNarrativeProjectsDirectory(repoRoot, actionsTaken);
+        SeedAgentsAwarenessNoteIfMissing(repoRoot, actionsTaken);
+        EnsureAnarchyGitignoreBlock(repoRoot, actionsTaken);
+        actionsTaken.Add("materialized_repo_underlay");
+    }
+
+    private static RefreshSchemaResult RefreshEmbeddedPortableSchemaFamily(string repoRoot, bool applyChanges, HashSet<string> actionsTaken)
+    {
+        if (string.IsNullOrWhiteSpace(repoRoot))
+        {
+            actionsTaken.Add("portable_schema_family_not_targeted");
+            return RefreshSchemaResult.Empty;
+        }
+
+        var refreshedFiles = new List<string>();
+        var unchangedFiles = new List<string>();
+        var backupFiles = new List<string>();
+        var timestamp = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
+
+        foreach (var resource in PayloadResources.GetPortableSchemaResources())
+        {
+            var fileName = resource[AnarchyPathCanon.BuildPortableSchemaPayloadResourcePrefix().Length..]
+                .Replace('/', Path.DirectorySeparatorChar)
+                .Replace('\\', Path.DirectorySeparatorChar);
+            var targetPath = Path.Combine(repoRoot, fileName);
+
+            if (TryIsResourceContentAligned(resource, targetPath, out var aligned) && aligned)
+            {
+                unchangedFiles.Add(fileName);
+                continue;
+            }
+
+            refreshedFiles.Add(fileName);
+            if (!applyChanges)
+            {
+                continue;
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
+            if (File.Exists(targetPath))
+            {
+                var backupPath = $"{targetPath}.{timestamp}.bak";
+                File.Copy(targetPath, backupPath, overwrite: false);
+                backupFiles.Add(Path.GetRelativePath(repoRoot, backupPath));
+            }
+
+            using var stream = PayloadResources.OpenResource(resource);
+            using var output = File.Create(targetPath);
+            stream.CopyTo(output);
+        }
+
+        actionsTaken.Add(applyChanges
+            ? "refreshed_portable_schema_family_from_embedded_payload"
+            : "planned_portable_schema_family_refresh_from_embedded_payload");
+
+        return new RefreshSchemaResult(
+            refreshedFiles.OrderBy(static value => value, StringComparer.Ordinal).ToArray(),
+            unchangedFiles.OrderBy(static value => value, StringComparer.Ordinal).ToArray(),
+            backupFiles.OrderBy(static value => value, StringComparer.Ordinal).ToArray());
+    }
+
+    private static void SeedNarrativeRegister(string repoRoot, HashSet<string> actionsTaken)
+    {
+        var registerPath = Path.Combine(repoRoot, ConsumerNarrativeRegisterRelativePath.Replace('/', Path.DirectorySeparatorChar));
+        if (File.Exists(registerPath))
+        {
+            actionsTaken.Add("narrative_register_already_present");
+            return;
+        }
+
+        var templateText = ReadPluginPayloadText(AnarchyPathCanon.BundleNarrativeRegisterTemplateFileRelativePath);
+        var register = JsonNode.Parse(templateText) as JsonObject ?? new JsonObject();
+        var workspaceHash = BuildWorkspaceHash(repoRoot);
+        var openedDate = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        register["open-threads"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["id"] = $"ot-{workspaceHash}-001",
+                ["summary"] = "decide whether to install Anarchy runtime in this workspace (user-profile or repo-local)",
+                ["opened-date"] = openedDate,
+                ["owner"] = "consumer-workspace-owner",
+                ["stale"] = false,
+                ["auto-close-trigger"] = "a runtime install lane registers a marketplace entry for this workspace"
+            },
+            new JsonObject
+            {
+                ["id"] = $"ot-{workspaceHash}-002",
+                ["summary"] = "decide whether to run gov2gov migration to align portable schemas with canon",
+                ["opened-date"] = openedDate,
+                ["owner"] = "consumer-workspace-owner",
+                ["stale"] = false,
+                ["auto-close-trigger"] = "gov2gov runs in any mode against this workspace"
+            }
+        };
+
+        Directory.CreateDirectory(Path.GetDirectoryName(registerPath)!);
+        File.WriteAllText(registerPath, register.ToJsonString(ProgramJson.Options), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        actionsTaken.Add("seeded_narrative_register");
+    }
+
+    private static void EnsureNarrativeProjectsDirectory(string repoRoot, HashSet<string> actionsTaken)
+    {
+        var projectsPath = Path.Combine(repoRoot, ConsumerNarrativeProjectsDirectoryRelativePath.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(projectsPath);
+        actionsTaken.Add("ensured_narrative_projects_directory");
+    }
+
+    private static void SeedAgentsAwarenessNoteIfMissing(string repoRoot, HashSet<string> actionsTaken)
+    {
+        var agentsPath = Path.Combine(repoRoot, "AGENTS.md");
+        if (File.Exists(agentsPath))
+        {
+            actionsTaken.Add("agents_md_already_present_left_unchanged");
+            return;
+        }
+
+        var templateText = ReadPluginPayloadText(AgentsAwarenessNoteTemplateRelativePath);
+        File.WriteAllText(agentsPath, templateText, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        actionsTaken.Add("seeded_agents_md_awareness_note");
+    }
+
+    private static void EnsureAnarchyGitignoreBlock(string repoRoot, HashSet<string> actionsTaken)
+    {
+        var gitignorePath = Path.Combine(repoRoot, ".gitignore");
+        var existingText = File.Exists(gitignorePath) ? File.ReadAllText(gitignorePath) : string.Empty;
+        var underlayGitignoreLines = BuildUnderlayGitignoreLines();
+        if (underlayGitignoreLines.Skip(1).All(line => existingText.Contains(line, StringComparison.OrdinalIgnoreCase)))
+        {
+            actionsTaken.Add("anarchy_gitignore_block_already_present");
+            return;
+        }
+
+        var builder = new StringBuilder(existingText);
+        if (builder.Length > 0 && !existingText.EndsWith('\n'))
+        {
+            builder.AppendLine();
+        }
+
+        builder.AppendLine();
+        foreach (var line in underlayGitignoreLines)
+        {
+            if (line.StartsWith('#') || !existingText.Contains(line, StringComparison.OrdinalIgnoreCase))
+            {
+                builder.AppendLine(line);
+            }
+        }
+
+        File.WriteAllText(gitignorePath, builder.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        actionsTaken.Add("updated_anarchy_gitignore_block");
+    }
+
+    private static string[] BuildUnderlayGitignoreLines()
+    {
+        return
+        [
+            "# Anarchy-AI runtime/install artifacts. Portable schemas and .agents/anarchy-ai/narratives remain repo truth when intentionally committed.",
+            "/" + AnarchyPathCanon.RepoSourcePluginDirectoryRelativePath + "/",
+            "/" + AnarchyPathCanon.RepoLocalMarketplaceFileRelativePath,
+            "/" + ConsumerDirectionAssistTestRegisterRelativePath
+        ];
+    }
+
+    private static string ReadPluginPayloadText(string relativePath)
+    {
+        var normalizedRelativePath = AnarchyPathCanon.NormalizeCanonRelativePath(relativePath);
+        var resourceName = PayloadResources.GetPluginBundleResources()
+            .FirstOrDefault(name =>
+            {
+                var resourceRelativePath = name[AnarchyPathCanon.BuildPluginPayloadResourcePrefix().Length..]
+                    .Replace('\\', '/');
+                return string.Equals(resourceRelativePath, normalizedRelativePath, StringComparison.Ordinal);
+            })
+            ?? AnarchyPathCanon.BuildPluginPayloadResourcePath(normalizedRelativePath);
+        using var stream = PayloadResources.OpenResource(resourceName);
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        return reader.ReadToEnd();
+    }
+
+    private static string BuildWorkspaceHash(string repoRoot)
+    {
+        var normalized = Path.GetFullPath(repoRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).ToUpperInvariant();
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(normalized));
+        return Convert.ToHexString(bytes)[..8].ToLowerInvariant();
     }
 
     // Purpose: Creates or refreshes the repo-local or user-profile marketplace entry for the current install lane.
@@ -2913,7 +3253,7 @@ internal sealed class SetupEngine
     private static bool ShouldBlockSourceAuthoringConsumerWrite(SetupOptions options, SourceAuthoringBundleInspection sourceAuthoringBundle)
     {
         return options.InstallScope == InstallScope.RepoLocal
-            && (options.Mode == OperationMode.Install || options.Mode == OperationMode.Update)
+            && options.Mode is OperationMode.Install or OperationMode.Update or OperationMode.Underlay or OperationMode.Refresh
             && sourceAuthoringBundle.Present;
     }
 
@@ -3050,6 +3390,103 @@ internal sealed class SetupEngine
             : null;
     }
 
+    private static CodexDuplicateLaneResult DisableDuplicateCodexLanesForSelectedPrimaryLane(
+        SetupOptions options,
+        string workspaceRoot,
+        HashSet<string> actionsTaken)
+    {
+        var codexConfigPath = AnarchyPathCanon.ResolveUserProfileCodexConfigFilePath(GetUserProfileDirectory());
+        var selectedKey = $"{BuildPluginName(options.InstallScope, workspaceRoot)}@{BuildMarketplaceName(options.InstallScope, workspaceRoot)}";
+        if (!File.Exists(codexConfigPath))
+        {
+            return new CodexDuplicateLaneResult(selectedKey, [], false);
+        }
+
+        var configText = File.ReadAllText(codexConfigPath);
+        var (updatedText, disabledLanes, duplicateDetected) = DisableDuplicateCodexLanesInConfigText(configText, selectedKey);
+
+        if (disabledLanes.Length > 0)
+        {
+            File.WriteAllText(codexConfigPath, updatedText, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            actionsTaken.Add("disabled_duplicate_anarchy_codex_plugin_lanes");
+        }
+
+        return new CodexDuplicateLaneResult(
+            selectedKey,
+            disabledLanes,
+            duplicateDetected);
+    }
+
+    internal static (string UpdatedText, string[] DisabledLanes, bool DuplicateDetected) DisableDuplicateCodexLanesInConfigText(
+        string configText,
+        string selectedKey)
+    {
+        var disabled = new List<string>();
+        var duplicateDetected = false;
+        var sectionPattern = @"(?ms)^\[plugins\.""(?<key>[^""]+)""\]\s*(?<body>.*?)(?=^\[|\z)";
+        var updatedText = Regex.Replace(
+            configText,
+            sectionPattern,
+            match =>
+            {
+                var key = match.Groups["key"].Value;
+                if (string.Equals(key, selectedKey, StringComparison.Ordinal)
+                    || !IsOwnedAnarchyCodexPluginConfigKey(key))
+                {
+                    return match.Value;
+                }
+
+                var body = match.Groups["body"].Value;
+                var enabled = ReadEnabledFromPluginConfigSectionBody(body);
+                if (enabled == false)
+                {
+                    return match.Value;
+                }
+
+                duplicateDetected = true;
+                disabled.Add(key);
+                var replacedBody = Regex.Replace(
+                    body,
+                    @"(?mi)^(?<prefix>\s*enabled\s*=\s*)(true|false)(?<suffix>\s*)$",
+                    "${prefix}false${suffix}",
+                    RegexOptions.CultureInvariant);
+                if (string.Equals(replacedBody, body, StringComparison.Ordinal))
+                {
+                    replacedBody = body.EndsWith('\n')
+                        ? body + "enabled = false" + Environment.NewLine
+                        : body + Environment.NewLine + "enabled = false" + Environment.NewLine;
+                }
+
+                return match.Value[..(match.Groups["body"].Index - match.Index)] + replacedBody;
+            },
+            RegexOptions.CultureInvariant);
+
+        return (updatedText, disabled.OrderBy(static value => value, StringComparer.Ordinal).ToArray(), duplicateDetected);
+    }
+
+    private static bool IsOwnedAnarchyCodexPluginConfigKey(string configKey)
+    {
+        var parts = configKey.Split('@', 2);
+        if (parts.Length != 2)
+        {
+            return false;
+        }
+
+        return AnarchyPathCanon.IsOwnedPluginName(parts[0])
+            && AnarchyPathCanon.IsOwnedMarketplaceName(parts[1]);
+    }
+
+    private static bool? ReadEnabledFromPluginConfigSectionBody(string body)
+    {
+        var enabledMatch = Regex.Match(
+            body,
+            @"(?mi)^\s*enabled\s*=\s*(?<value>true|false)\s*$",
+            RegexOptions.CultureInvariant);
+        return enabledMatch.Success
+            ? bool.Parse(enabledMatch.Groups["value"].Value)
+            : null;
+    }
+
     // Purpose: Reads the version field from a plugin manifest when the installed source bundle exposes one.
     // Expected input: Absolute path to .codex-plugin/plugin.json.
     // Expected output: Version string or null when unavailable/unparseable.
@@ -3165,6 +3602,20 @@ internal sealed class SetupEngine
         return AnarchyPathCanon.ResolveRelativePath(pluginRoot, InstallStateFileRelativePath);
     }
 
+    private static InstallStateReport BuildRuntimeFreeInstallStateReport()
+    {
+        return new InstallStateReport
+        {
+            schema_version = InstallStateSchemaVersion,
+            state_path = string.Empty,
+            state_present = false,
+            state_written = false,
+            state_valid = true,
+            findings = [],
+            warnings = []
+        };
+    }
+
     // Purpose: Writes durable setup lifecycle state after an install or update materializes owned surfaces.
     // Expected input: Current setup options, resolved paths, and the mutable action log.
     // Expected output: No direct return value; writes install-state JSON and records an action marker.
@@ -3209,7 +3660,8 @@ internal sealed class SetupEngine
         {
             ["root"] = workspaceRoot,
             ["schema_targeted"] = workspaceSchemaTargeted,
-            ["schema_refresh_requested"] = options.RefreshPortableSchemaFamily
+            ["schema_refresh_requested"] = options.RefreshPortableSchemaFamily,
+            ["schema_refresh_applied"] = options.RefreshPortableSchemaFamily && options.ApplyChanges
         };
 
         var source = new JsonObject
@@ -3337,14 +3789,15 @@ internal sealed class SetupEngine
 
         if (!string.IsNullOrWhiteSpace(workspaceRoot))
         {
-            var ownership = options.RefreshPortableSchemaFamily ? "managed" : "seed_if_missing";
+            var schemaRefreshApplied = options.RefreshPortableSchemaFamily && options.ApplyChanges;
+            var ownership = schemaRefreshApplied ? "managed" : "seed_if_missing";
             foreach (var schemaFile in PortableSchemaFiles)
             {
                 operations.Add(CreateInstallStateOperation(
-                    options.RefreshPortableSchemaFamily ? "refresh_portable_schema" : "seed_portable_schema_if_missing",
+                    schemaRefreshApplied ? "refresh_portable_schema" : "seed_portable_schema_if_missing",
                     "portable_schema_family",
                     Path.Combine(workspaceRoot, schemaFile),
-                    options.RefreshPortableSchemaFamily ? "copy_embedded_payload" : "copy_if_missing",
+                    schemaRefreshApplied ? "copy_embedded_payload" : "copy_if_missing",
                     ownership,
                     schemaFile));
             }
@@ -3594,6 +4047,8 @@ internal sealed class SetupEngine
         OperationMode.Install => "install",
         OperationMode.Update => "update",
         OperationMode.Status => "status",
+        OperationMode.Underlay => "underlay",
+        OperationMode.Refresh => "refresh",
         _ => "assess"
     };
 
@@ -3604,6 +4059,11 @@ internal sealed class SetupEngine
     private static string BuildInstallScopeJsonLabel(InstallScope installScope)
     {
         return installScope == InstallScope.UserProfile ? "user_profile" : "repo_local";
+    }
+
+    private static string BuildInstallScopeJsonLabel(SetupOptions options)
+    {
+        return options.Mode == OperationMode.Underlay ? "repo_underlay" : BuildInstallScopeJsonLabel(options.InstallScope);
     }
 
     // Purpose: Reads a string field from a JsonObject without throwing on absent or wrong-shaped fields.
@@ -4171,6 +4631,15 @@ internal sealed class SetupEngine
                 return sourceRoot;
             }
 
+            if (!options.ApplyChanges)
+            {
+                updateNotes.Add("portable_schema_family_refresh_plan_only_apply_required");
+                actionsTaken.Add(string.IsNullOrWhiteSpace(options.UpdateSourcePath)
+                    ? "planned_portable_schema_family_refresh_from_public_repo"
+                    : "planned_portable_schema_family_refresh_from_local_update_source");
+                return sourceRoot;
+            }
+
             foreach (var schemaFile in PortableSchemaFiles)
             {
                 CopySurface(Path.Combine(sourceRoot, schemaFile), Path.Combine(repoRoot, schemaFile));
@@ -4356,6 +4825,23 @@ internal sealed record SourceAuthoringBundleInspection(
         && MissingCoreContracts.Length == 0;
 
     public string State => IsComplete ? "complete" : Present ? "partial" : "absent";
+}
+
+internal sealed record RefreshSchemaResult(
+    string[] RefreshedFiles,
+    string[] UnchangedFiles,
+    string[] BackupFiles)
+{
+    public static RefreshSchemaResult Empty { get; } = new([], [], []);
+    public bool RefreshNeeded => RefreshedFiles.Length > 0;
+}
+
+internal sealed record CodexDuplicateLaneResult(
+    string? SelectedPrimaryLane,
+    string[] DisabledLanes,
+    bool DuplicateLanesDetected)
+{
+    public static CodexDuplicateLaneResult Empty { get; } = new(null, [], false);
 }
 
 // Purpose: Exposes the embedded plugin bundle and portable-schema payload resources carried by the setup executable.

@@ -267,6 +267,79 @@ $script:codexCustomMcpServerBlockPattern = Get-OwnedCodexCustomMcpServerBlockPat
 
 <#
 .SYNOPSIS
+Checks whether one TOML section name is an owned Codex plugin enable-state section.
+.DESCRIPTION
+Recognizes sections such as plugins."anarchy-ai@anarchy-ai-user-profile" and
+plugins."anarchy-ai@anarchy-ai-repo-workorders" while preserving unrelated Codex plugins.
+.PARAMETER SectionName
+The TOML section name without surrounding square brackets.
+.OUTPUTS
+System.Boolean. True when the section targets an owned Anarchy-AI plugin and marketplace identity.
+.NOTES
+Critical dependencies: Test-IsOwnedPluginName and Test-IsOwnedMarketplaceName.
+#>
+function Test-IsOwnedCodexPluginConfigSection {
+  param(
+    [string]$SectionName
+  )
+
+  if ([string]::IsNullOrWhiteSpace($SectionName)) {
+    return $false
+  }
+
+  $normalizedSectionName = ([string]$SectionName).Trim()
+  if ($normalizedSectionName -notmatch '^plugins\.(.+)$') {
+    return $false
+  }
+
+  $pluginConfigKey = ([string]$Matches[1]).Trim()
+  if (($pluginConfigKey.StartsWith('"') -and $pluginConfigKey.EndsWith('"')) -or ($pluginConfigKey.StartsWith("'") -and $pluginConfigKey.EndsWith("'"))) {
+    $pluginConfigKey = $pluginConfigKey.Substring(1, $pluginConfigKey.Length - 2)
+  }
+
+  $separatorIndex = $pluginConfigKey.IndexOf('@')
+  if ($separatorIndex -lt 1 -or $separatorIndex -ge ($pluginConfigKey.Length - 1)) {
+    return $false
+  }
+
+  $pluginName = $pluginConfigKey.Substring(0, $separatorIndex)
+  $marketplaceName = $pluginConfigKey.Substring($separatorIndex + 1)
+  return (Test-IsOwnedPluginName -PluginName $pluginName) -and (Test-IsOwnedMarketplaceName -MarketplaceName $marketplaceName)
+}
+
+<#
+.SYNOPSIS
+Checks whether a Codex config file contains owned plugin enable-state.
+.DESCRIPTION
+Scans TOML section headers instead of string-matching arbitrary values so unrelated plugins and
+non-section text cannot trigger cleanup.
+.PARAMETER ConfigContent
+Raw TOML content from the Codex config file.
+.OUTPUTS
+System.Boolean. True when at least one owned Anarchy-AI plugin enable-state section is present.
+.NOTES
+Critical dependencies: Test-IsOwnedCodexPluginConfigSection and TOML section-header parsing.
+#>
+function Test-ContainsOwnedCodexPluginEnableState {
+  param(
+    [string]$ConfigContent
+  )
+
+  if ([string]::IsNullOrWhiteSpace($ConfigContent)) {
+    return $false
+  }
+
+  foreach ($line in @([regex]::Split($ConfigContent, '\r?\n'))) {
+    if ($line -match '^\[(.+?)\]\s*$' -and (Test-IsOwnedCodexPluginConfigSection -SectionName ([string]$Matches[1]))) {
+      return $true
+    }
+  }
+
+  return $false
+}
+
+<#
+.SYNOPSIS
 Returns the current working location in normalized absolute form.
 .DESCRIPTION
 Used by destructive-operation guards so mutation paths cannot proceed after unexpected location drift.
@@ -1102,16 +1175,22 @@ function Add-DeviceAppTargets {
   )
 
   $cacheParent = Resolve-CanonRelativePath -RootPath $ResolvedUserProfileRoot -RelativePath $pathCanon.relative_paths.user_profile_plugin_cache_parent_directory_relative_path
-  if (-not (Test-Path $cacheParent)) {
-    return
+  if (Test-Path $cacheParent) {
+    foreach ($marketplaceDirectory in Get-ChildItem $cacheParent -Directory -ErrorAction SilentlyContinue) {
+      if (-not (Test-IsOwnedMarketplaceName -MarketplaceName $marketplaceDirectory.Name)) {
+        continue
+      }
+
+      $script:inventory.Add((New-InventoryTarget -Scope 'device_app' -SurfaceKind 'plugin_cache_directory' -Path $marketplaceDirectory.FullName -PlannedAction 'quarantine_directory' -Details 'documented_plugin_cache_marketplace_root'))
+    }
   }
 
-  foreach ($marketplaceDirectory in Get-ChildItem $cacheParent -Directory -ErrorAction SilentlyContinue) {
-    if (-not (Test-IsOwnedMarketplaceName -MarketplaceName $marketplaceDirectory.Name)) {
-      continue
+  $codexConfigPath = Resolve-CanonRelativePath -RootPath $ResolvedUserProfileRoot -RelativePath $pathCanon.relative_paths.user_profile_codex_config_file_relative_path
+  if (Test-Path $codexConfigPath) {
+    $configContent = Get-Content $codexConfigPath -Raw
+    if (Test-ContainsOwnedCodexPluginEnableState -ConfigContent $configContent) {
+      $script:inventory.Add((New-InventoryTarget -Scope 'device_app' -SurfaceKind 'codex_plugin_enable_state_file' -Path $codexConfigPath -PlannedAction 'rewrite_file_after_backup' -Details 'remove_anarchy_plugin_enable_state'))
     }
-
-    $script:inventory.Add((New-InventoryTarget -Scope 'device_app' -SurfaceKind 'plugin_cache_directory' -Path $marketplaceDirectory.FullName -PlannedAction 'quarantine_directory' -Details 'documented_plugin_cache_marketplace_root'))
   }
 }
 
@@ -1812,6 +1891,91 @@ function Rewrite-CodexConfigWithoutAnarchyBlock {
 
 <#
 .SYNOPSIS
+Removes Anarchy-AI Codex plugin enable-state sections from the Codex config file after backup.
+.DESCRIPTION
+Backs up the config, removes only owned [plugins."anarchy-ai@..."] TOML sections, normalizes
+repeated blank lines, and preserves unrelated plugin, window, project, and legacy custom-MCP config.
+.PARAMETER ConfigPath
+Codex config file path to rewrite.
+.PARAMETER QuarantineRootPath
+Absolute quarantine root.
+.OUTPUTS
+PSCustomObject describing rewrite status and any backup path created.
+.NOTES
+Critical dependencies: Test-IsOwnedCodexPluginConfigSection, config backup discipline, and newline normalization.
+#>
+function Rewrite-CodexConfigWithoutAnarchyPluginEnableState {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$ConfigPath,
+    [Parameter(Mandatory = $true)]
+    [string]$QuarantineRootPath
+  )
+
+  if (-not (Test-Path $ConfigPath)) {
+    return [pscustomobject]@{
+      status = 'missing'
+      quarantine_path = $null
+    }
+  }
+
+  $validatedConfigPath = Assert-GuardedPath -OperationName 'Rewrite-CodexConfigWithoutAnarchyPluginEnableState' -TargetPath $ConfigPath -ExpectedRoot (Split-Path (Split-Path $ConfigPath -Parent) -Parent) -RequireExisting
+  $configOwnerRoot = Split-Path (Split-Path $validatedConfigPath -Parent) -Parent
+  $content = Get-Content $validatedConfigPath -Raw
+  if (-not (Test-ContainsOwnedCodexPluginEnableState -ConfigContent $content)) {
+    return [pscustomobject]@{
+      status = 'skipped'
+      quarantine_path = $null
+      reason = 'anarchy_plugin_enable_state_not_present'
+    }
+  }
+
+  $backupPath = Backup-FileToQuarantine -OriginalPath $validatedConfigPath -Scope 'device_app' -SurfaceKind 'codex_plugin_enable_state_file' -QuarantineRootPath $QuarantineRootPath
+  $newline = if ($content.Contains("`r`n")) { "`r`n" } else { "`n" }
+  $lines = [System.Collections.Generic.List[string]]::new()
+  foreach ($line in @([regex]::Split($content, '\r?\n'))) {
+    $lines.Add([string]$line)
+  }
+  $retainedLines = New-Object System.Collections.Generic.List[string]
+  $insideOwnedPluginSection = $false
+
+  foreach ($line in $lines) {
+    if ($line -match '^\[(.+?)\]\s*$') {
+      $insideOwnedPluginSection = Test-IsOwnedCodexPluginConfigSection -SectionName ([string]$Matches[1])
+      if ($insideOwnedPluginSection) {
+        continue
+      }
+    }
+
+    if (-not $insideOwnedPluginSection) {
+      $retainedLines.Add($line)
+    }
+  }
+
+  $updatedContent = [string]::Join($newline, @($retainedLines))
+  $updatedContent = [regex]::Replace($updatedContent, "(\r?\n){3,}", $newline + $newline)
+  $updatedContent = $updatedContent.TrimEnd("`r", "`n")
+  if (-not [string]::IsNullOrWhiteSpace($updatedContent)) {
+    $updatedContent += $newline
+  }
+
+  try {
+    Assert-GuardedPath -OperationName 'Rewrite-CodexConfigWithoutAnarchyPluginEnableState' -TargetPath $validatedConfigPath -ExpectedRoot $configOwnerRoot -RequireExisting | Out-Null
+    Set-Content $validatedConfigPath -Value $updatedContent
+  }
+  catch {
+    throw "Rewrite-CodexConfigWithoutAnarchyPluginEnableState failed for '$validatedConfigPath': $($_.Exception.Message)"
+  }
+
+  $script:actionsTaken.Add('removed_codex_plugin_enable_state')
+  return [pscustomobject]@{
+    status = 'updated'
+    quarantine_path = $backupPath
+  }
+}
+
+<#
+.SYNOPSIS
 Processes one discovered inventory target according to the requested mode.
 .DESCRIPTION
 Performs inventory-only reporting in Assess mode and otherwise quarantines, rewrites, or removes the target with exact path validation.
@@ -1894,6 +2058,12 @@ function Invoke-InventoryTargetAction {
       }
       elseif ($Target.surface_kind -eq 'codex_config_file') {
         $rewrite = Rewrite-CodexConfigWithoutAnarchyBlock -ConfigPath $Target.path -QuarantineRootPath $ResolvedQuarantineRoot
+        if ($rewrite.status -eq 'updated' -and $Mode -eq 'Remove' -and -not [string]::IsNullOrWhiteSpace($rewrite.quarantine_path)) {
+          Remove-QuarantinedPath -QuarantinePath $rewrite.quarantine_path -QuarantineRootPath $ResolvedQuarantineRoot -Scope $Target.scope -SurfaceKind $Target.surface_kind
+        }
+      }
+      elseif ($Target.surface_kind -eq 'codex_plugin_enable_state_file') {
+        $rewrite = Rewrite-CodexConfigWithoutAnarchyPluginEnableState -ConfigPath $Target.path -QuarantineRootPath $ResolvedQuarantineRoot
         if ($rewrite.status -eq 'updated' -and $Mode -eq 'Remove' -and -not [string]::IsNullOrWhiteSpace($rewrite.quarantine_path)) {
           Remove-QuarantinedPath -QuarantinePath $rewrite.quarantine_path -QuarantineRootPath $ResolvedQuarantineRoot -Scope $Target.scope -SurfaceKind $Target.surface_kind
         }

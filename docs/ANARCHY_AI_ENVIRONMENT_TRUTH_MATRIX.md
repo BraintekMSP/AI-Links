@@ -305,6 +305,7 @@ Additional field observation on `2026-04-25`:
 - the same machine's Codex plugin cache still showed `anarchy-ai-repo-workorders/anarchy-ai/0.1.8` and user-profile cache `anarchy-ai-user-profile/anarchy-ai/0.1.7`, with no `0.1.9` cache directory
 - the plugin detail information row showed `Category = anarchy-ai-repo-workorders, Productivity`, which indicates Codex is exposing marketplace root identity/category separately from plugin manifest `interface.category`
 - local Codex config stores plugin enable-state as `[plugins."anarchy-ai@anarchy-ai-repo-workorders"] enabled = true`, which explains `Remove from Codex` as a host-owned state separate from source files and cache directories
+- attempting Codex UI `Remove from Codex` for the repo-local Workorders plugin produced a `Failed to uninstall plugin` toast, proving host-side uninstall success is a separate observation from source sync, marketplace visibility, and setup cleanup coverage
 - rebuilt setup assess against Workorders reported the same split directly:
   - source plugin manifest version `0.1.9`
   - config plugin key `anarchy-ai@anarchy-ai-repo-workorders`
@@ -318,6 +319,7 @@ Interpretation:
 - repo-local source and marketplace visibility can update before Codex materializes the matching chat/runtime cache
 - plugin UI visibility is evidence of source/catalog recognition, not proof that the active chat session is using the same version
 - setup/status diagnostics must treat source bundle, marketplace source visibility, Codex enable-state, Codex cache, and active runtime as separate surfaces
+- failed Codex UI uninstall is repair evidence, not proof that repo-local source or setup payload is invalid; cleanup must handle owned plugin enable-state separately from legacy custom-MCP fallback config
 
 ### 14. Plugin manifest version is now release-canon driven and smoke-installed as `0.1.9`
 
@@ -398,6 +400,42 @@ What this does not yet prove:
 
 - every developer machine has a correctly installed user/machine-local SDK
 - external operators will not manually place SDK/cache folders under target repos outside the build helper
+
+### 17. Underlay and refresh lanes are source-tested, not yet cross-device proven
+
+Proven at setup-test/source level on `2026-04-25` after `AA-BUG-029`:
+
+- CLI parsing accepts `/underlay`, `/refresh`, and `/apply`
+- deprecated `/refreshschemas` remains accepted but is plan-first unless `/apply` is supplied
+- `/underlay` into a throwaway repo seeds:
+  - canonical portable schema files
+  - `.agents/anarchy-ai/narratives/register.json`
+  - `.agents/anarchy-ai/narratives/projects/`
+  - AGENTS.md awareness stub only when missing
+  - Anarchy-scoped `.gitignore` lines
+- `/underlay` does not create:
+  - runtime plugin bundle
+  - marketplace file
+  - MCP declaration
+  - host config modification
+- `/refresh` reports schema drift without overwriting by default
+- `/refresh /apply` overwrites only portable schema files and creates timestamped `.bak` files
+- `refresh_plan_ready` is treated as a successful CLI state instead of an automation failure
+- duplicate Codex lane logic disables only owned Anarchy non-selected plugin lanes in config text and preserves unrelated plugin sections
+
+What this proves:
+
+- the source implementation no longer requires repo-local runtime install for portable repo discipline
+- the old write-by-default `/refreshschemas` surface is treated as a safety defect and requires `/apply`
+- duplicate-lane repair is bounded to Anarchy-owned plugin enable-state
+
+What this does not yet prove:
+
+- a rebuilt setup EXE has been smoke-run after this batch
+- direct windowless EXE smoke remains pending after the UI surfaced during manual smoke attempts; current proof is source/test/build-level
+- a consumer repo has run `/underlay` and committed only portable underlay truth
+- Workorders/Fissure duplicate-lane cleanup has been repeated against live Codex config after rebuild
+- cross-device cache invalidation to `0.1.9` remains pending
 
 ## Inferred (Not Yet Fully Proven)
 
@@ -573,6 +611,7 @@ Promotion test for device portability:
    - assess JSON
    - bundle path
    - marketplace file
+   - Codex plugin enable-state in `~/.codex/config.toml`
    - Codex cache path and version
    - exposed skill metadata path when available
 3. If bundle identity is current but surface visibility still looks stale:
@@ -593,6 +632,7 @@ Treat the environment as three cooperating planes:
 2. Codex plugin-marketplace install plane
    - `~/.agents/plugins/marketplace.json`
    - `~/.codex/plugins/anarchy-ai`
+   - `~/.codex/config.toml` plugin enable-state under `[plugins."anarchy-ai@<marketplace>"]`
 3. runtime and tool plane
    - bundled `AnarchyAi.Mcp.Server.exe` and contract surfaces
 
