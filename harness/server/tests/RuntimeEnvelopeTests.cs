@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Runtime.CompilerServices;
+using AnarchyAi.Pathing;
 using Xunit;
 
 namespace AnarchyAi.Mcp.Server.Tests;
@@ -241,6 +242,153 @@ public sealed class RuntimeEnvelopeTests
     }
 
     /// <summary>
+    /// Confirms that repo-underlay posture does not make repo-local marketplace discovery a required startup surface.
+    /// </summary>
+    /// <remarks>Critical dependencies: AA-BUG-036 posture semantics and repo-local marketplace path canon.</remarks>
+    [Fact]
+    public void SchemaReality_RepoUnderlayIgnoresMissingRepoMarketplaceStartupSurface()
+    {
+        using var workspace = TempWorkspace.Create();
+        CopyCanonicalPortableSchemaFiles(workspace.Path);
+        WriteGovernedAgentsFamilyWithStartupDiscovery(workspace.Path);
+        var inspector = new SchemaRealityInspector();
+
+        var result = inspector.Evaluate(
+            workspace.Path,
+            "AGENTS-schema-family",
+            [AnarchyPathCanon.RepoLocalMarketplaceFileRelativePath],
+            RuntimeEnvelopeBuilder.RepoUnderlayPosture);
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(result));
+        var root = document.RootElement;
+        var activeReasons = ReadStringArray(root, "active_reasons");
+        var safeRepairs = ReadStringArray(root, "safe_repairs");
+        var ignoredStartupSurfaces = ReadStringArray(root.GetProperty("inspection"), "startup_surfaces_ignored_by_posture");
+
+        Assert.Equal(RuntimeEnvelopeBuilder.RepoUnderlayPosture, root.GetProperty("workspace_posture").GetString());
+        Assert.Equal("real", root.GetProperty("schema_reality_state").GetString());
+        Assert.DoesNotContain("startup_discovery_path_weakened", activeReasons);
+        Assert.DoesNotContain(safeRepairs, repair => repair.StartsWith("create_startup_surface:", StringComparison.Ordinal));
+        Assert.Contains(
+            AnarchyPathCanon.ResolveRepoLocalMarketplaceFilePath(workspace.Path),
+            ignoredStartupSurfaces,
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Confirms that repo-local runtime posture still treats missing marketplace discovery as a real gap.
+    /// </summary>
+    /// <remarks>Critical dependencies: AA-BUG-036 preserving repo-local runtime diagnostics.</remarks>
+    [Fact]
+    public void SchemaReality_RepoLocalRuntimeFlagsMissingRepoMarketplaceStartupSurface()
+    {
+        using var workspace = TempWorkspace.Create();
+        CopyCanonicalPortableSchemaFiles(workspace.Path);
+        WriteGovernedAgentsFamilyWithStartupDiscovery(workspace.Path);
+        var inspector = new SchemaRealityInspector();
+
+        var result = inspector.Evaluate(
+            workspace.Path,
+            "AGENTS-schema-family",
+            [AnarchyPathCanon.RepoLocalMarketplaceFileRelativePath],
+            RuntimeEnvelopeBuilder.RepoLocalRuntimePosture);
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(result));
+        var root = document.RootElement;
+        var activeReasons = ReadStringArray(root, "active_reasons");
+        var safeRepairs = ReadStringArray(root, "safe_repairs");
+
+        Assert.Equal(RuntimeEnvelopeBuilder.RepoLocalRuntimePosture, root.GetProperty("workspace_posture").GetString());
+        Assert.Equal("partial", root.GetProperty("schema_reality_state").GetString());
+        Assert.Contains("startup_discovery_path_weakened", activeReasons);
+        Assert.Contains("create_startup_surface:marketplace.json", safeRepairs);
+    }
+
+    /// <summary>
+    /// Confirms that completed/reference-mode gov2gov does not recreate active root GOV2GOV packet files.
+    /// </summary>
+    /// <remarks>Critical dependencies: AGENTS-schema-gov2gov-migration active/reference mode semantics.</remarks>
+    [Fact]
+    public void Gov2GovMigration_AutoReferenceModeDoesNotMaterializeGov2GovPacket()
+    {
+        using var workspace = TempWorkspace.Create();
+        CopyCanonicalPortableSchemaFiles(workspace.Path);
+        WriteGovernedAgentsFamilyWithStartupDiscovery(workspace.Path);
+        var runner = new Gov2GovMigrationRunner(new SchemaRealityInspector());
+
+        var result = runner.Run(
+            workspace.Path,
+            "AGENTS-schema-family",
+            "partial",
+            ["startup_discovery_path_weakened"],
+            [AnarchyPathCanon.RepoLocalMarketplaceFileRelativePath],
+            "non_destructive_apply",
+            RuntimeEnvelopeBuilder.RepoUnderlayPosture);
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(result));
+        var root = document.RootElement;
+        var plannedActions = ReadStringArray(root, "planned_actions");
+        var actionsTaken = ReadStringArray(root, "actions_taken");
+        var remainingFindings = ReadStringArray(root, "remaining_findings");
+
+        Assert.Equal(RuntimeEnvelopeBuilder.RepoUnderlayPosture, root.GetProperty("workspace_posture").GetString());
+        Assert.Equal(Gov2GovMigrationRunner.Gov2GovArtifactModeReference, root.GetProperty("gov2gov_artifact_mode").GetString());
+        Assert.DoesNotContain("realign_startup_discovery_paths", plannedActions);
+        Assert.DoesNotContain("startup_discovery_path_weakened", remainingFindings);
+        Assert.False(File.Exists(AnarchyPathCanon.ResolveRepoLocalMarketplaceFilePath(workspace.Path)));
+
+        foreach (var relativePath in RuntimeEnvelopeBuilder.Gov2GovStructure)
+        {
+            Assert.DoesNotContain($"materialize_gov2gov_surface:{relativePath}", plannedActions);
+            Assert.DoesNotContain($"materialized_gov2gov_surface:{relativePath}", actionsTaken);
+            Assert.False(File.Exists(Path.Combine(workspace.Path, relativePath)));
+        }
+    }
+
+    /// <summary>
+    /// Confirms that explicit active-mode gov2gov can materialize its companion packet without restoring repo-local marketplace discovery.
+    /// </summary>
+    /// <remarks>Critical dependencies: AA-BUG-036 non-destructive apply behavior and GOV2GOV artifact mode vocabulary.</remarks>
+    [Fact]
+    public void Gov2GovMigration_ExplicitActiveModeMaterializesGov2GovPacketWithoutMarketplace()
+    {
+        using var workspace = TempWorkspace.Create();
+        CopyCanonicalPortableSchemaFiles(workspace.Path);
+        WriteGovernedAgentsFamilyWithStartupDiscovery(workspace.Path);
+        var runner = new Gov2GovMigrationRunner(new SchemaRealityInspector());
+
+        var result = runner.Run(
+            workspace.Path,
+            "AGENTS-schema-family",
+            "partial",
+            ["startup_discovery_path_weakened"],
+            [AnarchyPathCanon.RepoLocalMarketplaceFileRelativePath],
+            "non_destructive_apply",
+            RuntimeEnvelopeBuilder.RepoUnderlayPosture,
+            Gov2GovMigrationRunner.Gov2GovArtifactModeActive);
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(result));
+        var root = document.RootElement;
+        var plannedActions = ReadStringArray(root, "planned_actions");
+        var actionsTaken = ReadStringArray(root, "actions_taken");
+        var remainingFindings = ReadStringArray(root, "remaining_findings");
+
+        Assert.Equal(RuntimeEnvelopeBuilder.RepoUnderlayPosture, root.GetProperty("workspace_posture").GetString());
+        Assert.Equal(Gov2GovMigrationRunner.Gov2GovArtifactModeActive, root.GetProperty("gov2gov_artifact_mode").GetString());
+        Assert.Equal("materialized", root.GetProperty("migration_result_state").GetString());
+        Assert.DoesNotContain("realign_startup_discovery_paths", plannedActions);
+        Assert.DoesNotContain("startup_discovery_path_weakened", remainingFindings);
+        Assert.False(File.Exists(AnarchyPathCanon.ResolveRepoLocalMarketplaceFilePath(workspace.Path)));
+
+        foreach (var relativePath in RuntimeEnvelopeBuilder.Gov2GovStructure)
+        {
+            Assert.Contains($"materialize_gov2gov_surface:{relativePath}", plannedActions);
+            Assert.Contains($"materialized_gov2gov_surface:{relativePath}", actionsTaken);
+            Assert.True(File.Exists(Path.Combine(workspace.Path, relativePath)));
+        }
+    }
+
+    /// <summary>
     /// Locates the repo root from source location first, then explicit/current/runtime fallbacks.
     /// </summary>
     /// <returns>The absolute repo root path containing <c>AGENTS.md</c> and <c>docs/README_ai_links.md</c>.</returns>
@@ -297,6 +445,49 @@ public sealed class RuntimeEnvelopeTests
         {
             File.WriteAllText(Path.Combine(workspaceRoot, fileName), "# test");
         }
+    }
+
+    private static void WriteGovernedAgentsFamilyWithStartupDiscovery(string workspaceRoot)
+    {
+        File.WriteAllText(
+            Path.Combine(workspaceRoot, "AGENTS.md"),
+            """
+            # Test AGENTS
+
+            schema-path: AGENTS-schema-governance.json
+            AGENTS-hello.md
+            AGENTS-Terms.md
+            AGENTS-Vision.md
+            AGENTS-Rules.md
+            """);
+
+        foreach (var fileName in GovernedAgentsFiles.Where(static fileName => fileName != "AGENTS.md"))
+        {
+            File.WriteAllText(Path.Combine(workspaceRoot, fileName), "# test governed surface");
+        }
+    }
+
+    private static void CopyCanonicalPortableSchemaFiles(string workspaceRoot)
+    {
+        var repoRoot = FindRepoRoot();
+        foreach (var fileName in PortableSchemaFiles)
+        {
+            var pluginSchemaPath = Path.Combine(repoRoot, "plugins", "anarchy-ai", "schemas", fileName);
+            var rootSchemaPath = Path.Combine(repoRoot, fileName);
+            var sourcePath = File.Exists(pluginSchemaPath) ? pluginSchemaPath : rootSchemaPath;
+            File.Copy(sourcePath, Path.Combine(workspaceRoot, fileName), overwrite: false);
+        }
+    }
+
+    private static string[] ReadStringArray(JsonElement element, string propertyName)
+    {
+        return element
+            .GetProperty(propertyName)
+            .EnumerateArray()
+            .Select(static item => item.GetString())
+            .Where(static value => !string.IsNullOrWhiteSpace(value))
+            .Cast<string>()
+            .ToArray();
     }
 
     private sealed class TempWorkspace : IDisposable

@@ -391,11 +391,15 @@ internal static class RuntimeEnvelopeBuilder
     public const string SchemaAuthoringAndPluginDeliveryWorkspace = "schema_authoring_and_plugin_delivery_workspace";
     public const string MaterialGovernanceConsumerWorkspace = "material_governance_consumer_workspace";
     public const string MixedOrUndeterminedWorkspaceRole = "mixed_or_undetermined_workspace_role";
+    public const string RepoUnderlayPosture = "repo_underlay";
+    public const string RepoLocalRuntimePosture = "repo_local_runtime";
+    public const string UndeterminedWorkspacePosture = "undetermined";
 
     private const string UserProfileInstalledRuntime = "user_profile_installed_runtime";
     private const string RepoLocalInstalledRuntime = "repo_local_installed_runtime";
     private const string SourceCheckoutRuntime = "source_checkout_runtime";
     private const string ExternalOrUnknownRuntime = "external_or_unknown_runtime";
+    private const string AutoWorkspacePosture = "auto";
 
     private static readonly string[] PortableSchemaFiles =
     [
@@ -427,6 +431,50 @@ internal static class RuntimeEnvelopeBuilder
     public static IReadOnlyList<string> PortableSchemaFamily => PortableSchemaFiles;
     public static IReadOnlyList<string> GovernedAgentsStructure => GovernedAuthorityFiles.Prepend("AGENTS.md").ToArray();
     public static IReadOnlyList<string> Gov2GovStructure => Gov2GovStructureFiles;
+
+    public static string ResolveWorkspacePosture(string workspaceRoot, string? requestedPosture = null)
+    {
+        var normalized = NormalizeWorkspacePosture(requestedPosture);
+        if (normalized != AutoWorkspacePosture)
+        {
+            return normalized;
+        }
+
+        var resolvedWorkspaceRoot = Path.GetFullPath(workspaceRoot);
+        if (IsSchemaAuthoringAndPluginDeliveryWorkspace(resolvedWorkspaceRoot, []))
+        {
+            return UndeterminedWorkspacePosture;
+        }
+
+        var marketplacePath = AnarchyPathCanon.ResolveRepoLocalMarketplaceFilePath(resolvedWorkspaceRoot);
+        var marketplaceExists = File.Exists(marketplacePath);
+        var underlayGitignorePolicyPresent = HasRepoUnderlayGitignorePolicy(resolvedWorkspaceRoot);
+        var repoLocalRuntimePresent = HasRepoLocalRuntimeBundle(resolvedWorkspaceRoot);
+        var portableFamilyPresent = PortableSchemaFiles.All(fileName => File.Exists(Path.Combine(resolvedWorkspaceRoot, fileName)));
+        var narrativeRegisterPresent = File.Exists(Path.Combine(
+            resolvedWorkspaceRoot,
+            ".agents",
+            "anarchy-ai",
+            "narratives",
+            "register.json"));
+
+        if (underlayGitignorePolicyPresent && !marketplaceExists)
+        {
+            return RepoUnderlayPosture;
+        }
+
+        if (marketplaceExists || (repoLocalRuntimePresent && !underlayGitignorePolicyPresent))
+        {
+            return RepoLocalRuntimePosture;
+        }
+
+        if (portableFamilyPresent && (narrativeRegisterPresent || !repoLocalRuntimePresent))
+        {
+            return RepoUnderlayPosture;
+        }
+
+        return UndeterminedWorkspacePosture;
+    }
 
     public static WorkspaceRoleEnvelope BuildWorkspaceRole(string workspaceRoot)
     {
@@ -723,6 +771,44 @@ internal static class RuntimeEnvelopeBuilder
             or MixedOrUndeterminedWorkspaceRole;
     }
 
+    private static string NormalizeWorkspacePosture(string? requestedPosture)
+    {
+        if (string.IsNullOrWhiteSpace(requestedPosture))
+        {
+            return AutoWorkspacePosture;
+        }
+
+        return requestedPosture.Trim().ToLowerInvariant() switch
+        {
+            AutoWorkspacePosture => AutoWorkspacePosture,
+            RepoUnderlayPosture => RepoUnderlayPosture,
+            RepoLocalRuntimePosture => RepoLocalRuntimePosture,
+            UndeterminedWorkspacePosture => UndeterminedWorkspacePosture,
+            _ => throw new ArgumentException("workspace_posture must be auto, repo_underlay, repo_local_runtime, or undetermined.", nameof(requestedPosture))
+        };
+    }
+
+    private static bool HasRepoUnderlayGitignorePolicy(string workspaceRoot)
+    {
+        var gitignorePath = Path.Combine(workspaceRoot, ".gitignore");
+        if (!File.Exists(gitignorePath))
+        {
+            return false;
+        }
+
+        var text = File.ReadAllText(gitignorePath);
+        return text.Contains("Anarchy-AI runtime/install artifacts", StringComparison.OrdinalIgnoreCase) &&
+               text.Contains("/" + AnarchyPathCanon.RepoLocalMarketplaceFileRelativePath, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasRepoLocalRuntimeBundle(string workspaceRoot)
+    {
+        var pluginRoot = AnarchyPathCanon.ResolveSourcePluginDirectory(workspaceRoot);
+        var runtimePath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundleRuntimeExecutableFileRelativePath);
+        var manifestPath = AnarchyPathCanon.ResolveBundleFilePath(pluginRoot, AnarchyPathCanon.BundlePluginManifestFileRelativePath);
+        return File.Exists(runtimePath) || File.Exists(manifestPath);
+    }
+
     private static bool IsSameOrChildPath(string candidatePath, string parentPath)
     {
         if (string.IsNullOrWhiteSpace(candidatePath) || string.IsNullOrWhiteSpace(parentPath))
@@ -788,7 +874,11 @@ internal sealed class SchemaRealityInspector
     // Expected input: Absolute workspace root, expected schema-package label, and optional startup-surface paths.
     // Expected output: An anonymous object with state classification, reasons, repairs, and inspection details.
     // Critical dependencies: CanonicalSchemaBundle, NormalizeStartupSurfaces, EvaluateIntegrity, and workspace file inspection.
-    public object Evaluate(string workspaceRoot, string expectedSchemaPackage, string[]? startupSurfaces)
+    public object Evaluate(
+        string workspaceRoot,
+        string expectedSchemaPackage,
+        string[]? startupSurfaces,
+        string? workspacePosture = null)
     {
         if (string.IsNullOrWhiteSpace(workspaceRoot) || !Path.IsPathRooted(workspaceRoot))
         {
@@ -801,8 +891,13 @@ internal sealed class SchemaRealityInspector
             throw new DirectoryNotFoundException($"Workspace root not found: {resolvedWorkspaceRoot}");
         }
 
+        var workspacePostureState = RuntimeEnvelopeBuilder.ResolveWorkspacePosture(resolvedWorkspaceRoot, workspacePosture);
         var normalizedStartupSurfaces = NormalizeStartupSurfaces(resolvedWorkspaceRoot, startupSurfaces);
         var startupSurfaceExists = normalizedStartupSurfaces.ToDictionary(path => path, File.Exists, StringComparer.OrdinalIgnoreCase);
+        var startupSurfacePostureResult = EvaluateStartupSurfacesForPosture(
+            resolvedWorkspaceRoot,
+            workspacePostureState,
+            startupSurfaceExists);
 
         var agentsMdPath = Path.Combine(resolvedWorkspaceRoot, "AGENTS.md");
         var agentsMdExists = File.Exists(agentsMdPath);
@@ -827,6 +922,7 @@ internal sealed class SchemaRealityInspector
         var packageSurfaceAligned = familyFileExists.Values.All(static value => value);
         var folderTopologyAligned = packageSurfaceAligned && governedFileExists.Values.All(static value => value);
         var startupSurfaceAligned = startupSurfaceExists.Count == 0 || startupSurfaceExists.Values.All(static value => value);
+        var startupSurfaceAlignedForPosture = startupSurfacePostureResult.AlignedForPosture;
 
         var state = ClassifyState(
             agentsMdExists,
@@ -834,7 +930,7 @@ internal sealed class SchemaRealityInspector
             governedFilesPresentCount,
             startupDiscoveryPathReal,
             packageSurfaceAligned,
-            startupSurfaceAligned);
+            startupSurfaceAlignedForPosture);
 
         var integrityResult = EvaluateIntegrity(resolvedWorkspaceRoot);
         var activeReasons = BuildReasons(
@@ -845,17 +941,22 @@ internal sealed class SchemaRealityInspector
             startupDiscoveryPathReal,
             packageSurfaceAligned,
             folderTopologyAligned,
-            startupSurfaceAligned);
+            startupSurfaceAlignedForPosture);
         var workspaceRole = RuntimeEnvelopeBuilder.BuildWorkspaceRole(resolvedWorkspaceRoot);
         var runtimeProvenance = RuntimeEnvelopeBuilder.BuildRuntimeProvenance(resolvedWorkspaceRoot);
         var consumerMaterialGovernanceCheck = RuntimeEnvelopeBuilder.ConsumerMaterialGovernanceCheck(workspaceRole);
-        var safeRepairs = BuildSafeRepairs(state, startupSurfaceExists, integrityResult.IntegrityState, consumerMaterialGovernanceCheck);
+        var safeRepairs = BuildSafeRepairs(
+            state,
+            startupSurfacePostureResult.EffectiveStartupSurfaceExists,
+            integrityResult.IntegrityState,
+            consumerMaterialGovernanceCheck);
         var recommendedNextAction = DetermineRecommendedNextAction(state, integrityResult.IntegrityState, consumerMaterialGovernanceCheck);
 
         return new
         {
             workspace_role = workspaceRole,
             runtime_provenance = runtimeProvenance,
+            workspace_posture = workspacePostureState,
             consumer_material_governance_check = consumerMaterialGovernanceCheck,
             schema_reality_state = state,
             integrity_state = integrityResult.IntegrityState,
@@ -906,7 +1007,10 @@ internal sealed class SchemaRealityInspector
                 governed_files_missing = governedFileExists.Where(static pair => !pair.Value).Select(static pair => pair.Key).ToArray(),
                 startup_surfaces_present = startupSurfaceExists.Where(static pair => pair.Value).Select(static pair => pair.Key).ToArray(),
                 startup_surfaces_missing = startupSurfaceExists.Where(static pair => !pair.Value).Select(static pair => pair.Key).ToArray(),
+                startup_surfaces_ignored_by_posture = startupSurfacePostureResult.IgnoredMissingSurfaces,
                 startup_discovery_path_real = startupDiscoveryPathReal,
+                startup_surfaces_aligned = startupSurfaceAligned,
+                startup_surfaces_aligned_for_posture = startupSurfaceAlignedForPosture,
                 canonical_schema_bundle_available = _canonicalSchemaBundle.IsAvailable,
                 canonical_schema_bundle_version = _canonicalSchemaBundle.BundleVersion,
                 canonical_schema_manifest_path = _canonicalSchemaBundle.ManifestPath,
@@ -1235,6 +1339,53 @@ internal sealed class SchemaRealityInspector
             .ToArray();
     }
 
+    // Purpose: Applies workspace posture to optional startup-surface checks without hiding unrelated missing surfaces.
+    // Expected input: Workspace root, resolved Anarchy posture, and absolute startup-surface existence facts.
+    // Expected output: Effective alignment facts after posture-specific non-requirements are removed.
+    // Critical dependencies: repo_underlay not requiring repo-local marketplace discovery.
+    private static StartupSurfacePostureResult EvaluateStartupSurfacesForPosture(
+        string workspaceRoot,
+        string workspacePosture,
+        IReadOnlyDictionary<string, bool> startupSurfaceExists)
+    {
+        if (startupSurfaceExists.Count == 0)
+        {
+            return new StartupSurfacePostureResult(true, startupSurfaceExists, []);
+        }
+
+        var ignoredMissingSurfaces = startupSurfaceExists
+            .Where(pair => !pair.Value && ShouldIgnoreMissingStartupSurfaceForPosture(workspaceRoot, workspacePosture, pair.Key))
+            .Select(static pair => pair.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var effectiveStartupSurfaceExists = startupSurfaceExists
+            .Where(pair => !ignoredMissingSurfaces.Contains(pair.Key))
+            .ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+        var alignedForPosture = effectiveStartupSurfaceExists.Count == 0 ||
+            effectiveStartupSurfaceExists.Values.All(static value => value);
+
+        return new StartupSurfacePostureResult(
+            alignedForPosture,
+            effectiveStartupSurfaceExists,
+            ignoredMissingSurfaces.OrderBy(static value => value, StringComparer.OrdinalIgnoreCase).ToArray());
+    }
+
+    private static bool ShouldIgnoreMissingStartupSurfaceForPosture(
+        string workspaceRoot,
+        string workspacePosture,
+        string startupSurfacePath)
+    {
+        if (workspacePosture != RuntimeEnvelopeBuilder.RepoUnderlayPosture)
+        {
+            return false;
+        }
+
+        var repoMarketplacePath = AnarchyPathCanon.ResolveRepoLocalMarketplaceFilePath(workspaceRoot);
+        return string.Equals(
+            Path.GetFullPath(startupSurfacePath),
+            Path.GetFullPath(repoMarketplacePath),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
     // Purpose: Carries the result of canonical schema integrity comparison.
     // Expected input: Integrity facts computed during EvaluateIntegrity.
     // Expected output: Immutable integrity-state record for higher-level schema reporting.
@@ -1245,6 +1396,11 @@ internal sealed class SchemaRealityInspector
         string[] AlignedFiles,
         string[] DivergedFiles,
         string[] MissingFiles);
+
+    private sealed record StartupSurfacePostureResult(
+        bool AlignedForPosture,
+        IReadOnlyDictionary<string, bool> EffectiveStartupSurfaceExists,
+        string[] IgnoredMissingSurfaces);
 }
 
 // Purpose: Plans or applies non-destructive schema reconciliation using the canonical schema bundle.
@@ -1254,6 +1410,10 @@ internal sealed class SchemaRealityInspector
 internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealityInspector)
 {
     private readonly CanonicalSchemaBundle _canonicalSchemaBundle = CanonicalSchemaBundle.TryLoad();
+
+    internal const string Gov2GovArtifactModeActive = "active";
+    internal const string Gov2GovArtifactModeReference = "reference";
+    internal const string Gov2GovArtifactModeAuto = "auto";
 
     private const string NarrativeRegisterRelativePath = ".agents/anarchy-ai/narratives/register.json";
     private const string NarrativeProjectsDirectoryRelativePath = ".agents/anarchy-ai/narratives/projects";
@@ -1268,7 +1428,9 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
         string schemaRealityState,
         string[] activeReasons,
         string[]? startupSurfaces,
-        string migrationMode)
+        string migrationMode,
+        string? workspacePosture = null,
+        string? gov2GovArtifactMode = null)
     {
         if (string.IsNullOrWhiteSpace(workspaceRoot) || !Path.IsPathRooted(workspaceRoot))
         {
@@ -1293,12 +1455,22 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
 
         var workspaceRole = RuntimeEnvelopeBuilder.BuildWorkspaceRole(resolvedWorkspaceRoot);
         var runtimeProvenance = RuntimeEnvelopeBuilder.BuildRuntimeProvenance(resolvedWorkspaceRoot);
+        var workspacePostureState = RuntimeEnvelopeBuilder.ResolveWorkspacePosture(resolvedWorkspaceRoot, workspacePosture);
+        var gov2GovArtifactModeState = ResolveGov2GovArtifactMode(resolvedWorkspaceRoot, gov2GovArtifactMode);
         var consumerMaterialGovernanceCheck = RuntimeEnvelopeBuilder.ConsumerMaterialGovernanceCheck(workspaceRole);
 
         var preEvaluation = JsonSerializer.SerializeToElement(
-            schemaRealityInspector.Evaluate(resolvedWorkspaceRoot, expectedSchemaPackage, startupSurfaces));
+            schemaRealityInspector.Evaluate(resolvedWorkspaceRoot, expectedSchemaPackage, startupSurfaces, workspacePostureState));
         var preIntegrityState = preEvaluation.GetProperty("integrity_state").GetString() ?? "unknown";
         var prePossessionState = preEvaluation.GetProperty("possession_state").GetString() ?? "unknown";
+        var evaluatedPlanningReasons = preEvaluation
+            .GetProperty("active_reasons")
+            .EnumerateArray()
+            .Select(static item => item.GetString())
+            .Where(static value => !string.IsNullOrWhiteSpace(value))
+            .Cast<string>()
+            .ToArray();
+        var planningReasons = evaluatedPlanningReasons.Length == 0 ? activeReasons : evaluatedPlanningReasons;
 
         var plannedActions = new List<string>();
         var actionsTaken = new List<string>();
@@ -1344,21 +1516,21 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
             }
         }
 
-        if (activeReasons.Contains("package_surface_out_of_sync", StringComparer.Ordinal) ||
-            activeReasons.Contains("stale_companion_artifacts", StringComparer.Ordinal))
+        if (planningReasons.Contains("package_surface_out_of_sync", StringComparer.Ordinal) ||
+            planningReasons.Contains("stale_companion_artifacts", StringComparer.Ordinal))
         {
             plannedActions.Add("refresh_package_surface");
         }
 
-        if (activeReasons.Contains("copied_without_package_alignment", StringComparer.Ordinal) ||
-            activeReasons.Contains("startup_discovery_path_weakened", StringComparer.Ordinal))
+        if (planningReasons.Contains("copied_without_package_alignment", StringComparer.Ordinal) ||
+            planningReasons.Contains("startup_discovery_path_weakened", StringComparer.Ordinal))
         {
             plannedActions.Add("realign_startup_discovery_paths");
         }
 
-        if (activeReasons.Contains("folder_topology_partial", StringComparer.Ordinal) ||
-            activeReasons.Contains("folder_topology_mismatch", StringComparer.Ordinal) ||
-            activeReasons.Contains("schema_present_not_governing", StringComparer.Ordinal))
+        if (planningReasons.Contains("folder_topology_partial", StringComparer.Ordinal) ||
+            planningReasons.Contains("folder_topology_mismatch", StringComparer.Ordinal) ||
+            planningReasons.Contains("schema_present_not_governing", StringComparer.Ordinal))
         {
             plannedActions.Add("materialize_missing_governed_surfaces");
             auditNeeded.Add("governed_surfaces_require_human_authorship");
@@ -1367,6 +1539,17 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
         if (prePossessionState == "possessed" || preIntegrityState == "diverged")
         {
             plannedActions.Add("audit_for_schema_tampering");
+        }
+
+        if (gov2GovArtifactModeState == Gov2GovArtifactModeActive)
+        {
+            ReconcileGov2GovSurfaces(
+                resolvedWorkspaceRoot,
+                consumerMaterialGovernanceCheck,
+                migrationMode,
+                plannedActions,
+                actionsTaken,
+                touchedSurfaces);
         }
 
         ReconcileNarrativeArcSurfaces(
@@ -1379,7 +1562,7 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
             auditNeeded);
 
         var postEvaluation = JsonSerializer.SerializeToElement(
-            schemaRealityInspector.Evaluate(resolvedWorkspaceRoot, expectedSchemaPackage, startupSurfaces));
+            schemaRealityInspector.Evaluate(resolvedWorkspaceRoot, expectedSchemaPackage, startupSurfaces, workspacePostureState));
         var postRealityState = postEvaluation.GetProperty("schema_reality_state").GetString() ?? "fully_missing";
         var postIntegrityState = postEvaluation.GetProperty("integrity_state").GetString() ?? "unknown";
         var postPossessionState = postEvaluation.GetProperty("possession_state").GetString() ?? "unknown";
@@ -1414,6 +1597,8 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
         {
             workspace_role = workspaceRole,
             runtime_provenance = runtimeProvenance,
+            workspace_posture = workspacePostureState,
+            gov2gov_artifact_mode = gov2GovArtifactModeState,
             consumer_material_governance_check = consumerMaterialGovernanceCheck,
             migration_result_state = migrationResultState,
             planned_actions = plannedActions.Distinct(StringComparer.Ordinal).ToArray(),
@@ -1425,6 +1610,131 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
             resulting_integrity_state = postIntegrityState,
             resulting_possession_state = postPossessionState,
             post_migration_inventory = postMigrationInventory
+        };
+    }
+
+    // Purpose: Resolves whether GOV2GOV root artifacts should be treated as an active packet or absent reference-mode docs.
+    // Expected input: Workspace root plus optional explicit artifact mode.
+    // Expected output: active or reference.
+    // Critical dependencies: AGENTS-schema-gov2gov-migration active/reference mode semantics.
+    private static string ResolveGov2GovArtifactMode(string workspaceRoot, string? requestedMode)
+    {
+        if (string.IsNullOrWhiteSpace(requestedMode) ||
+            string.Equals(requestedMode, Gov2GovArtifactModeAuto, StringComparison.OrdinalIgnoreCase))
+        {
+            return RuntimeEnvelopeBuilder.Gov2GovStructure.Any(relativePath => File.Exists(Path.Combine(workspaceRoot, relativePath)))
+                ? Gov2GovArtifactModeActive
+                : Gov2GovArtifactModeReference;
+        }
+
+        return requestedMode.Trim().ToLowerInvariant() switch
+        {
+            Gov2GovArtifactModeActive => Gov2GovArtifactModeActive,
+            Gov2GovArtifactModeReference => Gov2GovArtifactModeReference,
+            _ => throw new ArgumentException("gov2gov_artifact_mode must be auto, active, or reference.", nameof(requestedMode))
+        };
+    }
+
+    // Purpose: Plans or applies the GOV2GOV companion packet when the migration schema travels with a consumer workspace.
+    // Expected input: Workspace root, consumer-role classification, migration mode, and current plan/action collections.
+    // Expected output: Updated plan/action/touched collections; non-destructive apply creates only missing companion files.
+    // Critical dependencies: RuntimeEnvelopeBuilder.Gov2GovStructure and AGENTS-schema-gov2gov-migration.json presence.
+    private static void ReconcileGov2GovSurfaces(
+        string workspaceRoot,
+        string consumerMaterialGovernanceCheck,
+        string migrationMode,
+        List<string> plannedActions,
+        List<string> actionsTaken,
+        List<string> touchedSurfaces)
+    {
+        if (consumerMaterialGovernanceCheck == "not_applicable")
+        {
+            return;
+        }
+
+        var gov2GovSchemaPath = Path.Combine(workspaceRoot, "AGENTS-schema-gov2gov-migration.json");
+        var gov2GovSchemaPresentOrPlanned = File.Exists(gov2GovSchemaPath) ||
+            plannedActions.Contains("copy_missing_canonical_schema_file:AGENTS-schema-gov2gov-migration.json", StringComparer.Ordinal);
+        if (!gov2GovSchemaPresentOrPlanned)
+        {
+            return;
+        }
+
+        foreach (var relativePath in RuntimeEnvelopeBuilder.Gov2GovStructure)
+        {
+            touchedSurfaces.Add(relativePath);
+            var targetPath = Path.Combine(workspaceRoot, relativePath);
+            if (File.Exists(targetPath))
+            {
+                continue;
+            }
+
+            plannedActions.Add($"materialize_gov2gov_surface:{relativePath}");
+            if (migrationMode != "non_destructive_apply")
+            {
+                continue;
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(targetPath) ?? workspaceRoot);
+            File.WriteAllText(targetPath, BuildGov2GovSurfaceTemplate(relativePath), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            actionsTaken.Add($"materialized_gov2gov_surface:{relativePath}");
+        }
+    }
+
+    private static string BuildGov2GovSurfaceTemplate(string relativePath)
+    {
+        return relativePath switch
+        {
+            "GOV2GOV-hello.md" => """
+                # GOV2GOV Hello
+
+                This workspace carries an active governance-to-governance migration packet.
+
+                Start here, then read `GOV2GOV-source-target-map.md`, `GOV2GOV-registry.json`, `GOV2GOV-rules.md`, and `GOV2GOV-pitfalls.md`.
+                Keep migration claims evidence-backed and preserve existing workspace authority until the human approves replacement.
+                """,
+            "GOV2GOV-source-target-map.md" => """
+                # GOV2GOV Source Target Map
+
+                ## Source Governance
+                - Current authority surfaces: inventory before changing.
+                - Owner of source meaning: human workspace owner.
+
+                ## Target Governance
+                - Target schema: `AGENTS-schema-governance.json`
+                - Migration schema: `AGENTS-schema-gov2gov-migration.json`
+
+                ## Mapping Notes
+                - Do not collapse source meaning into the target schema without an evidence-backed mapping.
+                - Mark unresolved source authority explicitly before claiming migration completion.
+                """,
+            "GOV2GOV-registry.json" => """
+                {
+                  "schema-path": "AGENTS-schema-gov2gov-migration.json",
+                  "registry-version": 1,
+                  "migration-state": "active",
+                  "entries": [],
+                  "open-questions": []
+                }
+                """,
+            "GOV2GOV-rules.md" => """
+                # GOV2GOV Rules
+
+                - Preserve source authority until replacement is explicit.
+                - Treat copied schema files, generated files, runtime bundles, and marketplace metadata as different evidence classes.
+                - Use non-destructive changes by default.
+                - Record unresolved mappings instead of inventing intent.
+                - Do not require repo-local plugin marketplace discovery when the repo posture is `repo_underlay`.
+                """,
+            "GOV2GOV-pitfalls.md" => """
+                # GOV2GOV Pitfalls
+
+                - Do not confuse underlay presence with runtime plugin availability.
+                - Do not treat ignored files as disposable without inventory and rollback planning.
+                - Do not let generated/runtime residue become committed source truth.
+                - Do not claim schema alignment until canonical schema files are hash-aligned or divergence is audited.
+                """,
+            _ => string.Empty
         };
     }
 
@@ -3788,6 +4098,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         var schemaSafeRepairs = GetStringArray(schemaElement, "safe_repairs");
         var schemaRecommendedAction = GetString(schemaElement, "recommended_next_action");
         var schemaActiveReasons = GetStringArray(schemaElement, "active_reasons");
+        var artifactHygiene = AssessArtifactHygiene(resolvedWorkspaceRoot);
 
         var missingComponents = new List<string>();
 
@@ -3927,6 +4238,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         agentActions.Add("run_preflight_session_before_complex_changes");
         agentActions.Add("treat_schema_state_as_input_not_completion");
         safeRepairs.AddRange(schemaSafeRepairs);
+        safeRepairs.AddRange(artifactHygiene.SafeRepairs);
         var assessmentPaths = BuildAssessmentPaths(
             resolvedWorkspaceRoot,
             pluginRoot,
@@ -3951,6 +4263,13 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
                 possession_state = possessionState,
                 active_reasons = schemaActiveReasons
             },
+            artifact_hygiene = new
+            {
+                artifact_hygiene_state = artifactHygiene.State,
+                observed_artifact_paths = artifactHygiene.ObservedArtifactPaths,
+                recommended_artifact_lanes = artifactHygiene.RecommendedArtifactLanes,
+                safe_repairs = artifactHygiene.SafeRepairs
+            },
             adoption_state = adoptionState,
             missing_components = missingComponents.Distinct(StringComparer.Ordinal).ToArray(),
             safe_repairs = safeRepairs.Distinct(StringComparer.Ordinal).ToArray(),
@@ -3963,6 +4282,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
                 "contract_presence",
                 "schema_bundle_manifest",
                 "marketplace_registration",
+                "artifact_hygiene_scan",
                 "schema_reality_inspection",
                 $"host_context:{normalizedHostContext}"
             },
@@ -4019,6 +4339,159 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         }
 
         return "external_runtime_only";
+    }
+
+    private static readonly string[] GeneratedArtifactDirectoryNames =
+    [
+        "bin",
+        "obj",
+        ".tmp",
+        ".cache",
+        "TestResults",
+        "artifacts"
+    ];
+
+    private static readonly string[] ArtifactScanPruneDirectoryNames =
+    [
+        ".git",
+        ".hg",
+        ".svn",
+        ".vs",
+        ".idea",
+        ".vscode",
+        "node_modules"
+    ];
+
+    // Purpose: Finds generated artifact directories that have landed in repo-local space and reports relocation guidance.
+    // Expected input: Absolute workspace root.
+    // Expected output: Artifact hygiene state, observed relative paths, recommended machine-local lanes, and safe repair suggestions.
+    // Critical dependencies: Directory enumeration and the non-destructive artifact hygiene vocabulary.
+    private static ArtifactHygieneAssessment AssessArtifactHygiene(string workspaceRoot)
+    {
+        if (string.IsNullOrWhiteSpace(workspaceRoot) || !Directory.Exists(workspaceRoot))
+        {
+            return new ArtifactHygieneAssessment(
+                "not_checked",
+                [],
+                GetRecommendedArtifactLanes(),
+                ["artifact_hygiene_not_checked_workspace_root_unavailable"]);
+        }
+
+        var observedArtifactPaths = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var directoryPath in EnumerateDirectoriesBounded(workspaceRoot, maxDepth: 5))
+        {
+            var directoryName = Path.GetFileName(directoryPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            if (!GeneratedArtifactDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (IsExpectedSourceOrPluginPayloadArtifact(workspaceRoot, directoryPath))
+            {
+                continue;
+            }
+
+            observedArtifactPaths.Add(ToRepoRelativePath(workspaceRoot, directoryPath));
+        }
+
+        if (observedArtifactPaths.Count == 0)
+        {
+            return new ArtifactHygieneAssessment(
+                "clean",
+                [],
+                GetRecommendedArtifactLanes(),
+                []);
+        }
+
+        return new ArtifactHygieneAssessment(
+            "repo_local_artifacts_observed",
+            observedArtifactPaths.ToArray(),
+            GetRecommendedArtifactLanes(),
+            [
+                "relocate_generated_artifacts_to_machine_local_cache",
+                "prefer_windows_localappdata_for_dotnet_build_restore_and_scratch",
+                "prefer_linux_xdg_cache_home_for_build_restore_and_scratch",
+                "inventory_and_quarantine_before_delete_never_delete_from_hygiene_assessment"
+            ]);
+    }
+
+    // Purpose: Enumerates child directories while pruning known heavy dependency/control roots and keeping scan cost bounded.
+    // Expected input: Root directory and maximum depth.
+    // Expected output: Directory paths reachable within the bounded depth.
+    // Critical dependencies: Directory.EnumerateDirectories and defensive exception handling for unreadable paths.
+    private static IEnumerable<string> EnumerateDirectoriesBounded(string rootPath, int maxDepth)
+    {
+        var stack = new Stack<(string Path, int Depth)>();
+        stack.Push((rootPath, 0));
+
+        while (stack.Count > 0)
+        {
+            var (currentPath, depth) = stack.Pop();
+            string[] childDirectories;
+            try
+            {
+                childDirectories = Directory.EnumerateDirectories(currentPath).ToArray();
+            }
+            catch (IOException)
+            {
+                continue;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                continue;
+            }
+
+            foreach (var childDirectory in childDirectories)
+            {
+                yield return childDirectory;
+
+                var childName = Path.GetFileName(childDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                if (depth + 1 >= maxDepth ||
+                    ArtifactScanPruneDirectoryNames.Contains(childName, StringComparer.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                stack.Push((childDirectory, depth + 1));
+            }
+        }
+    }
+
+    // Purpose: Suppresses directories that are valid source/plugin payload surfaces rather than accidental generated output dumps.
+    // Expected input: Workspace root and observed candidate artifact path.
+    // Expected output: True when the candidate belongs to a deliberate source/payload lane.
+    // Critical dependencies: Current source repo topology for plugin runtime payloads.
+    private static bool IsExpectedSourceOrPluginPayloadArtifact(string workspaceRoot, string directoryPath)
+    {
+        var relativePath = ToRepoRelativePath(workspaceRoot, directoryPath);
+        return relativePath.StartsWith("plugins/anarchy-ai/runtime/", StringComparison.OrdinalIgnoreCase) ||
+               relativePath.StartsWith("plugins/anarchy-ai/assets/", StringComparison.OrdinalIgnoreCase) ||
+               relativePath.StartsWith("branding/assets/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Purpose: Converts an absolute child path into a stable repo-relative path with forward slashes.
+    // Expected input: Workspace root and absolute child path.
+    // Expected output: Forward-slash repo-relative path.
+    // Critical dependencies: Path.GetRelativePath.
+    private static string ToRepoRelativePath(string workspaceRoot, string path)
+    {
+        return Path.GetRelativePath(workspaceRoot, path)
+            .Replace(Path.DirectorySeparatorChar, '/')
+            .Replace(Path.AltDirectorySeparatorChar, '/');
+    }
+
+    // Purpose: Centralizes the recommended OS-local artifact lanes reported by artifact hygiene assessment.
+    // Expected input: None.
+    // Expected output: Portable lane guidance for Windows, Linux, and macOS hosts.
+    // Critical dependencies: Current artifact hygiene doctrine.
+    private static string[] GetRecommendedArtifactLanes()
+    {
+        return
+        [
+            "%LOCALAPPDATA%\\Anarchy-AI\\<repo>\\",
+            "${XDG_CACHE_HOME:-~/.cache}/anarchy-ai/<repo>/",
+            "~/Library/Caches/Anarchy-AI/<repo>/"
+        ];
     }
 
     // Purpose: Detects whether the discovered plugin root belongs to the user-profile lane instead of the workspace lane.
@@ -4420,6 +4893,16 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         bool HasAnarchyPluginEntry,
         bool InstalledByDefault,
         string[] Findings);
+
+    // Purpose: Carries non-destructive repo-local generated artifact hygiene facts.
+    // Expected input: Artifact hygiene scan output.
+    // Expected output: Immutable assessment record for tool output and safe repair propagation.
+    // Critical dependencies: AssessArtifactHygiene.
+    private sealed record ArtifactHygieneAssessment(
+        string State,
+        string[] ObservedArtifactPaths,
+        string[] RecommendedArtifactLanes,
+        string[] SafeRepairs);
 }
 
 // Purpose: Runs preflight by combining active-work, harness-gap, and schema-reality assessment into one bounded readiness decision.
@@ -4686,9 +5169,10 @@ internal sealed class AnarchyAiHarnessTools(
     public object IsSchemaRealOrShadowCopied(
         [Description("Absolute workspace root to inspect.")] string workspace_root,
         [Description("Expected schema family or package name.")] string expected_schema_package,
-        [Description("Optional startup or package surfaces that should align with the schema package.")] string[]? startup_surfaces = null)
+        [Description("Optional startup or package surfaces that should align with the schema package.")] string[]? startup_surfaces = null,
+        [Description("Optional Anarchy workspace posture: auto, repo_underlay, repo_local_runtime, or undetermined.")] string? workspace_posture = null)
     {
-        return schemaRealityInspector.Evaluate(workspace_root, expected_schema_package, startup_surfaces);
+        return schemaRealityInspector.Evaluate(workspace_root, expected_schema_package, startup_surfaces, workspace_posture);
     }
 
     // Purpose: Runs the compile_active_work_state MCP tool.
@@ -4754,7 +5238,9 @@ internal sealed class AnarchyAiHarnessTools(
         [Description("Input state from the schema-reality tool.")] string schema_reality_state,
         [Description("Reason list from the active schema reality state.")] string[] active_reasons,
         [Description("Optional startup or package surfaces that should align with the schema package.")] string[]? startup_surfaces = null,
-        [Description("Plan changes only, or apply only non-destructive reconciliation steps.")] string migration_mode = "plan_only")
+        [Description("Plan changes only, or apply only non-destructive reconciliation steps.")] string migration_mode = "plan_only",
+        [Description("Optional Anarchy workspace posture: auto, repo_underlay, repo_local_runtime, or undetermined.")] string? workspace_posture = null,
+        [Description("Optional GOV2GOV artifact mode: auto, active, or reference. Auto treats existing GOV2GOV-* files as active and absent GOV2GOV-* files as reference mode.")] string? gov2gov_artifact_mode = null)
     {
         return gov2GovMigrationRunner.Run(
             workspace_root,
@@ -4762,7 +5248,9 @@ internal sealed class AnarchyAiHarnessTools(
             schema_reality_state,
             active_reasons,
             startup_surfaces,
-            migration_mode);
+            migration_mode,
+            workspace_posture,
+            gov2gov_artifact_mode);
     }
 
     // Purpose: Runs the experimental direction_assist_test MCP tool.

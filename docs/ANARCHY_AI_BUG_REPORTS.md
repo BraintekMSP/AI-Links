@@ -163,9 +163,14 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
     - `assess_harness_gap_state` and `preflight_session` returned successfully
     - installed plugin manifest reports version `0.1.8`
     - exposed Anarchy skill metadata still referenced cache version `0.1.7`
+  - Fissure arc-capture pass on `2026-04-26` exposed the same class again:
+    - the chat carried a stale skill path under `C:\Users\herri\.codex\plugins\cache\anarchy-ai-user-profile\anarchy-ai\0.1.7\skills\anarchy-ai-harness\SKILL.md`
+    - the active user-profile source/cache lane had already moved to `0.1.11`
+    - the agent correctly fell back to direct repo/MCP inspection, but the stale path itself proved version-pinned cache skill paths can survive in chat context after the active harness lane changes
 - Required product direction:
   - Do not treat this as full install proof until the active runtime path, skill metadata path, installed root, cache root, and install-state agree in the same fresh session.
   - Treat home-local install and Codex cache as separate evidence surfaces.
+  - Treat versioned Codex cache skill paths as evidence, not authority. Before schema, arc, or gov2gov work, resolve the active user-profile source version, active Codex cache version, callable runtime provenance, schema bundle version, and skill path generation instead of trusting a copied `~\.codex\plugins\cache\...\0.1.x\...` path from prior chat context.
   - Installation discipline should account for cache invalidation or at least report cache-version disagreement explicitly.
 - Acceptance:
   - A setup status/doctor or harness diagnostic reports:
@@ -175,6 +180,7 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
     - exposed active skill metadata path when the host makes it available
     - active runtime path when a live tool call can report it
   - Fresh-session proof requires metadata/runtime/install-state agreement or explicitly records the mismatch as a caveat.
+  - Arc/gov2gov instructions explicitly reject stale hardcoded cache skill paths as authoritative startup context unless their version matches the observed active harness lane.
   - Truth matrix distinguishes "tools callable" from "cache/home install state fully understood."
 
 ### AA-BUG-020: User-profile install-state conflates home runtime with last workspace target
@@ -802,6 +808,53 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
   - Truth matrix records the scaffold-vs-observed-path caveat.
   - Setup spec states the current lane is evidence-backed but not proven canonical.
   - A future verification pass compares official Codex docs, `plugin-creator` output, fresh-session plugin resolution, cache materialization, and config enable-state on the current Codex version.
+
+### AA-BUG-036: Gov2gov requires repo-local marketplace discovery for underlay-only repos
+
+- Severity: Medium
+- Status: Patched in source; rebuild/redeploy proof pending
+- Component: Runtime / Gov2Gov / Underlay posture / Startup discovery
+- Repro:
+  - Retire repo-local Anarchy marketplace registrations from a consumer repo that is intended to be underlay-only.
+  - Keep the user-profile runtime lane active and Codex cache materialized at the current plugin version.
+  - Run `run_gov2gov_migration` against the consumer repo after portable schema files are aligned with the canonical bundle.
+- Expected:
+  - Gov2gov distinguishes the repo's intended Anarchy posture:
+    - `repo_underlay`: portable schema, narrative, triage, guide, and hygiene surfaces travel; no repo-local runtime marketplace is required.
+    - `repo_local_runtime`: `.agents/plugins/marketplace.json` is expected startup discovery metadata for a repo-local plugin distribution.
+  - For `repo_underlay`, missing or ignored `.agents/plugins/marketplace.json` does not produce `startup_discovery_path_weakened`.
+  - Root `GOV2GOV-*` files are active migration packet files only. Completed migrations should transition back to reference mode with `AGENTS-schema-gov2gov-migration.json` present and root packet files absent.
+- Actual:
+  - Workorders gov2gov still treated missing `.agents/plugins/marketplace.json` as a startup discovery weakness after the repo was intentionally moved toward underlay-only posture.
+  - `non_destructive_apply` refused to write because the only planned action was startup-discovery realignment, even though repo-local marketplace restoration would violate the current `/underlay` plus `/userprofile` product discipline.
+- Evidence:
+  - Workorders on `2026-04-26` after Codex finally materialized `0.1.9` in both repo-scoped and user-profile caches:
+    - repo-local source and active Codex cache all reported plugin manifest `0.1.9`
+    - schema pack refresh updated only `AGENTS-schema-governance.json` and `AGENTS-schema-narrative.json`
+    - schema reality then reported `integrity = aligned` and no diverged canonical schema files
+    - remaining partial posture was missing/ignored `.agents/plugins/marketplace.json` plus active `GOV2GOV-*` packet interpretation drift
+    - subsequent gov2gov apply still refused because restoring startup discovery was the only planned action
+- Required product direction:
+  - Do not make Workorders reintroduce `.agents/plugins/marketplace.json` just to satisfy gov2gov if the repo is intended to be underlay-only.
+  - Add posture-aware gov2gov semantics so underlay-only repos can complete or continue GOV2GOV work without repo-local runtime marketplace restoration.
+  - Preserve the schema's active/reference mode distinction so completed migrations do not recreate root `GOV2GOV-*` packet files.
+  - Keep repo-local marketplace restoration reserved for repos deliberately choosing `/repolocal` runtime proving/debug or repo-local runtime distribution.
+- Acceptance:
+  - Gov2gov plan/apply can identify or accept `repo_underlay` posture.
+  - In `repo_underlay`, missing `.agents/plugins/marketplace.json` is informational or ignored, not `startup_discovery_path_weakened`.
+  - `non_destructive_apply` can preserve reference mode with root `GOV2GOV-*` files absent after completion.
+  - `non_destructive_apply` can materialize missing `GOV2GOV-*` companion files only when active artifact mode is explicitly requested or observed.
+  - In `repo_local_runtime`, gov2gov still reports missing marketplace discovery as a real startup-discovery gap.
+- Patch notes:
+  - `is_schema_real_or_shadow_copied` and `run_gov2gov_migration` now accept optional `workspace_posture` values: `auto`, `repo_underlay`, `repo_local_runtime`, and `undetermined`.
+  - Auto posture can infer `repo_underlay` from underlay `.gitignore` policy or portable underlay surfaces, while explicit `repo_underlay` remains available for caller-owned posture truth.
+  - In `repo_underlay`, a missing repo-local `.agents/plugins/marketplace.json` startup surface is listed as ignored by posture and does not create `startup_discovery_path_weakened`.
+  - In `repo_local_runtime`, the same missing marketplace surface remains a startup discovery gap.
+  - `run_gov2gov_migration` now accepts `gov2gov_artifact_mode`: `auto`, `active`, or `reference`.
+  - In `auto`, existing root `GOV2GOV-*` files resolve to active mode; absent root `GOV2GOV-*` files resolve to reference mode and are not recreated.
+  - Explicit active mode can still materialize missing `GOV2GOV-hello.md`, `GOV2GOV-source-target-map.md`, `GOV2GOV-registry.json`, `GOV2GOV-rules.md`, and `GOV2GOV-pitfalls.md` in `non_destructive_apply` without creating repo-local marketplace discovery.
+  - Plugin manifest release identity moved to `0.1.11` so Codex has a fresh cache key for the runtime contract change.
+  - Added runtime tests for underlay posture suppression, repo-local-runtime preservation, reference-mode packet absence, and explicit active-mode GOV2GOV packet materialization.
 
 ### AA-BUG-005: Missing setup `self-check` command for active mount diagnostics
 

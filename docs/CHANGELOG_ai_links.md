@@ -1,5 +1,15 @@
 # Changelog - AI-Links
 
+## 2026-04-26
+
+### Anarchy-AI 0.2.0 remediation
+
+- Promoted `chat-history-capture` into the portable narrative heuristic layer while keeping the plugin skill as the richer execution/checking lane for preflight, timestamp provenance, JSON validation, and cache/source/runtime checks.
+- Added artifact-location discipline to the portable governance guidance and harness gap assessment so repo-local `bin`, `obj`, `.tmp`, and equivalent generated directories are reported as repo-integrity risks with relocation guidance instead of deletion instructions.
+- Advanced the Anarchy-AI package target to `0.2.0`, skipping `0.1.13` cache proof because the remediation changes doctrine, portable heuristics, runtime/package behavior, and validation.
+- Corrected active README/spec mojibake as encoding corruption and added active-doc mojibake checks so corrupted punctuation does not persist in current delivery surfaces.
+- Tightened mirror-sync validation so `chat-history-capture` must stay aligned across plugin, `.claude`, and `.codex` mirrors.
+- Rebuilt and installed the user-profile bundle as source `0.2.0`; Codex cache materialization was still host-owned and remained on `0.1.11` until a future restart/reindex.
 
 ## 2026-04-25
 
@@ -13,6 +23,7 @@
 - Added `violates-N-prior-decisions` as a non-gating thinking measure for fast-path choices whose local speed may hide cascading violations of prior decisions.
 - Recorded the Fissure fresh-session install result as partial proof with a cache/home metadata caveat: Anarchy tools were callable after restart, but exposed skill metadata still referenced an older cache generation.
 - Added `AA-BUG-019` for Codex home install and cache divergence so install discipline treats installed root, cache root, skill metadata, runtime path, and install-state as separate evidence surfaces.
+- Extended `AA-BUG-019` after a Fissure arc-capture pass reused a stale versioned Codex cache skill path from chat context; versioned cache skill paths are now recorded as evidence only, not authority, until the active harness/cache/runtime lane is observed.
 - Patched setup install-state toward ECC-style lifecycle discipline: `anarchy.install-state.v2` separates install target from workspace/schema target and records managed operations, so a user-profile runtime is not invalidated merely because a later status check targets another repo.
 - Patched setup source-authoring assessment so `/assess /repolocal /repo <AI-Links>` detects `plugins/anarchy-ai` as source truth instead of reporting source-owned schemas, contracts, runtime, and skill surfaces as missing because the generated consumer install target is absent.
 - Added `AA-BUG-021`, source-level proof, and rebuilt-deployable smoke proof for the source-authoring bundle lane while keeping destination paths pointed at the generated repo-local consumer install target.
@@ -32,7 +43,12 @@
 - Added `AA-BUG-033` after a second-computer BrainyMigrator install proved selected-lane reconciliation also has to create a missing Codex plugin config section, not only re-enable an existing disabled section.
 - Added `AA-BUG-034` and changed the setup GUI to expose only the normal product lanes: `Repo underlay` for repo adoption and `User-profile install` for runtime tools; repo-local runtime remains CLI-only proving/debug.
 - Added `AA-BUG-035` to record that Codex's generic plugin scaffold convention may differ from Anarchy's observed user-profile plugin path; keep the current path evidence-backed but not canonically proven until current Codex docs, scaffold output, and fresh-session smoke tests converge.
+- Added `AA-BUG-036` after Workorders gov2gov showed a posture mismatch: underlay-only repos should not be forced to restore `.agents/plugins/marketplace.json` just to advance GOV2GOV companion materialization.
+- Patched `AA-BUG-036` in the runtime: schema reality and gov2gov now accept/resolve Anarchy workspace posture, suppress repo-local marketplace startup gaps for `repo_underlay`, preserve the gap for `repo_local_runtime`, preserve completed GOV2GOV reference mode when root packet files are absent, materialize missing `GOV2GOV-*` files only for active artifact mode, and bump the plugin manifest release identity to `0.1.11`.
+- Added the `chat-history-capture` Anarchy skill and AI-Links repo-local Codex mirror so agents can extract repo-specific chat decisions into narrative arc and vision docs with message timestamp provenance; bumped plugin manifest release identity to `0.1.12`.
+- Tightened `chat-history-capture` after WO2 archival capture misattributed dates: capture time is no longer an allowed decision-date fallback, repo/session implementation logs are related evidence only, and entries must be shown before writing when timestamp audit is requested; bumped plugin manifest release identity to `0.1.13`.
 - Recorded second-computer user-profile install evidence: setup repaired missing install-state, moved source from `0.1.7` to `0.1.9`, and enabled `anarchy-ai@anarchy-ai-user-profile`, while Codex cache remained host-owned at `0.1.7`.
+- Recorded Workorders evidence that Codex eventually materialized Anarchy `0.1.9` in both repo-scoped and user-profile cache lanes, and that refreshing the schema pack aligned governance/narrative schemas before the remaining gov2gov marketplace posture conflict surfaced.
 - Promoted `/underlay` from source-tested to locally smoke-observed through the setup DLL: temp repo smoke produced `repo_underlay` with runtime, marketplace, and host config all false while seeding the portable six, narrative register/projects, AGENTS awareness note, and Anarchy `.gitignore` block.
 - Updated Arc d020 and observed-patterns so AA-BUG-031 is preserved as a class lesson: helpers must not report downstream state facts they have not observed from the authoritative host/config/runtime surface.
 - Recorded the correction in the Arc narrative as continuity against context-compression drift.

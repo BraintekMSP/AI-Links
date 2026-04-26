@@ -167,6 +167,10 @@ Runtime install lanes still seed missing portable schema-family files into repo 
 
 It is valid for a consumer repo to have Anarchy underlay present while no repo-local Anarchy plugin is available. In that state, agents can still read the portable schemas, narrative register, triage guide, and AGENTS awareness note. Runtime harness tools remain optional and should usually come from the user's profile-level Anarchy install.
 
+When portable heuristics advance, refresh a consumer repo with `/underlay /refresh /apply`. That refresh lane updates schema/underlay text surfaces from the embedded payload while preserving the runtime split: it does not add `plugins/anarchy-ai`, does not create `.agents/plugins/marketplace.json`, does not touch host config, and does not register a plugin.
+
+Gov2gov now carries that same posture split: in `repo_underlay`, missing `.agents/plugins/marketplace.json` is not a startup-discovery gap. Root `GOV2GOV-*` files are active migration packet files only; completed migrations should collapse back to reference mode with the schema present and root packet files absent. In `repo_local_runtime`, the marketplace file remains required discovery metadata for the repo-local plugin distribution.
+
 If those repo-root schema files already exist, install leaves them in place.
 
 Use explicit schema refresh only when you want the embedded portable schema family to overwrite repo-root copies. Refresh is plan-first:
@@ -293,7 +297,7 @@ Expected good result shape:
   - `codex_materialization.cache_entries` reports the Codex-owned cache entries visible to setup
   - `codex_materialization.source_version_present_in_cache` tells whether Codex has materialized the same version into its plugin cache
 
-Any other result shape means the harness is partially delivered â€” files present, accessibility incomplete. Count installation as complete only when the expected good result shape is reached.
+Any other result shape means the harness is partially delivered -- files present, accessibility incomplete. Count installation as complete only when the expected good result shape is reached.
 
 Host proof note:
 
@@ -378,7 +382,7 @@ Current update behavior:
 - plans portable schema refresh when `/refreshschemas` is passed
 - applies portable schema overwrite only when `/apply` is also passed
 - returns bounded update state in the JSON result
-- replacing a running `AnarchyAi.Mcp.Server.exe` in place requires stopping the active runtime first â€” update the bundled runtime only after release
+- replacing a running `AnarchyAi.Mcp.Server.exe` in place requires stopping the active runtime first -- update the bundled runtime only after release
 
 Useful result fields:
 
@@ -528,7 +532,7 @@ For the current Codex-first path, accessibility requires all of the following:
 - skill exists in the plugin bundle
 - setup or bootstrap assessment returns `ready`
 
-When any of those are missing, the harness remains partially delivered â€” files present, accessibility incomplete. Count the harness as accessible only when every item above is satisfied.
+When any of those are missing, the harness remains partially delivered -- files present, accessibility incomplete. Count the harness as accessible only when every item above is satisfied.
 
 ## How to make the system operational enough to matter
 
@@ -570,7 +574,7 @@ Keep the marketplace policy set to `INSTALLED_BY_DEFAULT` when the goal is harne
 `AVAILABLE` means:
 
 - the harness exists as an available plugin
-- the host may defer presenting it to the agent at startup â€” that is a weaker operational state than installed-by-default
+- the host may defer presenting it to the agent at startup -- that is a weaker operational state than installed-by-default
 
 `INSTALLED_BY_DEFAULT` is the current install policy that makes the harness present at startup in either lane.
 
@@ -594,7 +598,7 @@ The harness is real in the target repo when:
 
 When the target repo is using the schema family, schema reality must also be true.
 
-That means material governance â€” copied schema files are delivery evidence, governance requires the harness running against them.
+That means material governance -- copied schema files are delivery evidence, governance requires the harness running against them.
 
 Use:
 
@@ -609,7 +613,7 @@ Expected stable state for a governed repo:
 - `possession_state = unpossessed`
 - `adoption_state = fully_adopted` or at minimum `partially_adopted` with named gaps being actively resolved
 
-A repo in any of these schema states stays in the "delivered, pre-governance" category â€” trust as governed only when schema reality reaches `real` / `aligned` / `unpossessed`:
+A repo in any of these schema states stays in the "delivered, pre-governance" category -- trust as governed only when schema reality reaches `real` / `aligned` / `unpossessed`:
 
 - `partial`
 - `copied_only`
@@ -646,7 +650,7 @@ A target repo should only be considered fully adopted when all of the following 
 - the repo's agent-facing startup/control-plane direction expects preflight-first for complex changes
 - if the schema family is in use, the schema package is materially `real`, not merely copied
 
-## Current scope â€” what is in v1 and what is reserved for future delivery
+## Current scope -- what is in v1 and what is reserved for future delivery
 
 This process is current and real, and it is an intermediate install architecture.
 
@@ -659,10 +663,10 @@ Current scope:
 - Cursor first-class delivery is future work
 - host-native install suggestion chips fall outside the declared install story - they exist when the host offers them, through a separate optional path
 - GUI mode covers `Assess` and `Install` today; GUI `Update` is future work
-- reflection (`assess the last exchange and do better`) remains a secondary workflow â€” first-class install targeting is future work
+- reflection (`assess the last exchange and do better`) remains a secondary workflow -- first-class install targeting is future work
 - public update depends on outbound access to the configured source zip and a working local trust/TLS path
 - local-source update is the safer fallback when public HTTPS is unreliable on the machine
-- runtime replacement requires the active Anarchy-AI process to be stopped first when the update touches `runtime/win-x64/AnarchyAi.Mcp.Server.exe` â€” updates that leave the runtime binary alone proceed in place
+- runtime replacement requires the active Anarchy-AI process to be stopped first when the update touches `runtime/win-x64/AnarchyAi.Mcp.Server.exe` -- updates that leave the runtime binary alone proceed in place
 
 ## Minimum checklist for another repo
 

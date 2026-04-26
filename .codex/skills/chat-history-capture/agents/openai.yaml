@@ -1,0 +1,6 @@
+﻿interface:
+  display_name: "Chat History Capture"
+  short_description: "Capture chat decisions into arc and vision docs"
+  default_prompt: "Use $chat-history-capture to extract repo-specific decisions from this chat into arc and vision docs with timestamp provenance."
+policy:
+  allow_implicit_invocation: true

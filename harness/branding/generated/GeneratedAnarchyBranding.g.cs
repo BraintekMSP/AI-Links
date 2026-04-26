@@ -12,7 +12,7 @@ internal static class GeneratedAnarchyBranding
     public const string HomepageUrl = "https://github.com/BraintekMSP/AI-Links";
     public const string RepositoryUrl = "https://github.com/BraintekMSP/AI-Links";
     public const string DeveloperName = "Matt Herring";
-    public const string PluginManifestVersion = "0.1.9";
+    public const string PluginManifestVersion = "0.2.0";
     public const string PrivacyPolicyUrl = "https://github.com/BraintekMSP/AI-Links/blob/main/plugins/anarchy-ai/PRIVACY.md";
     public const string TermsOfServiceUrl = "https://github.com/BraintekMSP/AI-Links/blob/main/LICENSE";
     public const string DefaultUpdateSourceZipUrl = "https://github.com/BraintekMSP/AI-Links/archive/refs/heads/main.zip";

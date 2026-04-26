@@ -16,7 +16,7 @@ That means:
 
 - shared logic lives in shared contracts and runtime implementation
 - host translation lives in adapters
-- canonical harness truth stays in the shared contracts â€” SDK, App Server, and skills consume those contracts, the contracts own harness truth
+- canonical harness truth stays in the shared contracts -- SDK, App Server, and skills consume those contracts, the contracts own harness truth
 
 Current operating boundary:
 
@@ -48,12 +48,12 @@ The shared core owns:
 
 The shared core excludes these (they live in adapters or other layers):
 
-- Codex-only lifecycle semantics â€” live in the App Server adapter
-- Claude-only install mechanics â€” live in the Claude host adapter
-- App Server protocol bindings â€” live in the App Server
-- SDK orchestration policy â€” lives in the SDK
-- host-native UI prompts â€” live in the host integration
-- schema authorship â€” lives in the schema family
+- Codex-only lifecycle semantics -- live in the App Server adapter
+- Claude-only install mechanics -- live in the Claude host adapter
+- App Server protocol bindings -- live in the App Server
+- SDK orchestration policy -- lives in the SDK
+- host-native UI prompts -- live in the host integration
+- schema authorship -- lives in the schema family
 
 ## Current Core Contracts
 
@@ -152,7 +152,7 @@ Use it for:
 - orchestrating preflight and reflection workflows
 - helper apps and bootstrap flows that need programmatic agent control
 
-The SDK orchestrates against the harness contracts â€” canonical logic stays in the contracts themselves.
+The SDK orchestrates against the harness contracts -- canonical logic stays in the contracts themselves.
 
 ## Delivery Direction
 

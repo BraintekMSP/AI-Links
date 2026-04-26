@@ -12,7 +12,7 @@
     homepage_url = 'https://github.com/BraintekMSP/AI-Links'
     repository_url = 'https://github.com/BraintekMSP/AI-Links'
     developer_name = 'Matt Herring'
-    plugin_manifest_version = '0.1.9'
+    plugin_manifest_version = '0.2.0'
     privacy_policy_url = 'https://github.com/BraintekMSP/AI-Links/blob/main/plugins/anarchy-ai/PRIVACY.md'
     terms_of_service_url = 'https://github.com/BraintekMSP/AI-Links/blob/main/LICENSE'
     default_update_source_zip_url = 'https://github.com/BraintekMSP/AI-Links/archive/refs/heads/main.zip'

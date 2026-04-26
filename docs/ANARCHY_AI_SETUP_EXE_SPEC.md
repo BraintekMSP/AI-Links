@@ -204,6 +204,10 @@ Source-authoring assessment boundary:
 
 `/underlay` never overwrites existing AGENTS, schema, or narrative artifacts. Divergence is reported as audit work unless `/refresh` is also requested.
 
+Use `/underlay /refresh /apply` when a repo already carries the underlay and needs the current portable heuristics refreshed from the embedded payload. That path aligns schema, narrative-template, AGENTS awareness, and hygiene guidance without installing runtime, creating `.agents/plugins/marketplace.json`, enabling Codex plugin lanes, or materializing `plugins/anarchy-ai`.
+
+Runtime gov2gov tools must respect the same posture: `repo_underlay` does not require `.agents/plugins/marketplace.json`, while `repo_local_runtime` still treats that file as required discovery metadata for a repo-local plugin distribution. Completed GOV2GOV migrations should stay in reference mode, with `AGENTS-schema-gov2gov-migration.json` present and root `GOV2GOV-*` packet files absent.
+
 `/refresh` aligns only the canonical portable schema family. It never touches AGENTS.md, AGENTS companion files, narrative register/project contents, marketplace files, runtime bundles, or host config.
 
 Default `/refresh` output is a plan:

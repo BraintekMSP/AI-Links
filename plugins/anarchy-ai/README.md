@@ -48,8 +48,11 @@ This README should never teach source-repo-relative install paths or up-level so
   - `./templates/narratives/`
 - bundled underlay awareness template:
   - `./templates/AGENTS.md.awareness-note.template`
-- bundled skill:
+- bundled skills:
   - `./skills/anarchy-ai-harness/`
+  - `./skills/chat-history-capture/`
+  - `./skills/structured-commit/`
+  - `./skills/structured-review/`
 
 ## Current Delivery Scope
 
@@ -119,10 +122,12 @@ Older legacy `mcp_servers.anarchy-ai-herringms` entries are cleanup evidence onl
   - bounded schema reality classification
   - canonical schema bundle integrity
   - derived `possession_state` for canonically diverged but operative workspaces
+  - resolved Anarchy workspace posture so repo-underlay and repo-local-runtime startup expectations are not conflated
 - `assess_harness_gap_state` is implemented and returns:
   - installation state
   - runtime state
   - schema state
+  - artifact hygiene state for repo-local generated build/cache/runtime/scratch directories
   - adoption state
   - missing components and safe repairs
   - nested `paths.origin|source|destination` evidence instead of flat path fields
@@ -130,6 +135,7 @@ Older legacy `mcp_servers.anarchy-ai-herringms` entries are cleanup evidence onl
   - planning non-destructive gov2gov reconciliation
   - copying missing canonical schema bundle files into the workspace in `non_destructive_apply`
   - auditing canonical divergence instead of silently overwriting it
+  - preserving completed GOV2GOV migrations in reference mode while materializing missing `GOV2GOV-*` companion files only when active artifact mode is requested or observed
 
 Together, these tools give Anarchy-AI its current runtime promise:
 
@@ -150,7 +156,7 @@ The plugin bundle currently carries:
 - runtime
 - canonical schemas
 - schema bundle manifest
-- skill
+- skills, including `chat-history-capture` as the richer execution/checking lane for archival decision capture
 
 The plugin bundle can refresh canonical schema-family files from its own carried schema bundle.
 The bootstrap script can refresh the plugin bundle from a public zip source or from a local source path when machine trust or TLS is unreliable.

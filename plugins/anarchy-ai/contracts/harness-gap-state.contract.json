@@ -1,6 +1,6 @@
 {
   "contract_name": "harness_gap_state_contract",
-  "contract_version": "0.1.1",
+  "contract_version": "0.2.0",
   "function_name": "assess_harness_gap_state",
   "purpose": "Assess installation, runtime, schema, startup, and adoption gaps so the harness can report what is missing and what to do next.",
   "input_contract": {
@@ -60,6 +60,32 @@
     "schema_state": {
       "type": "object",
       "description": "Condensed schema reality, integrity, and possession summary."
+    },
+    "artifact_hygiene": {
+      "type": "object",
+      "description": "Non-destructive scan result for repo-local generated artifact directories, with relocation-oriented safe repairs rather than deletion guidance.",
+      "fields": {
+        "artifact_hygiene_state": {
+          "type": "enum",
+          "values": [
+            "clean",
+            "repo_local_artifacts_observed",
+            "not_checked"
+          ]
+        },
+        "observed_artifact_paths": {
+          "type": "string_array",
+          "description": "Repo-relative generated artifact directories observed under the workspace root."
+        },
+        "recommended_artifact_lanes": {
+          "type": "string_array",
+          "description": "Preferred OS-local lanes for build/cache/runtime/scratch output."
+        },
+        "safe_repairs": {
+          "type": "string_array",
+          "description": "Relocation-oriented repair suggestions; this assessment does not delete anything."
+        }
+      }
     },
     "adoption_state": {
       "type": "enum",
@@ -124,6 +150,22 @@
       ]
     },
     "adoption_state": "partially_adopted",
+    "artifact_hygiene": {
+      "artifact_hygiene_state": "repo_local_artifacts_observed",
+      "observed_artifact_paths": [
+        "harness/server/dotnet/bin",
+        "harness/server/dotnet/obj"
+      ],
+      "recommended_artifact_lanes": [
+        "%LOCALAPPDATA%\\Anarchy-AI\\<repo>\\",
+        "${XDG_CACHE_HOME:-~/.cache}/anarchy-ai/<repo>/",
+        "~/Library/Caches/Anarchy-AI/<repo>/"
+      ],
+      "safe_repairs": [
+        "relocate_generated_artifacts_to_machine_local_cache",
+        "inventory_and_quarantine_before_delete_never_delete_from_hygiene_assessment"
+      ]
+    },
     "missing_components": [
       "marketplace_missing",
       "codex_skill_surface_missing"

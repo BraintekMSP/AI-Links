@@ -1,6 +1,6 @@
 {
   "contract_name": "gov2gov_migration_contract",
-  "contract_version": "0.1.2",
+  "contract_version": "0.1.4",
   "function_name": "run_gov2gov_migration",
   "purpose": "Non-destructively reconcile a partial or copied-only schema package using the AGENTS-schema-gov2gov-migration model, then return the resulting schema reality state.",
   "input_contract": {
@@ -42,6 +42,27 @@
         "non_destructive_apply"
       ],
       "description": "Plan changes only, or apply only non-destructive reconciliation steps."
+    },
+    "workspace_posture": {
+      "type": "enum",
+      "required": false,
+      "values": [
+        "auto",
+        "repo_underlay",
+        "repo_local_runtime",
+        "undetermined"
+      ],
+      "description": "Optional Anarchy posture override. In repo_underlay posture, missing repo-local plugin marketplace discovery is not treated as a startup-discovery gap."
+    },
+    "gov2gov_artifact_mode": {
+      "type": "enum",
+      "required": false,
+      "values": [
+        "auto",
+        "active",
+        "reference"
+      ],
+      "description": "Optional GOV2GOV artifact mode. Auto treats existing GOV2GOV-* files as active mode and absence of GOV2GOV-* files as reference mode, which is the expected completed-migration posture."
     }
   },
   "output_contract": {
@@ -52,6 +73,23 @@
     "runtime_provenance": {
       "type": "object",
       "description": "Runtime provenance envelope declaring whether the callable harness came from user profile install, repo-local install, source checkout, or an unknown/external runtime lane."
+    },
+    "workspace_posture": {
+      "type": "enum",
+      "values": [
+        "repo_underlay",
+        "repo_local_runtime",
+        "undetermined"
+      ],
+      "description": "Resolved Anarchy posture used to interpret repo-local marketplace and runtime discovery expectations."
+    },
+    "gov2gov_artifact_mode": {
+      "type": "enum",
+      "values": [
+        "active",
+        "reference"
+      ],
+      "description": "Resolved GOV2GOV artifact mode. Reference mode means the schema remains available while root GOV2GOV-* files stay absent after completion."
     },
     "consumer_material_governance_check": {
       "type": "enum",
@@ -130,6 +168,7 @@
   "gov2gov_alignment_targets": [
     "package_surface_alignment",
     "startup_discovery_path_alignment",
+    "repo_underlay_startup_discovery_non_requirement",
     "stale_companion_artifact_refresh",
     "folder_topology_reconciliation",
     "canonical_schema_bundle_refresh_when_missing",
@@ -140,6 +179,8 @@
     "GOV2GOV_rules_materialization_when_required",
     "narrative_register_materialization_when_schema_present",
     "narrative_projects_directory_materialization_when_schema_present",
+    "GOV2GOV_companion_packet_materialization_when_active_mode_requested_or_observed",
+    "GOV2GOV_reference_mode_preserves_absent_root_packet_after_completion",
     "historical_lane_preservation_for_demoted_surfaces"
   ],
   "result_example": {
@@ -158,6 +199,8 @@
       "machine_key": "user_profile_installed_runtime",
       "statement": "This callable harness is running from the current user's installed plugin bundle. It is convenient and valid as an installed runtime, but it is not source truth for the workspace being evaluated."
     },
+    "workspace_posture": "repo_local_runtime",
+    "gov2gov_artifact_mode": "active",
     "consumer_material_governance_check": "applicable",
     "migration_result_state": "planned",
     "planned_actions": [

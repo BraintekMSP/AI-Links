@@ -219,7 +219,7 @@
             "known-constraints": {
               "type": "string[]",
               
-              "role": "list of known environment-specific constraints agents must respect -- e.g. node_modules must install to AppData not project directory"
+              "role": "list of known environment-specific constraints agents must respect -- e.g. node_modules must install to AppData not project directory -- generated build/cache/runtime/scratch artifacts should use machine-local lanes such as %LOCALAPPDATA% on Windows or ${XDG_CACHE_HOME:-~/.cache} on Linux unless the repo explicitly declares a repo-local artifact as source truth"
             }
           }
         },

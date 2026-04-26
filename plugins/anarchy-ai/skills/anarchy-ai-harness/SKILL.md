@@ -11,7 +11,7 @@ Use this skill when:
 
 - complex changes are starting and the harness should preflight the session first
 - the current repo context is incomplete, stale, or expensive to rebuild from chat alone
-- installation, registration, or adoption state is unclear
+- installation, registration, adoption state, or repo-local artifact hygiene is unclear
 - the workspace may contain a copied schema package
 - schema presence does not prove materialization
 - folder topology, package surfaces, or companion artifacts may be stale
@@ -20,7 +20,7 @@ Use this skill when:
 ## Tool order
 
 1. Call `preflight_session` before complex changes or when the agent is unsure whether the harness should take the first turn.
-2. Call `assess_harness_gap_state` when installation, registration, runtime, or adoption state is unclear.
+2. Call `assess_harness_gap_state` when installation, registration, runtime, adoption state, or generated artifact hygiene is unclear.
 3. Call `compile_active_work_state` when the current work needs to be normalized into one bounded packet.
 4. Call `is_schema_real_or_shadow_copied` before trusting a schema package.
 5. For `partial` or `copied_only` schema reality, call `run_gov2gov_migration`.
@@ -31,12 +31,18 @@ Use this skill when:
 - `direction_assist_test` is an explicit test-lane helper and is not part of the default core tool order above.
 - Use it only when you want bounded direction qualification for long prompts with fixed two-choice output and local test telemetry.
 
+## Companion Skills
+
+- Use `chat-history-capture` when the user asks to mine the current chat or pasted chat history for repo-specific decisions, direction, findings, or open threads that need to be added to narrative arc and vision docs.
+- Before schema, arc, or gov2gov work, reject stale hardcoded Codex cache skill paths as authority unless their version matches the observed active harness lane.
+
 ## Rules
 
 - Treat copied schema presence as a hint, not as operative reality.
 - Treat `preflight_session` as the default entry for complex changes.
 - Treat `schema_reality_state`, `integrity_state`, and `possession_state` as separate result axes.
 - Treat install presence and full adoption as different conditions.
+- Treat `artifact_hygiene` findings as relocation guidance, not permission to delete generated output.
 - Use `compile_active_work_state` when the agent is at risk of working directly from chat turbulence instead of bounded operational state.
 - Prefer `plan_only` first when the user asked for diagnosis.
 - Use `non_destructive_apply` only when the user wants reconciliation work performed.

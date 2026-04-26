@@ -200,30 +200,55 @@ if (-not $manifestMissing) {
 }
 
 # ---------------------------------------------------------------------------
-# Pair 2: plugin canonical skills <-> .claude skill mirror (inverse direction)
+# Pair 2: plugin canonical skills <-> host skill mirrors (inverse direction)
 # ---------------------------------------------------------------------------
 # Unlike the schema pair, the plugin is the authoring surface for skills, and
-# .claude/skills/ is the local runtime mirror that Claude Code reads during a
-# session. There is no manifest anchor on this side yet; the contract is a
-# byte-for-byte sha256 match per pair.
+# host-local skill mirrors are convenience/runtime surfaces. There is no manifest
+# anchor on this side yet; the contract is a byte-for-byte sha256 match per pair.
 $pluginSkillsDir  = Join-Path $RepoRoot 'plugins\anarchy-ai\skills'
 $claudeSkillsDir  = Join-Path $RepoRoot '.claude\skills'
+$codexSkillsDir   = Join-Path $RepoRoot '.codex\skills'
 
-$canonicalSkills = @(
-  'structured-commit/SKILL.md',
-  'structured-review/SKILL.md'
+$canonicalSkillMirrors = @(
+  @{
+    skill = 'structured-commit/SKILL.md'
+    mirrors = @(
+      @{
+        root = $claudeSkillsDir
+        root_relative = '.claude/skills'
+      }
+    )
+  },
+  @{
+    skill = 'structured-review/SKILL.md'
+    mirrors = @(
+      @{
+        root = $claudeSkillsDir
+        root_relative = '.claude/skills'
+      }
+    )
+  },
+  @{
+    skill = 'chat-history-capture/SKILL.md'
+    mirrors = @(
+      @{
+        root = $claudeSkillsDir
+        root_relative = '.claude/skills'
+      },
+      @{
+        root = $codexSkillsDir
+        root_relative = '.codex/skills'
+      }
+    )
+  }
 )
 
-foreach ($skillRel in $canonicalSkills) {
+foreach ($skillEntry in $canonicalSkillMirrors) {
+  $skillRel = [string]$skillEntry.skill
   # PS 5.1 Join-Path only takes one child segment at a time; resolve via a single string.
   $pluginPath = Join-Path $pluginSkillsDir ($skillRel -replace '/', '\')
-  $claudePath = Join-Path $claudeSkillsDir ($skillRel -replace '/', '\')
-
   $pluginHash = Get-Sha256Lower -Path $pluginPath
-  $claudeHash = Get-Sha256Lower -Path $claudePath
-
   $pluginRel = "plugins/anarchy-ai/skills/$skillRel"
-  $claudeRel = ".claude/skills/$skillRel"
 
   if ($null -eq $pluginHash) {
     Add-Finding -Findings $findings -RelativePath $pluginRel `
@@ -232,17 +257,25 @@ foreach ($skillRel in $canonicalSkills) {
     continue
   }
 
-  if ($null -eq $claudeHash) {
-    Add-Finding -Findings $findings -RelativePath $claudeRel `
-      -FindingType 'skill-mirror-missing' `
-      -Detail 'Local .claude skill mirror not found. Copy from plugin canonical.'
-    continue
-  }
+  foreach ($mirror in @($skillEntry.mirrors)) {
+    $mirrorRoot = [string]$mirror.root
+    $mirrorRootRelative = [string]$mirror.root_relative
+    $mirrorPath = Join-Path $mirrorRoot ($skillRel -replace '/', '\')
+    $mirrorRel = "$mirrorRootRelative/$skillRel"
+    $mirrorHash = Get-Sha256Lower -Path $mirrorPath
 
-  if ($pluginHash -ne $claudeHash) {
-    Add-Finding -Findings $findings -RelativePath $claudeRel `
-      -FindingType 'skill-mirror-drift' `
-      -Detail ("Skill mirror sha256 does not match plugin canonical. plugin={0} mirror={1}" -f $pluginHash, $claudeHash)
+    if ($null -eq $mirrorHash) {
+      Add-Finding -Findings $findings -RelativePath $mirrorRel `
+        -FindingType 'skill-mirror-missing' `
+        -Detail 'Local skill mirror not found. Copy from plugin canonical.'
+      continue
+    }
+
+    if ($pluginHash -ne $mirrorHash) {
+      Add-Finding -Findings $findings -RelativePath $mirrorRel `
+        -FindingType 'skill-mirror-drift' `
+        -Detail ("Skill mirror sha256 does not match plugin canonical. plugin={0} mirror={1}" -f $pluginHash, $mirrorHash)
+    }
   }
 }
 
@@ -252,7 +285,7 @@ $result = [ordered]@{
   status           = $status
   repo_root        = $RepoRoot
   canonical_set    = $canonicalFiles
-  canonical_skills = $canonicalSkills
+  canonical_skills = @($canonicalSkillMirrors | ForEach-Object { $_.skill })
   finding_count    = $findings.Count
   findings         = $findings
 }

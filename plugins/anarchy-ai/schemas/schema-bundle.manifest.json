@@ -1,11 +1,11 @@
 {
     "bundle_name":  "anarchy-ai-canonical-schema-bundle",
-    "bundle_version":  "0.1.6",
-    "generated_utc":  "2026-04-25T00:00:00Z",
+    "bundle_version":  "0.2.0",
+    "generated_utc":  "2026-04-26T14:04:56.9268750Z",
     "files":  [
                   {
                       "file_name":  "AGENTS-schema-governance.json",
-                      "sha256":  "79c387c56c3627e0190849cfb7ed4b275ccb9b31d7e90f19b1def920886a4235"
+                      "sha256":  "8fe693c0f2cd7c5c4af920a5ad16a49c026ea33b996f0e46eaa91ea402e0ee66"
                   },
                   {
                       "file_name":  "AGENTS-schema-1project.json",
@@ -13,7 +13,7 @@
                   },
                   {
                       "file_name":  "AGENTS-schema-narrative.json",
-                      "sha256":  "375f81751dfa47ef1ecb4e6ee0242d9d2cc7a45c9b7f04f815bd44e5ccca7b88"
+                      "sha256":  "b7863f726c802d4c4fe24fba1d9c624a5cf59b7e321bc1e80fe7b719b8891207"
                   },
                   {
                       "file_name":  "AGENTS-schema-gov2gov-migration.json",
@@ -25,7 +25,7 @@
                   },
                   {
                       "file_name":  "Getting-Started-For-Humans.txt",
-                      "sha256":  "0d8da99792be69ae1918dd382b95dbdd97350d27ef90aa7d0bdb9cd3f6cf3ea5"
+                      "sha256":  "f4c5e740ad579d9540429605e34e55944ad0ff737424751a40449ef06182c225"
                   }
               ]
 }

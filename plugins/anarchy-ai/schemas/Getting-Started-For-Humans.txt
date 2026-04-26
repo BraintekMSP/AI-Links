@@ -280,6 +280,21 @@ into every turn as context the agent must see. The schema is honest
 about being terrain. The hook is where the terrain gets a harness
 companion.
 
+The chat-history-capture rule follows the same split. The portable
+narrative schema carries the heuristic: archival decisions need original
+message/session timestamp provenance, not capture-time substitution. The
+Anarchy-AI skill carries the richer execution lane: preflight, active
+runtime/source/cache checks, JSON validation, and show-before-write
+auditability.
+
+Generated artifacts follow a separate discipline. Build output, restore
+scratch, plugin caches, browser state, logs, and runtime scratch should
+default to machine-local lanes such as %LOCALAPPDATA% on Windows or
+${XDG_CACHE_HOME:-~/.cache} on Linux. A synced repo/workspace is source
+truth by default, not a convenient dump site for disposable artifacts.
+If repo-local generated output is intentional, the repo should say so
+explicitly.
+
 
 WHAT AGENTS CANNOT DO
 ---------------------

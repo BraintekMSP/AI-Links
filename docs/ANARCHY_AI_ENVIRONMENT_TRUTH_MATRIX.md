@@ -448,12 +448,16 @@ What this proves:
 - duplicate-lane repair is bounded to Anarchy-owned plugin enable-state
 - a selected disabled Anarchy Codex lane is not treated as ready until install/update re-enables it
 - runtime install/update can select one Anarchy Codex primary lane while disabling non-selected Anarchy lanes
+- Workorders runtime/cache retest on `2026-04-26` proved Codex eventually materialized `0.1.9` into both repo-scoped and user-profile cache lanes after repeated refresh/restart attempts
+- Workorders schema-pack refresh then aligned `AGENTS-schema-governance.json` and `AGENTS-schema-narrative.json` with canonical `0.1.9`; remaining gov2gov partiality was not schema divergence
+- Workorders gov2gov apply exposed `AA-BUG-036`; the runtime now has posture-aware semantics so `repo_underlay` does not require repo-local marketplace discovery while `repo_local_runtime` still does, and completed GOV2GOV can remain in reference mode without root `GOV2GOV-*` packet files
 
 What this does not yet prove:
 
 - direct windowless EXE smoke remains pending after the UI surfaced during manual smoke attempts; current proof is source/test/build-level
 - a long-lived consumer repo has committed only portable underlay truth
-- cross-device cache invalidation to `0.1.9` remains pending
+- cross-device cache invalidation to `0.1.9` is observed on Workorders after refresh/restart, but the host timing and trigger remain host-owned rather than setup-owned
+- rebuilt EXE/plugin redeploy proof for the AA-BUG-036 runtime patch is still pending
 
 ## Inferred (Not Yet Fully Proven)
 
@@ -472,11 +476,18 @@ Observed again on `2026-04-26` during a second-computer user-profile install:
 - install materialized user-profile source `0.1.9`, wrote install-state, and enabled `anarchy-ai@anarchy-ai-user-profile`
 - post-install cache still contained only `anarchy-ai-user-profile/anarchy-ai/0.1.7`, so `source_plugin_version_not_materialized_in_codex_cache` remained
 
+Observed again on `2026-04-26` during Fissure arc-capture work:
+
+- the chat-supplied skill path pointed at `anarchy-ai-user-profile/anarchy-ai/0.1.7`
+- the active user-profile source/cache lane had already materialized `0.1.11`
+- the agent fell back to direct repo/MCP inspection, but the stale path proved that versioned cache skill paths can remain in conversation context after the active harness lane changes
+
 What this proves:
 
 - Codex's home-local plugin cache is materially involved after restart.
 - Fresh-session host surfacing worked in Fissure after the user-profile install.
 - Setup can repair user-profile source/install-state/config on a second profile while Codex cache materialization still lags.
+- Versioned Codex cache skill paths are evidence surfaces, not authority for schema, arc, or gov2gov work.
 
 What remains unresolved:
 
@@ -485,6 +496,7 @@ What remains unresolved:
 - which host-owned state invalidates or refreshes stale cache metadata
 - whether this behavior is stable across devices or only this Windows profile
 - whether keeping both repo-local and user-profile Anarchy plugin lanes enabled causes Codex to prefer one cache lane for skill metadata even when the other lane was more recently installed
+- whether chat-carried skill paths should be ignored automatically when they do not match the observed active harness lane
 
 Promotion test:
 
@@ -536,6 +548,7 @@ Marketplace hygiene interpretation:
 - For Anarchy, that means repo-local runtime installs are valid proving/debug evidence but poor default repo-travel hygiene.
 - Normal repo travel should use `/underlay` without marketplace registration; normal runtime should come from `/userprofile`.
 - `plugin unavailable, underlay present` is acceptable for a consumer repo because the portable discipline still travels without host-owned runtime state.
+- Gov2gov must preserve this split. A missing repo-local marketplace is a startup-discovery gap only when the repo has chosen `repo_local_runtime`, not when it has chosen `repo_underlay`.
 
 Promotion test:
 

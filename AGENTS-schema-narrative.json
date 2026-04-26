@@ -344,6 +344,14 @@
       "description": "monthly or quarterly review of a record set -- compress-eligible sessions only at quarterly",
       "watch-for": ["stale-open-thread", "definition-divergence", "tribal-flag"],
       "notes": "review sessions must check every open thread for stale status before closing -- compress is reserved for quarterly review only"
+    },
+    "chat-history-archival-capture": {
+      "description": "archival extraction of repo-specific decisions, direction, findings, and open threads from current or pasted chat history into narrative arc and vision surfaces",
+      "watch-for": ["implicit-history", "attribution-gap", "definition-divergence", "stale-open-thread", "ownership-ambiguity"],
+      "timestamp-provenance": "decision dates must reflect when the decision was made in the chat, not when capture occurs -- use visible message timestamps first, then session headers or dated transcript markers, then clearly labeled closest-verifiable dates -- never fabricate precise timestamps from transcript order, repo logs, commits, file modification times, or capture time",
+      "audit-before-write": "when the human asks for archival capture or timestamp audit, present proposed entries with destination file, entry type, proposed decision date, timestamp evidence, summary, and uncertainty note before editing",
+      "capture-boundary": "record durable decisions and direction, not every message -- keep repo-specific decisions in that repo and route Anarchy tool/runtime findings to Anarchy source surfaces unless the target repo operating rule changes",
+      "plugin-companion": "the portable schema carries this heuristic so underlay repos can inherit timestamp discipline -- the plugin skill remains the richer execution lane for preflight, JSON validation, cache/source provenance checks, and final state capture"
     }
   },
 

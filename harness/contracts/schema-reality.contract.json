@@ -1,6 +1,6 @@
 {
   "contract_name": "schema_reality_contract",
-  "contract_version": "0.1.1",
+  "contract_version": "0.1.2",
   "function_name": "is_schema_real_or_shadow_copied",
   "purpose": "Determine whether the schema package in a target workspace is real enough to govern work, only partially materialized, copied only, or fully missing.",
   "input_contract": {
@@ -18,6 +18,17 @@
       "type": "string_array",
       "required": false,
       "description": "Optional startup or package surfaces that should align with the schema package."
+    },
+    "workspace_posture": {
+      "type": "enum",
+      "required": false,
+      "values": [
+        "auto",
+        "repo_underlay",
+        "repo_local_runtime",
+        "undetermined"
+      ],
+      "description": "Optional Anarchy posture override. In repo_underlay posture, repo-local plugin marketplace discovery is not required."
     }
   },
   "output_contract": {
@@ -28,6 +39,15 @@
     "runtime_provenance": {
       "type": "object",
       "description": "Runtime provenance envelope declaring whether the callable harness came from user profile install, repo-local install, source checkout, or an unknown/external runtime lane."
+    },
+    "workspace_posture": {
+      "type": "enum",
+      "values": [
+        "repo_underlay",
+        "repo_local_runtime",
+        "undetermined"
+      ],
+      "description": "Resolved Anarchy posture used to interpret startup-surface requirements."
     },
     "consumer_material_governance_check": {
       "type": "enum",
@@ -135,6 +155,7 @@
       "machine_key": "user_profile_installed_runtime",
       "statement": "This callable harness is running from the current user's installed plugin bundle. It is convenient and valid as an installed runtime, but it is not source truth for the workspace being evaluated."
     },
+    "workspace_posture": "undetermined",
     "consumer_material_governance_check": "not_applicable",
     "schema_reality_state": "copied_only",
     "integrity_state": "aligned",

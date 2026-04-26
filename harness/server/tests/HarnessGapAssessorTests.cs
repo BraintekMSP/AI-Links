@@ -42,6 +42,79 @@ public sealed class HarnessGapAssessorTests
     }
 
     /// <summary>
+    /// Confirms that repo-local generated artifact directories are reported as hygiene findings without deleting or moving them.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts serialized JSON structure and retained test directories.</returns>
+    /// <remarks>Critical dependencies: <see cref="HarnessGapAssessor.Assess(string, string?, string[]?)"/> and artifact hygiene output vocabulary.</remarks>
+    [Fact]
+    public void Assess_ReportsRepoLocalGeneratedArtifactHygiene()
+    {
+        var tempRoot = CreateTempWorkspace();
+        try
+        {
+            var binPath = Directory.CreateDirectory(Path.Combine(tempRoot, "src", "Example", "bin")).FullName;
+            var objPath = Directory.CreateDirectory(Path.Combine(tempRoot, "src", "Example", "obj")).FullName;
+            var tmpPath = Directory.CreateDirectory(Path.Combine(tempRoot, ".tmp")).FullName;
+
+            var assessor = new HarnessGapAssessor(new SchemaRealityInspector());
+            var result = assessor.Assess(tempRoot, "generic", null);
+
+            using var document = JsonDocument.Parse(JsonSerializer.Serialize(result));
+            var artifactHygiene = document.RootElement.GetProperty("artifact_hygiene");
+            Assert.Equal("repo_local_artifacts_observed", artifactHygiene.GetProperty("artifact_hygiene_state").GetString());
+
+            var observedPaths = ReadStringArray(artifactHygiene, "observed_artifact_paths");
+            Assert.Contains("src/Example/bin", observedPaths);
+            Assert.Contains("src/Example/obj", observedPaths);
+            Assert.Contains(".tmp", observedPaths);
+
+            var recommendedLanes = ReadStringArray(artifactHygiene, "recommended_artifact_lanes");
+            Assert.Contains("%LOCALAPPDATA%\\Anarchy-AI\\<repo>\\", recommendedLanes);
+            Assert.Contains("${XDG_CACHE_HOME:-~/.cache}/anarchy-ai/<repo>/", recommendedLanes);
+
+            var safeRepairs = ReadStringArray(artifactHygiene, "safe_repairs");
+            Assert.Contains("relocate_generated_artifacts_to_machine_local_cache", safeRepairs);
+            Assert.Contains("inventory_and_quarantine_before_delete_never_delete_from_hygiene_assessment", safeRepairs);
+
+            Assert.True(Directory.Exists(binPath));
+            Assert.True(Directory.Exists(objPath));
+            Assert.True(Directory.Exists(tmpPath));
+        }
+        finally
+        {
+            DeleteTempWorkspace(tempRoot);
+        }
+    }
+
+    /// <summary>
+    /// Confirms that a workspace without generated artifact directories reports a clean artifact hygiene state.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts serialized JSON structure.</returns>
+    /// <remarks>Critical dependencies: <see cref="HarnessGapAssessor.Assess(string, string?, string[]?)"/> and artifact hygiene clean-state vocabulary.</remarks>
+    [Fact]
+    public void Assess_ReportsCleanArtifactHygieneWhenNoGeneratedArtifactsExist()
+    {
+        var tempRoot = CreateTempWorkspace();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(tempRoot, "docs"));
+            File.WriteAllText(Path.Combine(tempRoot, "docs", "README.md"), "# Temp Workspace");
+
+            var assessor = new HarnessGapAssessor(new SchemaRealityInspector());
+            var result = assessor.Assess(tempRoot, "generic", null);
+
+            using var document = JsonDocument.Parse(JsonSerializer.Serialize(result));
+            var artifactHygiene = document.RootElement.GetProperty("artifact_hygiene");
+            Assert.Equal("clean", artifactHygiene.GetProperty("artifact_hygiene_state").GetString());
+            Assert.Empty(ReadStringArray(artifactHygiene, "observed_artifact_paths"));
+        }
+        finally
+        {
+            DeleteTempWorkspace(tempRoot);
+        }
+    }
+
+    /// <summary>
     /// Locates the repo root from source location first, then explicit/current/runtime fallbacks.
     /// </summary>
     /// <returns>The absolute repo root path containing <c>AGENTS.md</c>.</returns>
@@ -89,5 +162,58 @@ public sealed class HarnessGapAssessorTests
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Reads a string array from an assessment JSON property.
+    /// </summary>
+    /// <param name="element">JSON object containing the array property.</param>
+    /// <param name="propertyName">Property name to read.</param>
+    /// <returns>String values from the array.</returns>
+    /// <remarks>Critical dependencies: System.Text.Json array shape.</remarks>
+    private static string[] ReadStringArray(JsonElement element, string propertyName)
+    {
+        return element
+            .GetProperty(propertyName)
+            .EnumerateArray()
+            .Select(item => item.GetString())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Cast<string>()
+            .ToArray();
+    }
+
+    /// <summary>
+    /// Creates an isolated temporary workspace for gap-assessment tests.
+    /// </summary>
+    /// <returns>Absolute path to the temporary workspace.</returns>
+    /// <remarks>Critical dependencies: System.IO temp path and GUID uniqueness.</remarks>
+    private static string CreateTempWorkspace()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "anarchy-ai-gap-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        return root;
+    }
+
+    /// <summary>
+    /// Deletes an isolated temporary workspace after verifying it is still inside the expected temp parent.
+    /// </summary>
+    /// <param name="tempRoot">Temporary workspace path.</param>
+    /// <remarks>Critical dependencies: temp-root guard before recursive deletion.</remarks>
+    private static void DeleteTempWorkspace(string tempRoot)
+    {
+        var expectedParent = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "anarchy-ai-gap-tests"))
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var resolvedRoot = Path.GetFullPath(tempRoot)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        if (!resolvedRoot.StartsWith(expectedParent + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"Refusing to delete temp workspace outside expected parent: {resolvedRoot}");
+        }
+
+        if (Directory.Exists(resolvedRoot))
+        {
+            Directory.Delete(resolvedRoot, recursive: true);
+        }
     }
 }
