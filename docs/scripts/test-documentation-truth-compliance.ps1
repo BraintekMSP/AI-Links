@@ -136,6 +136,14 @@ $activeDocRules = @(
     forbidden = @()
   },
   @{
+    path = 'docs/ANARCHY_AI_BUG_REPORTS.md'
+    required = @(
+      'AA-BUG-036',
+      'Capture concrete defects observed during setup'
+    )
+    forbidden = @()
+  },
+  @{
     path = 'docs/ANARCHY_AI_PLUGIN_README_SOURCE.md'
     required = @(
       'All carried schema-family artifacts'
@@ -194,9 +202,9 @@ $activeDocRules = @(
 )
 
 $mojibakeMarkers = @(
-  'Ã',
-  'â',
-  '�'
+  [string][char]0x00C3,
+  [string][char]0x00E2,
+  [string][char]0xFFFD
 )
 
 foreach ($rule in $activeDocRules) {
@@ -207,7 +215,7 @@ foreach ($rule in $activeDocRules) {
     continue
   }
 
-  $content = Get-Content -Path $absolutePath -Raw
+  $content = Get-Content -Path $absolutePath -Raw -Encoding UTF8
 
   foreach ($snippet in @($rule.required)) {
     if (-not [string]::IsNullOrWhiteSpace([string]$snippet) -and -not $content.Contains([string]$snippet)) {

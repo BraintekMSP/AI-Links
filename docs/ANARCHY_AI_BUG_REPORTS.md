@@ -916,7 +916,7 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
     - embedded bundle as offline fallback and installed-payload evidence
   - Embedded bundle comparison remains useful for answering "what did this installer carry?" but should not silently become the only answer to "current canonical schema" when public release lookup is available.
 - Acceptance:
-  - Result payload and docs include explicit â€œcanonical surfaces comparedâ€ section.
+  - Result payload and docs include explicit "canonical surfaces compared" section.
   - Result payload includes the canonical source lane used for schema comparison (`local_source`, `public_release`, or `embedded_bundle`) and the source path or release reference when known.
 
 ### AA-BUG-008: No intentional-divergence allowlist for canonical schema evolution
@@ -931,7 +931,7 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
 - Actual:
   - All drift is reported uniformly as divergence/possession pressure.
 - Evidence:
-  - Plan-only migration repeatedly lists canonical mismatch with no â€œapproved local divergenceâ€ lane.
+  - Plan-only migration repeatedly lists canonical mismatch with no "approved local divergence" lane.
 - Acceptance:
   - Optional allowlist/policy file supports bounded intentional drift annotations.
 
@@ -949,7 +949,7 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
 - Evidence:
   - Repeated restart-and-check cycles were needed to verify actual mount behavior.
 - Acceptance:
-  - Add environment proof script/tests for â€œchange in session A, visible in session B.â€
+  - Add environment proof script/tests for "change in session A, visible in session B."
 
 ### AA-BUG-010: Evidence qualification (`proven` vs `inferred`) is not enforced by doc update workflow
 
@@ -993,7 +993,7 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
 - Expected:
   - Completion requires immediate post-install assess + route verification.
 - Actual:
-  - â€œReadyâ€ can be reported before lane conflicts are fully surfaced.
+  - "Ready" can be reported before lane conflicts are fully surfaced.
 - Evidence:
   - Additional manual checks were required after reported success to validate true active lane.
 - Acceptance:
@@ -1056,10 +1056,10 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
     - marks first contradiction pivot
     - returns one primary corrective action item
 - Proposed method surface:
-  - `trace_execution_path` (renamed from `explain_failure_path` â€” the word â€œfailureâ€ activates the wrong concept first per the negation-mitigation research; â€œtraceâ€ and â€œexecutionâ€ are affirmative action words)
+  - `trace_execution_path` (renamed from `explain_failure_path` - the word "failure" activates the wrong concept first per the negation-mitigation research; "trace" and "execution" are affirmative action words)
   - read-only
   - deterministic structured response
-- Required output fields (these are required, not optional â€” a trace without a next action becomes a satisfying stopping point instead of a repair action):
+- Required output fields (these are required, not optional - a trace without a next action becomes a satisfying stopping point instead of a repair action):
   - `path_name`
   - `steps[]` with:
     - `step_id`
@@ -1070,16 +1070,16 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
     - `evidence`
   - `first_contradiction_step_id` (renamed from `first_failure_step_id`)
   - `root_contradiction`
-  - `recommended_next_action` (REQUIRED â€” the tool always produces an action, even when that action is report-to-human)
-  - `recommended_next_call` (REQUIRED â€” the tool always names the next callable method)
+  - `recommended_next_action` (REQUIRED - the tool always produces an action, even when that action is report-to-human)
+  - `recommended_next_call` (REQUIRED - the tool always names the next callable method)
 - Relationship to AA-BUG-013:
   - `diagnose_harness_mount_state` is a narrow diagnostic for mount-layer issues.
   - `trace_execution_path` is a broader tracer for any harness lane, including mount flow.
 - Acceptance:
   - Method consistently identifies the first contradiction in known broken scenarios.
-  - Output always includes `recommended_next_action` and `recommended_next_call` â€” a trace that ends at diagnosis without an action is incomplete.
+  - Output always includes `recommended_next_action` and `recommended_next_call` - a trace that ends at diagnosis without an action is incomplete.
   - Output is concise enough for agent decisioning and detailed enough for human validation.
-  - Skill/setup docs reference it as the default â€œstop guessingâ€ lane before destructive retries.
+  - Skill/setup docs reference it as the default "stop guessing" lane before destructive retries.
 
 ### AA-BUG-015: Codex Plugins UI card title can drift from current marketplace and plugin metadata
 
