@@ -878,16 +878,20 @@ Repo-local Anarchy installation may write an Anarchy-owned plugin bundle under `
 - keep .NET SDK/runtime prerequisites in non-workspace user/machine-local lanes such as `%USERPROFILE%\.dotnet`, `%LOCALAPPDATA%`, or `C:\Program Files\dotnet`
 - keep restore scratch, NuGet caches, and publish intermediates outside repo and synced workspace trees
 - make build helpers reject repo-local SDK paths instead of merely documenting the rule
+- redirect ordinary repo-local `dotnet build`, `dotnet restore`, and `dotnet test` intermediates into a machine-local lane by default
 
 #### Current patch state
 
 - `AA-BUG-026` tracks the defect and acceptance criteria
 - `build-self-contained-exe.ps1` rejects resolved `.NET SDK` paths inside the source workspace
+- `Directory.Build.props` redirects default `bin/obj` outputs to `%LOCALAPPDATA%\Anarchy-AI\AI-Links\dotnet`
+- setup publish scratch now uses `%LOCALAPPDATA%\Anarchy-AI\AI-Links\setup-build`
+- removal-safety test fixtures now use `%LOCALAPPDATA%\Anarchy-AI\AI-Links\test-fixtures`
 - setup/repo install docs now state that repo-local install is plugin-bundle placement, not SDK placement
 
 #### Problem being solved
 
-- keeping repo-local deployment useful without turning the repo or OneDrive workspace into toolchain/cache storage
+- keeping repo-local deployment useful without turning the repo or OneDrive workspace into toolchain, cache, build-output, or test-fixture storage
 
 ---
 
