@@ -421,20 +421,22 @@ Proven at setup-test/source level on `2026-04-25` after `AA-BUG-029`:
 - `/refresh` reports schema drift without overwriting by default
 - `/refresh /apply` overwrites only portable schema files and creates timestamped `.bak` files
 - `refresh_plan_ready` is treated as a successful CLI state instead of an automation failure
-- duplicate Codex lane logic disables only owned Anarchy non-selected plugin lanes in config text and preserves unrelated plugin sections
+- duplicate Codex lane logic enables the selected owned Anarchy lane, disables only owned Anarchy non-selected plugin lanes in config text, and preserves unrelated plugin sections
+- Workorders live retest after rebuild returned `codex_materialization.codex_plugin_enabled = true` for the selected Workorders lane while the Codex cache remained at `0.1.8`
+- Fissure / Docker-Builder-Project live retest after rebuild enabled the selected Fissure lane and disabled the Workorders Anarchy lane as a duplicate
 
 What this proves:
 
 - the source implementation no longer requires repo-local runtime install for portable repo discipline
 - the old write-by-default `/refreshschemas` surface is treated as a safety defect and requires `/apply`
 - duplicate-lane repair is bounded to Anarchy-owned plugin enable-state
+- a selected disabled Anarchy Codex lane is not treated as ready until install/update re-enables it
+- runtime install/update can select one Anarchy Codex primary lane while disabling non-selected Anarchy lanes
 
 What this does not yet prove:
 
-- a rebuilt setup EXE has been smoke-run after this batch
 - direct windowless EXE smoke remains pending after the UI surfaced during manual smoke attempts; current proof is source/test/build-level
 - a consumer repo has run `/underlay` and committed only portable underlay truth
-- Workorders/Fissure duplicate-lane cleanup has been repeated against live Codex config after rebuild
 - cross-device cache invalidation to `0.1.9` remains pending
 
 ## Inferred (Not Yet Fully Proven)
@@ -494,9 +496,17 @@ Why this remains inferred:
 - a Workorders repo-local install/source sync has now been observed in Codex's Plugins UI on a second device
 - that UI observation did not update the Codex plugin cache to the same manifest version (`0.1.9`), so source visibility and cache/runtime activation are not the same proof surface
 - local config evidence shows the UI install/remove state is a `[plugins."anarchy-ai@anarchy-ai-repo-workorders"] enabled = true` entry, not merely the marketplace file existing
+- after restarting Codex with user-profile, Workorders repo-local, and Fissure repo-local Anarchy marketplaces visible, the Plugins UI listed all three distributions and showed the selected Fissure distribution checked while Workorders and user-profile were not selected
 - the documentation describes the layout as a scope option, not explicitly as an auto-discovery rule
 
 Status summary: **repo-local source visibility is observed; active chat/runtime activation from the matching repo-local cache remains unproven.** The installer disclosure text reflects this distinction.
+
+Marketplace hygiene interpretation:
+
+- Codex is making a reasonable host-provenance decision when it treats each marketplace root as a separate Anarchy distribution.
+- For Anarchy, that means repo-local runtime installs are valid proving/debug evidence but poor default repo-travel hygiene.
+- Normal repo travel should use `/underlay` without marketplace registration; normal runtime should come from `/userprofile`.
+- `plugin unavailable, underlay present` is acceptable for a consumer repo because the portable discipline still travels without host-owned runtime state.
 
 Promotion test:
 

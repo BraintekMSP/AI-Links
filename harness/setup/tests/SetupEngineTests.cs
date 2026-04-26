@@ -546,6 +546,32 @@ public sealed class SetupEngineTests
         Assert.Contains("[plugins.\"teams@openai-curated\"]\r\nenabled = true", result.UpdatedText.Replace("\n", "\r\n"));
     }
 
+    [Fact]
+    public void ReconcileAnarchyCodexLanesInConfigText_ReEnablesSelectedLane()
+    {
+        const string config = """
+        [plugins."anarchy-ai@anarchy-ai-user-profile"]
+        enabled = true
+
+        [plugins."anarchy-ai@anarchy-ai-repo-workorders"]
+        enabled = false
+
+        [plugins."teams@openai-curated"]
+        enabled = true
+        """;
+
+        var result = SetupEngine.ReconcileAnarchyCodexLanesInConfigText(
+            config,
+            "anarchy-ai@anarchy-ai-repo-workorders");
+
+        Assert.True(result.DuplicateDetected);
+        Assert.True(result.SelectedLaneEnabled);
+        Assert.Equal(["anarchy-ai@anarchy-ai-user-profile"], result.DisabledLanes);
+        Assert.Matches("\\[plugins\\.\"anarchy-ai@anarchy-ai-repo-workorders\"\\]\\s+enabled = true", result.UpdatedText);
+        Assert.Matches("\\[plugins\\.\"anarchy-ai@anarchy-ai-user-profile\"\\]\\s+enabled = false", result.UpdatedText);
+        Assert.Contains("[plugins.\"teams@openai-curated\"]\r\nenabled = true", result.UpdatedText.Replace("\n", "\r\n"));
+    }
+
     /// <summary>
     /// Confirms that a fully absent repo-local plugin root reports the missing bundle itself without noisy child-surface findings.
     /// </summary>

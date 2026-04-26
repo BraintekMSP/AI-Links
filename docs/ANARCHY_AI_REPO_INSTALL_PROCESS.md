@@ -108,6 +108,8 @@ The plugin identity rule is now split on purpose:
 - user-profile installs use one stable user-profile plugin identity because the install root is intentionally shared for that user
 - both lanes keep the plugin-local MCP server key stable as `anarchy-ai`
 
+Codex is expected to treat each marketplace root as a separate plugin distribution. That is good host provenance, not a Codex error. Anarchy's hygiene rule is stricter: normal repos should not need a repo-local runtime distribution at all. Use `/underlay` for portable repo discipline, `/userprofile` for the normal runtime, and `/repolocal` only for proving or debugging repo-local plugin behavior.
+
 Current repo-local shape:
 
 - `name = anarchy-ai-repo-<repo-slug>`
@@ -162,6 +164,8 @@ If the target repo is adopting the AGENTS Heuristic Underlay, prefer the runtime
 This seeds portable discipline without installing the runtime plugin, writing marketplace state, registering an MCP server, or touching host config.
 
 Runtime install lanes still seed missing portable schema-family files into repo root when a workspace is targeted, but repo-local runtime install is now a proving/debug carrier rather than the default committed repo-truth lane.
+
+It is valid for a consumer repo to have Anarchy underlay present while no repo-local Anarchy plugin is available. In that state, agents can still read the portable schemas, narrative register, triage guide, and AGENTS awareness note. Runtime harness tools remain optional and should usually come from the user's profile-level Anarchy install.
 
 If those repo-root schema files already exist, install leaves them in place.
 
@@ -285,6 +289,7 @@ Expected good result shape:
 - when Codex is targeted:
   - `codex_materialization.source_plugin_manifest_version` reports the source bundle version when the plugin manifest exists
   - `codex_materialization.codex_plugin_enabled` reports whether `~/.codex/config.toml` has the matching `[plugins."plugin@marketplace"] enabled = true` entry when setup can read it
+  - install/update sets an existing selected Anarchy plugin key to `enabled = true` and disables only non-selected Anarchy plugin keys
   - `codex_materialization.cache_entries` reports the Codex-owned cache entries visible to setup
   - `codex_materialization.source_version_present_in_cache` tells whether Codex has materialized the same version into its plugin cache
 
@@ -664,13 +669,14 @@ Current scope:
 1. Copy `plugins/AnarchyAi.Setup.exe` into the target repo `plugins/` folder.
 2. Run `AnarchyAi.Setup.exe /underlay` when the repo should carry portable discipline without runtime install.
 3. Run `AnarchyAi.Setup.exe /install /repolocal` only for proving/debug runtime placement, or `AnarchyAi.Setup.exe /install /userprofile` for the normal host runtime lane.
-4. Use runtime install to provision or update the matching marketplace root with `INSTALLED_BY_DEFAULT`.
-5. Run `AnarchyAi.Setup.exe /assess` with the same runtime lane and require `bootstrap_state = ready` when runtime was installed.
-6. Use `/refresh` to inspect schema drift and `/refresh /apply` only when repo-root schema copies should be overwritten from the embedded payload.
-7. Use `AnarchyAi.Setup.exe /update` when the carried bundle needs to be refreshed.
-8. Add startup guidance that complex changes start with `preflight_session` when the runtime is available.
-9. Verify schema reality before trusting copied schema presence.
-10. Use gov2gov planning where existing authority surfaces must be reconciled.
+4. Do not commit repo-local plugin bundles, marketplace pointers, EXE/PDB/runtime files, cache output, or test JSONL residue as repo truth.
+5. Use runtime install to provision or update the matching marketplace root with `INSTALLED_BY_DEFAULT` only when a runtime lane is intended.
+6. Run `AnarchyAi.Setup.exe /assess` with the same runtime lane and require `bootstrap_state = ready` when runtime was installed.
+7. Use `/refresh` to inspect schema drift and `/refresh /apply` only when repo-root schema copies should be overwritten from the embedded payload.
+8. Use `AnarchyAi.Setup.exe /update` when the carried bundle needs to be refreshed.
+9. Add startup guidance that complex changes start with `preflight_session` when the runtime is available.
+10. Verify schema reality before trusting copied schema presence.
+11. Use gov2gov planning where existing authority surfaces must be reconciled.
 
 When every applicable item is true, the system counts as fully delivered, accessible, operational, and real in the target repo. Any gap keeps the system in partial adoption.
 

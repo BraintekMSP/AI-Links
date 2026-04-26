@@ -1508,14 +1508,14 @@ internal sealed class SetupEngine
                 : $"- Registers {pluginName} as INSTALLED_BY_DEFAULT in the target repo.",
             installScope == InstallScope.UserProfile
                 ? $"- Uses the Codex-native plugin marketplace lane; it does not require a custom mcp_servers.{BuildMcpServerName()} block to count as ready."
-                : $"- Leaves {AnarchyPathCanon.BuildHomeLabelPath(AnarchyPathCanon.UserProfileCodexConfigFileRelativePath)} untouched in the repo-local lane.",
+                : $"- Updates only Anarchy-owned Codex plugin enable-state in {AnarchyPathCanon.BuildHomeLabelPath(AnarchyPathCanon.UserProfileCodexConfigFileRelativePath)} when needed to select this repo-local runtime lane; unrelated Codex settings are preserved.",
             "- Writes a versioned install-state record inside the owned plugin bundle for later status/doctor inspection.",
             "- Current GUI install does not rewrite AGENTS.md."
         };
 
         if (installScope == InstallScope.RepoLocal && hostTargets.HasFlag(HostTargets.Codex))
         {
-            disclosureLines.Add("- Repo-local Codex caveat: the installer writes the Codex-documented repo-local shape (marketplace.json + plugins/ bundle). Codex can surface that repo-local source in the Plugins UI before its chat cache/runtime materializes the same plugin version, so setup readiness and plugin-card visibility are separate from active runtime proof. The bundled runtime is also per-machine, so a committed marketplace entry does not carry a working runtime to collaborators.");
+            disclosureLines.Add("- Repo-local Codex caveat: the installer writes the Codex-documented repo-local shape (marketplace.json + plugins/ bundle) and may set this Anarchy lane to enabled in Codex config while disabling other Anarchy lanes. Codex can surface that repo-local source in the Plugins UI before its chat cache/runtime materializes the same plugin version, so setup readiness and plugin-card visibility are separate from active runtime proof. The bundled runtime is also per-machine, so a committed marketplace entry does not carry a working runtime to collaborators.");
         }
 
         disclosureLines.Add($"- Host targets: {HostTargetLabels.ToDisplayString(hostTargets)}.");
@@ -1874,7 +1874,7 @@ internal sealed class SetupEngine
         {
             try
             {
-                duplicateLaneResult = DisableDuplicateCodexLanesForSelectedPrimaryLane(options, workspaceRoot, actionsTaken);
+                duplicateLaneResult = UpdateCodexPrimaryLaneForSelectedInstall(options, workspaceRoot, actionsTaken);
             }
             catch (IOException ex)
             {
@@ -2170,7 +2170,8 @@ internal sealed class SetupEngine
             runtime_present = !runtimeFreeOperation && runtimeExists,
             marketplace_registered = !runtimeFreeOperation && marketplaceInspection.HasAnarchyPluginEntry,
             installed_by_default = !runtimeFreeOperation && marketplaceInspection.InstalledByDefault,
-            host_config_modified = duplicateLaneResult.DisabledLanes.Length > 0
+            host_config_modified = duplicateLaneResult.SelectedLaneEnabled
+                || duplicateLaneResult.DisabledLanes.Length > 0
                 || actionsTaken.Contains("removed_legacy_codex_custom_mcp_entry"),
             refresh_plan_only = options.RefreshPortableSchemaFamily && !options.ApplyChanges,
             refreshed_files = refreshResult.RefreshedFiles,
@@ -3390,7 +3391,7 @@ internal sealed class SetupEngine
             : null;
     }
 
-    private static CodexDuplicateLaneResult DisableDuplicateCodexLanesForSelectedPrimaryLane(
+    private static CodexDuplicateLaneResult UpdateCodexPrimaryLaneForSelectedInstall(
         SetupOptions options,
         string workspaceRoot,
         HashSet<string> actionsTaken)
@@ -3399,30 +3400,49 @@ internal sealed class SetupEngine
         var selectedKey = $"{BuildPluginName(options.InstallScope, workspaceRoot)}@{BuildMarketplaceName(options.InstallScope, workspaceRoot)}";
         if (!File.Exists(codexConfigPath))
         {
-            return new CodexDuplicateLaneResult(selectedKey, [], false);
+            return new CodexDuplicateLaneResult(selectedKey, [], false, false);
         }
 
         var configText = File.ReadAllText(codexConfigPath);
-        var (updatedText, disabledLanes, duplicateDetected) = DisableDuplicateCodexLanesInConfigText(configText, selectedKey);
+        var (updatedText, disabledLanes, duplicateDetected, selectedLaneEnabled) = ReconcileAnarchyCodexLanesInConfigText(configText, selectedKey);
+
+        if (!string.Equals(updatedText, configText, StringComparison.Ordinal))
+        {
+            File.WriteAllText(codexConfigPath, updatedText, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        }
+
+        if (selectedLaneEnabled)
+        {
+            actionsTaken.Add("enabled_selected_anarchy_codex_plugin_lane");
+        }
 
         if (disabledLanes.Length > 0)
         {
-            File.WriteAllText(codexConfigPath, updatedText, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
             actionsTaken.Add("disabled_duplicate_anarchy_codex_plugin_lanes");
         }
 
         return new CodexDuplicateLaneResult(
             selectedKey,
             disabledLanes,
-            duplicateDetected);
+            duplicateDetected,
+            selectedLaneEnabled);
     }
 
     internal static (string UpdatedText, string[] DisabledLanes, bool DuplicateDetected) DisableDuplicateCodexLanesInConfigText(
         string configText,
         string selectedKey)
     {
+        var (updatedText, disabledLanes, duplicateDetected, _) = ReconcileAnarchyCodexLanesInConfigText(configText, selectedKey);
+        return (updatedText, disabledLanes, duplicateDetected);
+    }
+
+    internal static (string UpdatedText, string[] DisabledLanes, bool DuplicateDetected, bool SelectedLaneEnabled) ReconcileAnarchyCodexLanesInConfigText(
+        string configText,
+        string selectedKey)
+    {
         var disabled = new List<string>();
         var duplicateDetected = false;
+        var selectedLaneEnabled = false;
         var sectionPattern = @"(?ms)^\[plugins\.""(?<key>[^""]+)""\]\s*(?<body>.*?)(?=^\[|\z)";
         var updatedText = Regex.Replace(
             configText,
@@ -3430,14 +3450,25 @@ internal sealed class SetupEngine
             match =>
             {
                 var key = match.Groups["key"].Value;
-                if (string.Equals(key, selectedKey, StringComparison.Ordinal)
-                    || !IsOwnedAnarchyCodexPluginConfigKey(key))
+                if (!IsOwnedAnarchyCodexPluginConfigKey(key))
                 {
                     return match.Value;
                 }
 
                 var body = match.Groups["body"].Value;
                 var enabled = ReadEnabledFromPluginConfigSectionBody(body);
+                if (string.Equals(key, selectedKey, StringComparison.Ordinal))
+                {
+                    if (enabled != false)
+                    {
+                        return match.Value;
+                    }
+
+                    selectedLaneEnabled = true;
+                    var selectedBody = SetEnabledInPluginConfigSectionBody(body, true);
+                    return match.Value[..(match.Groups["body"].Index - match.Index)] + selectedBody;
+                }
+
                 if (enabled == false)
                 {
                     return match.Value;
@@ -3445,23 +3476,30 @@ internal sealed class SetupEngine
 
                 duplicateDetected = true;
                 disabled.Add(key);
-                var replacedBody = Regex.Replace(
-                    body,
-                    @"(?mi)^(?<prefix>\s*enabled\s*=\s*)(true|false)(?<suffix>\s*)$",
-                    "${prefix}false${suffix}",
-                    RegexOptions.CultureInvariant);
-                if (string.Equals(replacedBody, body, StringComparison.Ordinal))
-                {
-                    replacedBody = body.EndsWith('\n')
-                        ? body + "enabled = false" + Environment.NewLine
-                        : body + Environment.NewLine + "enabled = false" + Environment.NewLine;
-                }
-
+                var replacedBody = SetEnabledInPluginConfigSectionBody(body, false);
                 return match.Value[..(match.Groups["body"].Index - match.Index)] + replacedBody;
             },
             RegexOptions.CultureInvariant);
 
-        return (updatedText, disabled.OrderBy(static value => value, StringComparer.Ordinal).ToArray(), duplicateDetected);
+        return (updatedText, disabled.OrderBy(static value => value, StringComparer.Ordinal).ToArray(), duplicateDetected, selectedLaneEnabled);
+    }
+
+    private static string SetEnabledInPluginConfigSectionBody(string body, bool enabled)
+    {
+        var enabledText = enabled ? "true" : "false";
+        var replacedBody = Regex.Replace(
+            body,
+            @"(?mi)^(?<prefix>\s*enabled\s*=\s*)(true|false)(?<suffix>\s*)$",
+            "${prefix}" + enabledText + "${suffix}",
+            RegexOptions.CultureInvariant);
+        if (!string.Equals(replacedBody, body, StringComparison.Ordinal))
+        {
+            return replacedBody;
+        }
+
+        return body.EndsWith('\n')
+            ? body + $"enabled = {enabledText}" + Environment.NewLine
+            : body + Environment.NewLine + $"enabled = {enabledText}" + Environment.NewLine;
     }
 
     private static bool IsOwnedAnarchyCodexPluginConfigKey(string configKey)
@@ -4839,9 +4877,10 @@ internal sealed record RefreshSchemaResult(
 internal sealed record CodexDuplicateLaneResult(
     string? SelectedPrimaryLane,
     string[] DisabledLanes,
-    bool DuplicateLanesDetected)
+    bool DuplicateLanesDetected,
+    bool SelectedLaneEnabled)
 {
-    public static CodexDuplicateLaneResult Empty { get; } = new(null, [], false);
+    public static CodexDuplicateLaneResult Empty { get; } = new(null, [], false, false);
 }
 
 // Purpose: Exposes the embedded plugin bundle and portable-schema payload resources carried by the setup executable.

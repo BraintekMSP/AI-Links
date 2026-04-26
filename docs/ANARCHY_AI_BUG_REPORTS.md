@@ -596,6 +596,84 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
   - Rebuilt deployable carries the exit-code fix.
   - Before release promotion, run a controlled windowless direct EXE smoke for `/underlay`, `/refresh`, and `/refresh /apply` without launching the GUI.
 
+### AA-BUG-031: Runtime install selected a Codex lane without re-enabling it
+
+- Severity: High
+- Status: Patched local (Workorders and Fissure config retests passed; Codex cache materialization still host-owned)
+- Component: Setup / Codex host adapter / Duplicate-lane repair
+- Repro:
+  - Disable or remove the repo-local Anarchy plugin through Codex UI so `~/.codex/config.toml` carries `[plugins."anarchy-ai@anarchy-ai-repo-workorders"] enabled = false`.
+  - Run repo-local Anarchy install/update for Workorders.
+  - Inspect setup JSON.
+- Expected:
+  - A runtime install/update that selects `anarchy-ai@anarchy-ai-repo-workorders` as the primary Codex lane should make that selected lane enabled.
+  - Non-selected Anarchy lanes may be disabled to prevent duplicate skills.
+  - Non-Anarchy plugin config must remain untouched.
+- Actual:
+  - Setup reported `selected_codex_primary_lane = anarchy-ai@anarchy-ai-repo-workorders`.
+  - `codex_materialization.codex_plugin_enabled = false`.
+  - `bootstrap_state = ready` and `next_action = use_preflight_session`, which overstated active Codex usability.
+- Evidence:
+  - Workorders redeploy output on `2026-04-26` showed source plugin manifest `0.1.9`, Codex cache still `0.1.8`, and findings:
+    - `source_plugin_version_not_materialized_in_codex_cache`
+    - `codex_plugin_disabled`
+  - Retesting Workorders after the patch showed:
+    - `host_config_modified = true`
+    - `actions_taken` included `enabled_selected_anarchy_codex_plugin_lane`
+    - `codex_materialization.codex_plugin_enabled = true`
+    - `source_plugin_version_not_materialized_in_codex_cache` remained because Codex had not refreshed the cache from `0.1.8` to `0.1.9`
+  - Retesting Fissure / Docker-Builder-Project after the patch showed:
+    - `selected_codex_primary_lane = anarchy-ai@anarchy-ai-repo-docker-builder-project`
+    - `disabled_duplicate_codex_lanes = ["anarchy-ai@anarchy-ai-repo-workorders"]`
+    - `duplicate_codex_skill_lanes_detected = true`
+    - `codex_materialization.codex_plugin_enabled = true`
+- Local patch notes:
+  - Primary-lane reconciliation now sets the selected Anarchy Codex plugin key to `enabled = true` when an existing disabled section is present.
+  - The same pass still disables only non-selected Anarchy plugin keys.
+  - `host_config_modified` now reflects selected-lane enablement as well as duplicate-lane disablement.
+- Acceptance:
+  - Setup tests prove selected-lane re-enable, non-selected Anarchy disable, and unrelated plugin preservation.
+  - Rebuild setup and repeat Workorders install/update.
+  - Confirm Workorders returns `codex_materialization.codex_plugin_enabled = true`.
+  - Confirm Fissure install enables the selected Fissure lane, disables the Workorders Anarchy lane, and preserves unrelated plugins.
+  - Treat cache refresh to `0.1.9` as separate host-owned evidence until Codex materializes the matching cache entry.
+
+### AA-BUG-032: Repo-local runtime marketplaces are correct host provenance but poor default repo-travel hygiene
+
+- Severity: Medium
+- Status: Documented local; product posture clarified
+- Component: Setup / Marketplace discipline / Repo hygiene
+- Repro:
+  - Install Anarchy through the user-profile lane.
+  - Install repo-local runtime bundles into Workorders and Fissure / Docker-Builder-Project.
+  - Restart Codex and inspect the Plugins UI.
+- Expected:
+  - Normal consumer repos carry portable underlay truth without creating a durable Codex plugin distribution per repo.
+  - User-profile is the normal runtime plugin distribution.
+  - Repo-local runtime remains available for proving/debug only.
+  - A repo can have Anarchy underlay present while the repo-local plugin distribution is unavailable.
+- Actual:
+  - Codex correctly listed separate Anarchy distributions because they came from separate marketplace roots:
+    - `anarchy-ai@anarchy-ai-user-profile`
+    - `anarchy-ai@anarchy-ai-repo-workorders`
+    - `anarchy-ai@anarchy-ai-repo-docker-builder-project`
+  - After selecting Fissure / Docker-Builder-Project, the Plugins UI showed that distribution checked while Workorders and user-profile were visible but not selected.
+- Evidence:
+  - Workorders and Fissure install outputs show separate `selected_codex_primary_lane` values derived from repo-scoped marketplace names.
+  - Codex cache materialization still lagged source manifest `0.1.9`, proving marketplace visibility, enable-state, cache, and runtime activation are separate surfaces.
+  - User observation after Codex restart: all three distributions were listed, but only Docker-Builder-Project was checked.
+- Product direction:
+  - Do not fight Codex's marketplace separation. It is good host provenance for different marketplace roots to remain distinct.
+  - Do not normalize repo-local runtime as the default consumer repo shape.
+  - `/underlay` is the repo-travel lane: portable schema, narrative, triage, guide, and hygiene only; no runtime, marketplace, MCP, or host config.
+  - `/userprofile` is the normal runtime distribution lane.
+  - `/repolocal` is explicit proving/debug runtime placement and may create a separate visible Codex distribution.
+  - `plugin unavailable, underlay present` is an acceptable normal consumer state.
+- Acceptance:
+  - Setup and repo-install docs steer normal adoption to `/underlay` plus optional `/userprofile`.
+  - Docs state that multiple visible Anarchy distributions are technically valid host provenance, but multiple active Anarchy runtime lanes are bad hygiene.
+  - Consumer repo hygiene guidance keeps committed truth to portable underlay artifacts and excludes repo-local plugin bundles, marketplace pointers, EXE/PDB/runtime files, caches, and JSONL residue.
+
 ### AA-BUG-005: Missing setup `self-check` command for active mount diagnostics
 
 - Severity: Medium

@@ -102,16 +102,31 @@ Current lanes:
 - `user-profile`
   - plugin bundle under `~/.codex/plugins/anarchy-ai`
   - marketplace under `~/.agents/plugins/marketplace.json`
+  - normal runtime distribution for Codex users
 - `repo-underlay`
   - portable schema and narrative discipline in the repo
   - no runtime bundle, no marketplace registration, no MCP server registration, no host config write
 
 `/underlay` is the default repo-travel lane for consumers who need the discipline to follow the repo without committing a runtime bundle or host-owned plugin state.
 
+Normal consumer posture:
+
+- commit or carry the portable underlay surfaces when the repo intentionally adopts the discipline
+- install the runtime through `/userprofile` when Codex should have Anarchy tools available
+- use `/repolocal` only when proving or debugging repo-local Codex plugin behavior
+- treat `plugin unavailable, underlay present` as an acceptable consumer state because underlay still shapes agent startup context without a local runtime distribution
+
 `/refresh` is the deliberate schema-alignment lane. It is plan-first by default and overwrites portable schema files only when `/apply` is supplied. The deprecated `/refreshschemas` alias remains accepted for old scripts, but it is also plan-first unless `/apply` is supplied because the old write-by-default behavior was a safety defect.
 
 The generated marketplace root should be repo-scoped for repo-local installs, not globally reused.
 Keep the top-level marketplace `name` branded and readable because current Codex plugin surfaces can expose that identifier directly even though the official docs describe `interface.displayName` as the marketplace title.
+
+Marketplace identity boundary:
+
+- Codex is expected to treat user-profile, Workorders repo-local, Fissure repo-local, and other repo-local marketplace roots as separate plugin distributions because they are sourced from different marketplace roots.
+- That separation is good host provenance and prevents one repo-local source from masquerading as another.
+- For Anarchy product hygiene, multiple visible but disabled Anarchy distributions are acceptable residue; multiple active Anarchy runtime lanes are not.
+- Setup should select one primary Anarchy runtime lane during install/update and report the visible distribution state rather than collapsing distinct marketplace roots into one source identity.
 
 Current repo-local shape:
 
@@ -196,13 +211,13 @@ There is intentionally no `/uninstall-underlay`, `/revert-underlay`, or setup mo
 
 ### Duplicate Codex lane discipline
 
-Install/update operations that select a primary runtime lane (`/userprofile` or `/repolocal`) may disable other enabled Anarchy Codex plugin lanes to prevent duplicate skills.
+Install/update operations that select a primary runtime lane (`/userprofile` or `/repolocal`) may set the selected Anarchy Codex lane to `enabled = true` and disable other enabled Anarchy Codex plugin lanes to prevent duplicate skills.
 
 Contract:
 
 - auto-disable runs only during install/update for primary runtime lanes
 - it never runs during `/underlay`, `/refresh`, `/assess`, or `/status`
-- it sets `enabled = false` in `~/.codex/config.toml`
+- it sets the selected Anarchy lane to `enabled = true` and non-selected Anarchy lanes to `enabled = false` in `~/.codex/config.toml`
 - it never deletes plugin files or marketplace entries
 - it never touches non-Anarchy plugins
 

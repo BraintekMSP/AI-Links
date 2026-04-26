@@ -26,6 +26,8 @@
 - Added `AA-BUG-028` and patched retirement cleanup so Codex plugin enable-state in `~/.codex/config.toml` is treated as a first-class Anarchy install surface, while legacy custom-MCP cleanup remains opt-in.
 - Added `AA-BUG-029` and split setup into `/underlay`, plan-first `/refresh`, and primary runtime install lanes so portable repo discipline can travel without committing runtime bundles or silently overwriting schemas.
 - Added `AA-BUG-030` and patched CLI success-state handling so plan-only `/refresh` returns a successful exit code; direct windowless EXE smoke remains a release-proof caveat after the UI surfaced during manual smoke attempts.
+- Added `AA-BUG-031` and patched primary Codex lane reconciliation so runtime install/update re-enables the selected Anarchy plugin lane instead of leaving a disabled selected lane with `bootstrap_state = ready`.
+- Added `AA-BUG-032` and clarified that Codex's separate marketplace identities are valid host provenance, while Anarchy's normal repo-travel lane is `/underlay`, the normal runtime lane is `/userprofile`, and `/repolocal` is proving/debug only.
 - Recorded the correction in the Arc narrative as continuity against context-compression drift.
 
 ## 2026-04-24
