@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <AnarchyDotNetArtifactRoot Condition="'$(AnarchyDotNetArtifactRoot)' == '' and '$(LOCALAPPDATA)' != ''">$(LOCALAPPDATA)\Anarchy-AI\AI-Links\dotnet\</AnarchyDotNetArtifactRoot>
+    <AnarchyDotNetArtifactRoot Condition="'$(AnarchyDotNetArtifactRoot)' == '' and '$(TEMP)' != ''">$(TEMP)\Anarchy-AI\AI-Links\dotnet\</AnarchyDotNetArtifactRoot>
+    <AnarchyDotNetArtifactRoot Condition="'$(AnarchyDotNetArtifactRoot)' == '' and '$(USERPROFILE)' != ''">$(USERPROFILE)\AppData\Local\Anarchy-AI\AI-Links\dotnet\</AnarchyDotNetArtifactRoot>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(AnarchyUseRepoLocalDotNetArtifacts)' != 'true' and '$(AnarchyDotNetArtifactRoot)' != ''">
+    <BaseIntermediateOutputPath>$(AnarchyDotNetArtifactRoot)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(AnarchyDotNetArtifactRoot)bin\$(MSBuildProjectName)\</BaseOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);bin\**;obj\**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>

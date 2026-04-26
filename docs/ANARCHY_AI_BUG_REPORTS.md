@@ -427,13 +427,18 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
   - That creates synced workspace noise and raises corruption risk in OneDrive-backed repos.
 - Evidence:
   - User correction on `2026-04-25`: installing `.NET` to the repo is not the way; use non-workspace paths like AppData because repo-local SDK files create sync noise and contribute to corruptions.
-  - Current build helper already publishes temporary build output under `%LOCALAPPDATA%\Temp\ai-links-setup-build`, proving the correct lane exists.
+  - Current build helper publishes temporary build output under `%LOCALAPPDATA%\Anarchy-AI\AI-Links\setup-build`, proving the correct lane exists.
+  - Follow-up OneDrive sync inventory on `2026-04-26` showed old repo-local `bin/obj` and `.tmp` outputs still producing large synced files, including setup/server DLL and EXE artifacts.
 - Local patch notes:
   - `build-self-contained-exe.ps1` now rejects a resolved `.NET SDK` path that lives inside the source workspace.
+  - `Directory.Build.props` now redirects ordinary .NET `bin/obj` output for repo-local build/test/restore commands to `%LOCALAPPDATA%\Anarchy-AI\AI-Links\dotnet` by default.
+  - `build-self-contained-exe.ps1` now uses `%LOCALAPPDATA%\Anarchy-AI\AI-Links\setup-build` rather than a repo-local or generic temp lane.
+  - Removal-safety test fixtures now use `%LOCALAPPDATA%\Anarchy-AI\AI-Links\test-fixtures` rather than `.tmp` under the repo.
   - Setup/repo install docs now state the .NET prerequisite boundary directly.
 - Acceptance:
   - Running the build helper with a normal user/machine-local SDK still succeeds.
   - Running the build helper with `-DotnetPath` pointing inside the repo fails before restore/publish work begins.
+  - Running setup/server tests does not create new repo-local `bin/obj` outputs.
   - Release/docs language does not imply that target repos should install .NET locally to use the self-contained setup EXE.
 
 ### AA-BUG-027: Codex repo-local UI visibility can outrun cache/runtime materialization
@@ -631,6 +636,12 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
     - `disabled_duplicate_codex_lanes = ["anarchy-ai@anarchy-ai-repo-workorders"]`
     - `duplicate_codex_skill_lanes_detected = true`
     - `codex_materialization.codex_plugin_enabled = true`
+  - Retesting the user-profile lane on the second computer (`C:\Users\mherring`) showed:
+    - pre-install assess had `codex_materialization.codex_plugin_enabled = false`, install-state missing, source/cache manifest `0.1.7`
+    - install selected `anarchy-ai@anarchy-ai-user-profile`
+    - `actions_taken` included `enabled_selected_anarchy_codex_plugin_lane`
+    - post-install `codex_materialization.codex_plugin_enabled = true`
+    - source manifest moved to `0.1.9` while Codex cache stayed at `0.1.7`, leaving only `source_plugin_version_not_materialized_in_codex_cache`
 - Local patch notes:
   - Primary-lane reconciliation now sets the selected Anarchy Codex plugin key to `enabled = true` when an existing disabled section is present.
   - The same pass still disables only non-selected Anarchy plugin keys.
@@ -677,6 +688,120 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
   - Setup and repo-install docs steer normal adoption to `/underlay` plus optional `/userprofile`.
   - Docs state that multiple visible Anarchy distributions are technically valid host provenance, but multiple active Anarchy runtime lanes are bad hygiene.
   - Consumer repo hygiene guidance keeps committed truth to portable underlay artifacts and excludes repo-local plugin bundles, marketplace pointers, EXE/PDB/runtime files, caches, and JSONL residue.
+
+### AA-BUG-033: Selected Codex lane is not materialized when config key is absent
+
+- Severity: High
+- Status: Patched local
+- Component: Setup / Codex host adapter / Duplicate-lane reconciliation
+- Repro:
+  - On a second computer, assess a repo-local BrainyMigrator install that was previously written on another Windows profile.
+  - The copied install-state still records the prior profile path (`C:\Users\herri\...`) while the current machine path is `C:\Users\mherring\...`, so install-state is correctly invalid.
+  - Run repo-local install for the current machine.
+  - Or install a repo-local runtime into a repo with no existing selected Anarchy Codex config section and no enabled duplicate Anarchy sections to force a config rewrite.
+- Expected:
+  - Runtime install/update that selects `anarchy-ai@anarchy-ai-repo-<repo-slug>` as primary creates or enables the matching Codex plugin config section.
+  - Post-install materialization should report `codex_materialization.codex_plugin_enabled = true`.
+- Actual:
+  - Install selected `anarchy-ai@anarchy-ai-repo-brainymigrator`.
+  - It disabled duplicate Anarchy lanes for Workorders and user-profile.
+  - It did not create the missing selected config section, so post-install `codex_materialization.codex_plugin_enabled = null` and findings still included:
+    - `codex_plugin_enable_state_missing`
+    - `codex_cache_root_missing`
+    - `source_plugin_version_not_materialized_in_codex_cache`
+  - `bootstrap_state = ready` therefore again overstated active Codex usability for the selected lane.
+- Evidence:
+  - BrainyMigrator second-computer output on `2026-04-26`:
+    - pre-install assess correctly reported install-state path/root mismatches from the prior `herri` profile
+    - install output selected `anarchy-ai@anarchy-ai-repo-brainymigrator`
+    - `disabled_duplicate_codex_lanes = ["anarchy-ai@anarchy-ai-repo-workorders", "anarchy-ai@anarchy-ai-user-profile"]`
+    - `actions_taken` included `disabled_duplicate_anarchy_codex_plugin_lanes` but not `enabled_selected_anarchy_codex_plugin_lane`
+    - post-install `codex_plugin_enabled = null`
+  - TheLinks second-computer output on `2026-04-26` showed the minimal no-duplicate variant:
+    - pre-install assess reported `bootstrap_state = bootstrap_needed`, missing repo marketplace, no install-state, no runtime, and no Codex enable-state
+    - install created the repo marketplace and plugin bundle, selected `anarchy-ai@anarchy-ai-repo-thelinks`, and wrote install-state
+    - `disabled_duplicate_codex_lanes = []` and `duplicate_codex_skill_lanes_detected = false`, so no duplicate-lane write occurred
+    - `actions_taken` did not include `enabled_selected_anarchy_codex_plugin_lane`
+    - post-install `codex_plugin_enabled = null` with `codex_plugin_enable_state_missing`
+- Local patch notes:
+  - Primary-lane reconciliation now creates the selected `[plugins."anarchy-ai@..."] enabled = true` section when missing.
+  - The same logic still enables an existing selected section when `enabled = false` or no `enabled` value is present.
+  - The selected key can be materialized even when the Codex config file does not exist yet; parent directories are created as needed.
+- Acceptance:
+  - Setup tests prove a missing selected repo-local key is appended with `enabled = true`.
+  - Re-run BrainyMigrator and TheLinks repo-local installs and confirm `codex_materialization.codex_plugin_enabled = true`.
+  - Treat cache materialization (`codex_cache_root_missing` / source version missing in cache) as separate host-owned evidence until Codex creates the matching cache directory.
+
+### AA-BUG-034: Setup GUI still presented repo-local runtime as the default lane
+
+- Severity: Medium
+- Status: Patched local
+- Component: Setup GUI / Marketplace discipline / Product posture
+- Repro:
+  - Launch `AnarchyAi.Setup.exe` with no arguments.
+  - Observe the default GUI lane and explanatory copy.
+- Expected:
+  - The GUI presents only the normal product lanes:
+    - `Repo underlay` for repo adoption/travel
+    - `User-profile install` for runtime tools
+  - Repo-local runtime remains available through CLI for proving/debug, but is not the default visual path.
+  - Repo-underlay UI text states that it does not install a runtime, create marketplace entries, register MCP, or touch host config.
+- Actual:
+  - The GUI defaulted to `Repo-local install`.
+  - The intro text said repo-local install keeps the harness inside the repo so the delivery surface travels with the workspace.
+  - The primary button said `Install Repo-Local`, which contradicted the clarified `/underlay` plus `/userprofile` product posture and made normal repo-travel look like repo-local runtime installation.
+- Evidence:
+  - Operator screenshot on `2026-04-26` showed:
+    - lane group labeled `Install Lane`
+    - selected `Repo-local install`
+    - buttons `Assess Repo-Local` and `Install Repo-Local`
+    - copy describing repo-local harness install for a selected repo
+- Local patch notes:
+  - GUI lane group now reads `Setup Lane`.
+  - Default repo lane is `Repo underlay`.
+  - Repo-underlay primary action runs `OperationMode.Underlay`.
+  - Repo-underlay secondary action runs read-only schema refresh planning.
+  - User-profile runtime install remains the only runtime install lane visible in the GUI.
+  - Host target controls are disabled for repo underlay because no host runtime is registered.
+  - GUI write disclosure now has a separate underlay disclosure that explicitly says no runtime bundle, marketplace, plugin registration, host config write, or runtime process is involved.
+- Acceptance:
+  - Setup tests cover underlay disclosure separation from runtime install wording.
+  - Rebuild setup and launch the GUI.
+  - Confirm visible lanes are `Repo underlay` and `User-profile install`.
+  - Confirm repo-underlay write action returns `setup_operation = underlay`, `install_scope = repo_underlay`, `runtime_present = false`, `marketplace_registered = false`, and `host_config_modified = false`.
+
+### AA-BUG-035: Codex scaffold convention may differ from Anarchy's observed user-profile path
+
+- Severity: Medium
+- Status: Open; documented as host-contract caveat
+- Component: Setup / Codex plugin host contract / User-profile install
+- Repro:
+  - Compare current Anarchy user-profile install shape to Codex's bundled `plugin-creator` skill.
+  - Anarchy user-profile currently writes:
+    - marketplace: `~/.agents/plugins/marketplace.json`
+    - source path: `./.codex/plugins/anarchy-ai`
+    - plugin root: `~/.codex/plugins/anarchy-ai`
+  - `plugin-creator` describes generic home-local plugin scaffolding as:
+    - marketplace: `~/.agents/plugins/marketplace.json`
+    - source path: `./plugins/<plugin-name>`
+- Expected:
+  - Installer docs distinguish evidence-backed local behavior from Codex's intended canonical plugin-scaffold convention.
+  - A moving Codex host surface is not treated as settled doctrine without fresh proof.
+- Actual:
+  - Anarchy's current lane is backed by observed installs and fresh-session evidence, but may have been shaped by testing against earlier or buggy Codex behavior.
+  - Without an explicit caveat, future sessions could treat `./.codex/plugins/anarchy-ai` as unquestionably canonical rather than evidence-backed and subject to host-contract verification.
+- Evidence:
+  - User supplied `plugin-creator` on `2026-04-26`; the skill states home-local plugins use `~/.agents/plugins/marketplace.json` plus marketplace-relative `./plugins/<plugin-name>`.
+  - Prior Anarchy tests showed `./.codex/plugins/anarchy-ai` working for the user-profile lane, but also showed repeated Codex cache/materialization drift across `0.1.7`, `0.1.8`, and `0.1.9`.
+  - User noted Codex has had frequent recent updates, so earlier observed behavior may not represent the intended long-term method.
+- Required product direction:
+  - Keep current Anarchy user-profile lane until fresh tests prove a better host-native method.
+  - Treat `plugin-creator` as scaffold convention evidence, not as an automatic migration command.
+  - If current Codex docs/scaffold/fresh smoke converge on another home-local layout, migrate explicitly with install-state and retirement handling rather than silently changing paths.
+- Acceptance:
+  - Truth matrix records the scaffold-vs-observed-path caveat.
+  - Setup spec states the current lane is evidence-backed but not proven canonical.
+  - A future verification pass compares official Codex docs, `plugin-creator` output, fresh-session plugin resolution, cache materialization, and config enable-state on the current Codex version.
 
 ### AA-BUG-005: Missing setup `self-check` command for active mount diagnostics
 

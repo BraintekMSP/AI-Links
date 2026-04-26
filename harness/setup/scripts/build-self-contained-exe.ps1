@@ -661,7 +661,7 @@ $pathAuditScriptPath = Join-Path $repoRoot 'harness\pathing\scripts\test-path-ca
 $documentationAuditScriptPath = Join-Path $repoRoot 'docs\scripts\test-documentation-truth-compliance.ps1'
 $removalSafetyAuditScriptPath = Join-Path $repoRoot 'docs\scripts\test-removal-safety-compliance.ps1'
 
-$tempRoot = Join-Path $env:LOCALAPPDATA 'Temp\ai-links-setup-build'
+$tempRoot = Join-Path $env:LOCALAPPDATA 'Anarchy-AI\AI-Links\setup-build'
 $objRoot = Join-Path $tempRoot 'obj'
 $binRoot = Join-Path $tempRoot 'bin'
 $serverObjRoot = Join-Path $tempRoot 'server-obj'

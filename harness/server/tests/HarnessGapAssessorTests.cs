@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Runtime.CompilerServices;
 using Xunit;
 
 namespace AnarchyAi.Mcp.Server.Tests;
@@ -41,13 +42,42 @@ public sealed class HarnessGapAssessorTests
     }
 
     /// <summary>
-    /// Walks upward from the test binary directory until the repo root is found.
+    /// Locates the repo root from source location first, then explicit/current/runtime fallbacks.
     /// </summary>
     /// <returns>The absolute repo root path containing <c>AGENTS.md</c>.</returns>
-    /// <remarks>Critical dependencies: the repo keeping <c>AGENTS.md</c> at its root and tests running from a descendant directory.</remarks>
-    private static string FindRepoRoot()
+    /// <remarks>Critical dependencies: the repo keeping <c>AGENTS.md</c> at its root and build output potentially living outside the repo.</remarks>
+    private static string FindRepoRoot([CallerFilePath] string sourceFilePath = "")
     {
-        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        var candidateRoots = new[]
+        {
+            Path.GetDirectoryName(sourceFilePath) ?? string.Empty,
+            Environment.GetEnvironmentVariable("ANARCHY_AI_REPO_ROOT") ?? string.Empty,
+            Directory.GetCurrentDirectory(),
+            AppContext.BaseDirectory
+        };
+
+        foreach (var candidateRoot in candidateRoots.Where(path => !string.IsNullOrWhiteSpace(path)))
+        {
+            var found = TryFindRepoRoot(candidateRoot);
+            if (found is not null)
+            {
+                return found;
+            }
+        }
+
+        throw new DirectoryNotFoundException("Could not locate repo root for server tests.");
+    }
+
+    /// <summary>
+    /// Walks upward from one candidate path until the repo root marker is found.
+    /// </summary>
+    /// <param name="startPath">Candidate file or directory path.</param>
+    /// <returns>The repo root path, or null when the marker is not found.</returns>
+    /// <remarks>Critical dependencies: root AGENTS.md marker.</remarks>
+    private static string? TryFindRepoRoot(string startPath)
+    {
+        var fullPath = Path.GetFullPath(startPath);
+        var current = new DirectoryInfo(File.Exists(fullPath) ? Path.GetDirectoryName(fullPath)! : fullPath);
         while (current is not null)
         {
             if (File.Exists(Path.Combine(current.FullName, "AGENTS.md")))
@@ -58,6 +88,6 @@ public sealed class HarnessGapAssessorTests
             current = current.Parent;
         }
 
-        throw new DirectoryNotFoundException("Could not locate repo root for server tests.");
+        return null;
     }
 }

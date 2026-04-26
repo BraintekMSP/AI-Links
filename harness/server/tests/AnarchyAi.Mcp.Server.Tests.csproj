@@ -18,4 +18,13 @@
   <ItemGroup>
     <ProjectReference Include="..\dotnet\AnarchyAi.Mcp.Server.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\..\plugins\anarchy-ai\schemas\**\*"
+             LinkBase="schemas"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\plugins\anarchy-ai\templates\**\*"
+             LinkBase="templates"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

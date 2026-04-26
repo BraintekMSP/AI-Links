@@ -86,6 +86,7 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 - `../harness/README.md` - local runtime harness boundary and capability notes
 - `../harness/setup/dotnet/AnarchyAi.Setup.csproj` - Windows-first setup/installer project that embeds the current plugin bundle and exposes GUI/CLI bootstrap behavior
 - `../harness/setup/scripts/build-self-contained-exe.ps1` - one-command helper that syncs schema-bundle hashes, runs the path and documentation-truth audits, builds the self-contained setup executable with temp build lanes, and refreshes the local generated `plugins/AnarchyAi.Setup.exe`
+- `../Directory.Build.props` - redirects normal repo-local .NET `bin/obj` build and test outputs into `%LOCALAPPDATA%\Anarchy-AI\AI-Links\dotnet` so OneDrive-backed worktrees do not accumulate generated build artifacts
 - `../harness/contracts/preflight-session.contract.json` - session preflight contract for complex changes
 - `../harness/contracts/schema-reality.contract.json` - first harness contract for `is_schema_real_or_shadow_copied`
 - `../harness/contracts/harness-gap-state.contract.json` - environment gap-assessment contract for install/runtime/schema/adoption state

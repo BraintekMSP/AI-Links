@@ -88,10 +88,10 @@ The preferred v1 delivery model is:
 
 1. Drop `AnarchyAi.Setup.exe` into `./plugins/`.
 2. Run it.
-3. Choose an install lane.
-4. Let it materialize the plugin bundle into the selected lane.
-5. Let it create or update the matching marketplace root.
-6. Let it verify that the target is ready.
+3. Choose a setup lane.
+4. For repo adoption, apply the repo underlay without installing a runtime.
+5. For runtime tools, install the plugin once through the user profile.
+6. Let it verify that the selected target is ready.
 
 Current lanes:
 
@@ -145,6 +145,14 @@ Current user-profile shape:
 - `plugins.<entry>.source.path = ./.codex/plugins/anarchy-ai`
 - `.codex-plugin/plugin.json -> name = anarchy-ai`
 - `.mcp.json -> mcpServers -> anarchy-ai`
+
+Host scaffold caveat:
+
+- Codex's bundled `plugin-creator` skill describes generic home-local plugin scaffolding as `~/.agents/plugins/marketplace.json` plus a marketplace-relative `./plugins/<plugin-name>` source path.
+- Anarchy's current user-profile lane uses `~/.agents/plugins/marketplace.json` plus `./.codex/plugins/anarchy-ai`, backed by observed installs, fresh-session plugin resolution, and setup status evidence.
+- Recent Codex updates mean the observed Anarchy lane may have been shaped by host behavior that was incomplete or buggy at the time of testing.
+- Treat the current Anarchy lane as evidence-backed and product-valid, but not yet proven to be Codex's intended canonical home-plugin method.
+- If current Codex scaffold behavior, official docs, and fresh-session smoke tests converge on another home-local layout, revise the installer through a migration path rather than silently treating existing observations as obsolete.
 
 Codex home readiness is plugin-marketplace-first:
 
@@ -211,7 +219,7 @@ There is intentionally no `/uninstall-underlay`, `/revert-underlay`, or setup mo
 
 ### Duplicate Codex lane discipline
 
-Install/update operations that select a primary runtime lane (`/userprofile` or `/repolocal`) may set the selected Anarchy Codex lane to `enabled = true` and disable other enabled Anarchy Codex plugin lanes to prevent duplicate skills.
+Install/update operations that select a primary runtime lane (`/userprofile` or `/repolocal`) may create or set the selected Anarchy Codex lane to `enabled = true` and disable other enabled Anarchy Codex plugin lanes to prevent duplicate skills.
 
 Contract:
 
@@ -237,15 +245,16 @@ Expected behavior:
 - default target to the local repo when detectable
 - show current target path
 - allow browsing to a different repo path
-- allow explicit install-lane selection between `repo-local` and `user-profile`
+- allow explicit setup-lane selection between `repo-underlay` and `user-profile install`
 - show platform radios for future payload expansion, with only `Windows` enabled for the current payload
-- offer `Install`, `Assess`, and later `Update`
-- show a responsible disclosure page before GUI install continues
+- offer repo-underlay apply plus read-only schema refresh planning for the repo lane
+- offer user-profile install and assess for the runtime lane
+- show a responsible disclosure page before any GUI write action continues
 - show a compact success or failure summary
 
-The GUI stays simple and bounded: install, assess, update. Full control-center features live elsewhere.
+The GUI stays simple and bounded: repo underlay or user-profile install. Full control-center features and repo-local runtime proving stay in the CLI.
 
-The install disclosure should stay concise and mostly generated from current installer facts so it remains aligned with rebuilds.
+The setup disclosure should stay concise and mostly generated from current installer facts so it remains aligned with rebuilds.
 
 ### CLI arguments
 
@@ -494,8 +503,9 @@ This direction is now partially delivered in local state.
 
 Delivered today:
 
-- GUI mode covers `Install` and `Assess`
-- GUI exposes install-lane selection and placeholder platform radios (`Windows` payload is the active lane)
+- GUI mode covers repo underlay apply, repo refresh planning, user-profile install, and user-profile assess
+- GUI exposes setup-lane selection for `repo-underlay` versus `user-profile install`, with repo-local runtime kept as a CLI proving/debug lane
+- GUI keeps placeholder platform radios (`Windows` payload is the active lane)
 
 Future work reserved for later delivery:
 
@@ -562,7 +572,7 @@ Its current responsibilities are:
 - run both the path-canon audit and the documentation-truth audit before publish succeeds
 - publish the MCP server runtime first
 - stage a temporary plugin payload carrying that freshly published runtime
-- publish the setup project with temp `obj/bin/publish` lanes under `AppData\Local\Temp`
+- publish the setup project with temp `obj/bin/publish` lanes under `%LOCALAPPDATA%\Anarchy-AI\AI-Links\setup-build`
 - refresh the local generated `plugins/AnarchyAi.Setup.exe`
 
 That keeps setup regeneration machine-local and avoids synced-workspace build churn.
@@ -571,6 +581,7 @@ Build prerequisite boundary:
 
 - .NET SDK/runtime prerequisites belong in a non-workspace user/machine-local lane, such as `%USERPROFILE%\.dotnet`, `%LOCALAPPDATA%`, or `C:\Program Files\dotnet`
 - NuGet/package caches and restore scratch also belong outside the synced repo/workspace
+- normal repo-local `dotnet build`, `dotnet restore`, and `dotnet test` invocations are redirected by `Directory.Build.props` to `%LOCALAPPDATA%\Anarchy-AI\AI-Links\dotnet` unless a developer explicitly opts into repo-local artifacts with `AnarchyUseRepoLocalDotNetArtifacts=true`
 - do not install a .NET SDK, runtime, restore cache, or package cache into this repo or any consumer repo
 - repo-local install means the Anarchy plugin bundle can live under the repo; it does not mean build prerequisites live there
 
@@ -589,10 +600,12 @@ Before handing out a local setup executable:
    - `Get-Content .\plugins\anarchy-ai\.codex-plugin\plugin.json`
    - cache-sensitive releases must not reuse the prior published `version`
    - the `2026-04-25` cache-invalidation test release uses `0.1.9`
-4. Smoke install into a throwaway repo with a `.git` marker:
-   - run `plugins\AnarchyAi.Setup.exe /install /repolocal /repo <throwaway-repo> /silent /json`
+4. Smoke underlay into a throwaway repo with a `.git` marker:
+   - run `plugins\AnarchyAi.Setup.exe /underlay /repo <throwaway-repo> /silent /json`
    - require `bootstrap_state = "ready"`
-   - require `install_state.state_valid = true`
+   - require `install_scope = "repo_underlay"`
+   - require `runtime_present = false`, `marketplace_registered = false`, and `host_config_modified = false`
+   - run repo-local runtime smoke separately only when deliberately proving/debugging `/repolocal`
 5. Confirm the extracted runtime contains current tool strings:
    - `direction_assist_test`
    - `verify_config_materialization`

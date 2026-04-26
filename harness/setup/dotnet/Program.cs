@@ -302,8 +302,8 @@ internal static class ConsoleWindow
     }
 }
 
-// Purpose: Provides the Windows Forms front end for bounded setup assess/install actions.
-// Expected input: User-selected install lane, optional repo path, and button-click actions.
+// Purpose: Provides the Windows Forms front end for bounded underlay and user-profile install actions.
+// Expected input: User-selected setup lane, optional repo path, and button-click actions.
 // Expected output: GUI state updates plus serialized setup results displayed to the user.
 // Critical dependencies: SetupEngine, ProgramJson, Windows Forms controls, and the shared path canon.
 internal sealed class SetupForm : Form
@@ -314,7 +314,7 @@ internal sealed class SetupForm : Form
     private readonly TextBox _resultTextBox;
     private readonly Label _statusLabel;
     private Label _subtitleLabel = null!;
-    private readonly RadioButton _repoLocalRadioButton;
+    private readonly RadioButton _repoUnderlayRadioButton;
     private readonly RadioButton _userProfileRadioButton;
     private readonly CheckBox _codexHostCheckBox;
     private readonly CheckBox _claudeCodeHostCheckBox;
@@ -374,7 +374,7 @@ internal sealed class SetupForm : Form
 
         var installLaneGroup = new GroupBox
         {
-            Text = "Install Lane",
+            Text = "Setup Lane",
             Dock = DockStyle.Fill,
             AutoSize = true,
             Padding = new Padding(12, 12, 12, 8),
@@ -387,15 +387,15 @@ internal sealed class SetupForm : Form
             FlowDirection = FlowDirection.TopDown,
             WrapContents = false
         };
-        _repoLocalRadioButton = new RadioButton
+        _repoUnderlayRadioButton = new RadioButton
         {
             AutoSize = true,
-            Text = "Repo-local install",
+            Text = "Repo underlay",
             Checked = true,
             Margin = new Padding(0, 2, 0, 4)
         };
-        _repoLocalRadioButton.CheckedChanged += (_, _) => UpdateActionButtons();
-        installLaneFlow.Controls.Add(_repoLocalRadioButton);
+        _repoUnderlayRadioButton.CheckedChanged += (_, _) => UpdateActionButtons();
+        installLaneFlow.Controls.Add(_repoUnderlayRadioButton);
 
         _userProfileRadioButton = new RadioButton
         {
@@ -598,11 +598,11 @@ internal sealed class SetupForm : Form
         };
 
         _assessButton = new Button { Text = "Assess", AutoSize = false, Width = 220, Height = 36 };
-        _assessButton.Click += (_, _) => Execute(OperationMode.Assess);
+        _assessButton.Click += (_, _) => Execute(GetSecondaryActionMode());
         buttonPanel.Controls.Add(_assessButton);
 
         _installButton = new Button { Text = "Install", AutoSize = false, Width = 220, Height = 36 };
-        _installButton.Click += (_, _) => Execute(OperationMode.Install);
+        _installButton.Click += (_, _) => Execute(GetPrimaryActionMode());
         buttonPanel.Controls.Add(_installButton);
 
         var closeButton = new Button { Text = "Close", AutoSize = false, Width = 110, Height = 36 };
@@ -780,7 +780,7 @@ internal sealed class SetupForm : Form
     // Purpose: Keeps the repo-local selected path in sync with manual textbox edits.
     // Expected input: Standard text-changed event arguments and the current textbox value.
     // Expected output: No direct return value; updates the cached selected repo path.
-    // Critical dependencies: Current install-lane selection and path-presentation update guards.
+    // Critical dependencies: Current setup-lane selection and path-presentation update guards.
     private void RepoPathTextBox_TextChanged(object? sender, EventArgs e)
     {
         if (_updatingPathPresentation || GetSelectedInstallScope() == InstallScope.UserProfile)
@@ -805,7 +805,7 @@ internal sealed class SetupForm : Form
         _selectedRepoPath = _targetRepoTextBox.Text;
     }
 
-    // Purpose: Runs an assess or install action from the GUI and displays the resulting JSON state.
+    // Purpose: Runs a GUI action and displays the resulting JSON state.
     // Expected input: The requested operation mode plus the current lane and repo-path selections.
     // Expected output: No direct return value; updates status text and the result textbox.
     // Critical dependencies: SetupEngine, InstallDisclosureForm, and ProgramJson serialization.
@@ -816,17 +816,35 @@ internal sealed class SetupForm : Form
             var installScope = GetSelectedInstallScope();
             var effectiveRepoPath = GetEffectiveRepoPath();
             var selectedHostTargets = GetSelectedHostTargets();
-            if (mode == OperationMode.Install)
+            if (mode is OperationMode.Install or OperationMode.Underlay)
             {
+                var disclosureText = mode == OperationMode.Underlay
+                    ? SetupEngine.BuildUnderlayDisclosure(effectiveRepoPath)
+                    : SetupEngine.BuildInstallDisclosure(effectiveRepoPath, installScope, selectedHostTargets);
+                var laneLabel = mode == OperationMode.Underlay
+                    ? "Repo underlay"
+                    : "User-profile install";
+                var hostTargetsLabel = mode == OperationMode.Underlay
+                    ? "(none; underlay does not register a host runtime)"
+                    : HostTargetLabels.ToDisplayString(selectedHostTargets);
+                var continueButtonText = mode == OperationMode.Underlay
+                    ? "Apply Underlay"
+                    : "Continue Install";
+                var displayRepoPath = string.IsNullOrWhiteSpace(effectiveRepoPath)
+                    ? "(not specified)"
+                    : effectiveRepoPath;
                 var disclosure = new InstallDisclosureForm(
-                    effectiveRepoPath,
-                    SetupEngine.BuildInstallDisclosure(effectiveRepoPath, installScope, selectedHostTargets),
-                    installScope,
-                    selectedHostTargets);
+                    displayRepoPath,
+                    disclosureText,
+                    laneLabel,
+                    hostTargetsLabel,
+                    continueButtonText);
 
                 if (disclosure.ShowDialog(this) != DialogResult.OK)
                 {
-                    _statusLabel.Text = "Install cancelled.";
+                    _statusLabel.Text = mode == OperationMode.Underlay
+                        ? "Underlay cancelled."
+                        : "Install cancelled.";
                     return;
                 }
             }
@@ -862,12 +880,35 @@ internal sealed class SetupForm : Form
         return _userProfileRadioButton.Checked ? InstallScope.UserProfile : InstallScope.RepoLocal;
     }
 
+    // Purpose: Resolves the secondary/read-only GUI action for the selected lane.
+    // Expected input: Current radio-button state.
+    // Expected output: Refresh planning for repo underlay, or runtime assess for user-profile installs.
+    // Critical dependencies: SetupEngine operation modes and the GUI lane contract.
+    private OperationMode GetSecondaryActionMode()
+    {
+        return _userProfileRadioButton.Checked ? OperationMode.Assess : OperationMode.Refresh;
+    }
+
+    // Purpose: Resolves the primary/write GUI action for the selected lane.
+    // Expected input: Current radio-button state.
+    // Expected output: Underlay materialization for repo underlay, or runtime install for user-profile installs.
+    // Critical dependencies: SetupEngine operation modes and the GUI lane contract.
+    private OperationMode GetPrimaryActionMode()
+    {
+        return _userProfileRadioButton.Checked ? OperationMode.Install : OperationMode.Underlay;
+    }
+
     // Purpose: Resolves the selected host targets from the host-target checkbox group.
     // Expected input: Current checkbox state of Codex, Claude Code, and Claude Desktop host toggles.
     // Expected output: A HostTargets bitmask describing every host lane the current GUI run should register.
     // Critical dependencies: The host-target checkbox controls and the default-to-Codex fallback when all are unchecked.
     private HostTargets GetSelectedHostTargets()
     {
+        if (!_userProfileRadioButton.Checked)
+        {
+            return HostTargets.None;
+        }
+
         var targets = HostTargets.None;
         if (_codexHostCheckBox.Checked) { targets |= HostTargets.Codex; }
         if (_claudeCodeHostCheckBox.Checked) { targets |= HostTargets.ClaudeCode; }
@@ -884,10 +925,11 @@ internal sealed class SetupForm : Form
         var selectedScope = GetSelectedInstallScope();
         _assessButton.Text = selectedScope == InstallScope.UserProfile
             ? "Assess User-Profile"
-            : "Assess Repo-Local";
+            : "Plan Repo Refresh";
         _installButton.Text = selectedScope == InstallScope.UserProfile
             ? "Install User-Profile"
-            : "Install Repo-Local";
+            : "Apply Repo Underlay";
+        UpdateHostTargetPresentation(selectedScope);
         UpdateHeaderCopy(selectedScope);
         UpdatePathPresentation(selectedScope);
     }
@@ -900,13 +942,25 @@ internal sealed class SetupForm : Form
     {
         if (installScope == InstallScope.UserProfile)
         {
-            _subtitleLabel.Text = "User-profile harness install and assessment";
-            _introLabel.Text = $"Install or assess {AnarchyBranding.BrandDisplayName} through the current user profile. User-profile install keeps the harness under the current user profile instead of attaching it to one repo.";
+            _subtitleLabel.Text = "User-profile runtime install and assessment";
+            _introLabel.Text = $"Install or assess {AnarchyBranding.BrandDisplayName} through the current user profile. User-profile install is the normal runtime lane and avoids creating one Codex plugin distribution per repo.";
             return;
         }
 
-        _subtitleLabel.Text = "Repo-local harness install and assessment";
-        _introLabel.Text = $"Install or assess {AnarchyBranding.BrandDisplayName} for a selected repo. Repo-local install keeps the harness inside that repo so the delivery surface travels with the workspace.";
+        _subtitleLabel.Text = "Repo underlay setup";
+        _introLabel.Text = $"Seed the portable {AnarchyBranding.BrandDisplayName} underlay into a selected repo. Repo underlay carries schema, narrative, and hygiene surfaces without installing a runtime, creating a marketplace entry, or touching host config.";
+    }
+
+    // Purpose: Disables host-target controls when the selected lane does not register any host runtime.
+    // Expected input: The selected setup lane.
+    // Expected output: Host controls enabled only for user-profile runtime installation.
+    // Critical dependencies: GetSelectedHostTargets and the repo-underlay runtime-free contract.
+    private void UpdateHostTargetPresentation(InstallScope installScope)
+    {
+        var hostTargetsEnabled = installScope == InstallScope.UserProfile;
+        _codexHostCheckBox.Enabled = hostTargetsEnabled;
+        _claudeCodeHostCheckBox.Enabled = hostTargetsEnabled;
+        _claudeDesktopHostCheckBox.Enabled = hostTargetsEnabled;
     }
 
     // Purpose: Switches the path UI between editable repo-local selection and fixed user-profile presentation.
@@ -961,19 +1015,19 @@ internal sealed class SetupForm : Form
     }
 }
 
-// Purpose: Presents the install disclosure that the user must review before a GUI install proceeds.
-// Expected input: Repo path context, generated disclosure text, and the chosen install scope.
+// Purpose: Presents the setup disclosure that the user must review before a GUI write action proceeds.
+// Expected input: Repo path context, generated disclosure text, and display labels for the chosen setup action.
 // Expected output: A modal dialog with continue/back actions.
-// Critical dependencies: SetupEngine.BuildInstallDisclosure and Windows Forms controls.
+// Critical dependencies: SetupEngine.BuildInstallDisclosure, SetupEngine.BuildUnderlayDisclosure, and Windows Forms controls.
 internal sealed class InstallDisclosureForm : Form
 {
-    // Purpose: Builds the modal disclosure dialog for a pending install action.
-    // Expected input: Repo-path context, disclosure text, chosen install scope, and chosen host targets.
+    // Purpose: Builds the modal disclosure dialog for a pending setup write action.
+    // Expected input: Repo-path context, disclosure text, lane label, host-target label, and continue-button text.
     // Expected output: A ready-to-show modal form instance.
     // Critical dependencies: Generated disclosure text, SetupWindowIcon, and Windows Forms layout controls.
-    public InstallDisclosureForm(string repoPath, string disclosureText, InstallScope installScope, HostTargets hostTargets)
+    public InstallDisclosureForm(string repoPath, string disclosureText, string laneLabel, string hostTargetsLabel, string continueButtonText)
     {
-        Text = "Install Disclosure";
+        Text = "Setup Disclosure";
         Width = 920;
         Height = 660;
         MinimumSize = new System.Drawing.Size(860, 620);
@@ -1017,7 +1071,7 @@ internal sealed class InstallDisclosureForm : Form
             BackColor = System.Drawing.SystemColors.Control,
             Dock = DockStyle.Top,
             Height = 74,
-            Text = $"Target repo:{Environment.NewLine}{repoPath}{Environment.NewLine}Install lane:{Environment.NewLine}{(installScope == InstallScope.UserProfile ? "User-profile" : "Repo-local")}{Environment.NewLine}Host targets:{Environment.NewLine}{HostTargetLabels.ToDisplayString(hostTargets)}",
+            Text = $"Target repo:{Environment.NewLine}{repoPath}{Environment.NewLine}Setup lane:{Environment.NewLine}{laneLabel}{Environment.NewLine}Host targets:{Environment.NewLine}{hostTargetsLabel}",
             Margin = new Padding(0, 6, 0, 10),
             TabStop = false
         }, 0, 1);
@@ -1045,7 +1099,7 @@ internal sealed class InstallDisclosureForm : Form
 
         var continueButton = new Button
         {
-            Text = "Continue Install",
+            Text = continueButtonText,
             AutoSize = false,
             Width = 140,
             Height = 36,
@@ -1560,6 +1614,44 @@ internal sealed class SetupEngine
             "- Strengthens startup/control surfaces; it does not rewrite project code by itself.",
             "Back out now if this repo should remain unchanged."
         ]);
+
+        return string.Join(Environment.NewLine, disclosureLines);
+    }
+
+    // Purpose: Builds the plain-text disclosure shown before the GUI applies repo underlay surfaces.
+    // Expected input: Target repo path selected in the GUI.
+    // Expected output: A bounded disclosure string that distinguishes underlay materialization from runtime install.
+    // Critical dependencies: MaterializeUnderlay and the current repo-travel product posture.
+    public static string BuildUnderlayDisclosure(string repoPath)
+    {
+        var targetRepo = string.IsNullOrWhiteSpace(repoPath)
+            ? "(not specified)"
+            : repoPath;
+        var disclosureLines = new[]
+        {
+            $"Responsible disclosure for repo-underlay {AnarchyBranding.BrandDisplayName} setup.",
+            "All carried schema, narrative, and hygiene surfaces remain authored in this repo and are published into the standalone installer payload.",
+            $"Target repo: {targetRepo}",
+            "Underlay impact:",
+            "- Seeds missing portable root schema files from the embedded payload.",
+            "- Seeds the Anarchy narrative register and projects directory when missing.",
+            "- Adds Anarchy-scoped .gitignore hygiene lines when missing.",
+            "- Creates a small AGENTS.md awareness stub only when AGENTS.md is absent.",
+            "- Leaves existing AGENTS.md and existing root schema files in place.",
+            "- Does not add plugins\\anarchy-ai\\.",
+            "- Does not create or update .agents\\plugins\\marketplace.json.",
+            "- Does not register a plugin, modify Codex plugin enable-state, write host MCP config, or start a runtime process.",
+            "Product behavior:",
+            "- Makes the repo carry portable Anarchy startup/schema discipline without making the repo a runtime source.",
+            "- Keeps user-profile install as the normal runtime plugin lane.",
+            "- Keeps repo-local runtime install as a CLI-only proving/debug lane.",
+            "Human impact:",
+            "- Repo-local text/schema surfaces only; no machine-wide install or admin change.",
+            "AI impact:",
+            "- Helps future agents discover and apply the underlay before task-local shortcuts dominate.",
+            "- Does not make Anarchy MCP tools available by itself; use user-profile install for runtime tools.",
+            "Back out now if this repo should remain unchanged."
+        };
 
         return string.Join(Environment.NewLine, disclosureLines);
     }
@@ -3398,16 +3490,14 @@ internal sealed class SetupEngine
     {
         var codexConfigPath = AnarchyPathCanon.ResolveUserProfileCodexConfigFilePath(GetUserProfileDirectory());
         var selectedKey = $"{BuildPluginName(options.InstallScope, workspaceRoot)}@{BuildMarketplaceName(options.InstallScope, workspaceRoot)}";
-        if (!File.Exists(codexConfigPath))
-        {
-            return new CodexDuplicateLaneResult(selectedKey, [], false, false);
-        }
-
-        var configText = File.ReadAllText(codexConfigPath);
+        var configText = File.Exists(codexConfigPath)
+            ? File.ReadAllText(codexConfigPath)
+            : string.Empty;
         var (updatedText, disabledLanes, duplicateDetected, selectedLaneEnabled) = ReconcileAnarchyCodexLanesInConfigText(configText, selectedKey);
 
         if (!string.Equals(updatedText, configText, StringComparison.Ordinal))
         {
+            Directory.CreateDirectory(Path.GetDirectoryName(codexConfigPath)!);
             File.WriteAllText(codexConfigPath, updatedText, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         }
 
@@ -3443,6 +3533,7 @@ internal sealed class SetupEngine
         var disabled = new List<string>();
         var duplicateDetected = false;
         var selectedLaneEnabled = false;
+        var selectedLaneSeen = false;
         var sectionPattern = @"(?ms)^\[plugins\.""(?<key>[^""]+)""\]\s*(?<body>.*?)(?=^\[|\z)";
         var updatedText = Regex.Replace(
             configText,
@@ -3459,7 +3550,8 @@ internal sealed class SetupEngine
                 var enabled = ReadEnabledFromPluginConfigSectionBody(body);
                 if (string.Equals(key, selectedKey, StringComparison.Ordinal))
                 {
-                    if (enabled != false)
+                    selectedLaneSeen = true;
+                    if (enabled == true)
                     {
                         return match.Value;
                     }
@@ -3480,6 +3572,15 @@ internal sealed class SetupEngine
                 return match.Value[..(match.Groups["body"].Index - match.Index)] + replacedBody;
             },
             RegexOptions.CultureInvariant);
+
+        if (!selectedLaneSeen)
+        {
+            selectedLaneEnabled = true;
+            var separator = string.IsNullOrWhiteSpace(updatedText)
+                ? string.Empty
+                : updatedText.EndsWith('\n') ? Environment.NewLine : Environment.NewLine + Environment.NewLine;
+            updatedText += separator + $"[plugins.\"{selectedKey}\"]" + Environment.NewLine + "enabled = true" + Environment.NewLine;
+        }
 
         return (updatedText, disabled.OrderBy(static value => value, StringComparer.Ordinal).ToArray(), duplicateDetected, selectedLaneEnabled);
     }

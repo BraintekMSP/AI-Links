@@ -1,5 +1,6 @@
 using Xunit;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 
@@ -141,6 +142,21 @@ public sealed class SetupEngineTests
         var disclosure = SetupEngine.BuildInstallDisclosure(string.Empty, InstallScope.UserProfile, HostTargets.Codex);
 
         Assert.Contains("5 core + 1 test harness tool", disclosure, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void BuildUnderlayDisclosure_SeparatesRepoUnderlayFromRuntimeInstall()
+    {
+        var disclosure = SetupEngine.BuildUnderlayDisclosure(@"C:\repo");
+
+        Assert.Contains("repo-underlay", disclosure, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Does not add plugins\\anarchy-ai", disclosure, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Does not create or update .agents\\plugins\\marketplace.json", disclosure, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Does not register a plugin", disclosure, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("user-profile install", disclosure, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("CLI-only proving/debug lane", disclosure, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("INSTALLED_BY_DEFAULT", disclosure, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Codex plugin enable-state in", disclosure, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -572,6 +588,29 @@ public sealed class SetupEngineTests
         Assert.Contains("[plugins.\"teams@openai-curated\"]\r\nenabled = true", result.UpdatedText.Replace("\n", "\r\n"));
     }
 
+    [Fact]
+    public void ReconcileAnarchyCodexLanesInConfigText_CreatesMissingSelectedLane()
+    {
+        const string config = """
+        [plugins."anarchy-ai@anarchy-ai-user-profile"]
+        enabled = true
+
+        [plugins."teams@openai-curated"]
+        enabled = true
+        """;
+
+        var result = SetupEngine.ReconcileAnarchyCodexLanesInConfigText(
+            config,
+            "anarchy-ai@anarchy-ai-repo-brainymigrator");
+
+        Assert.True(result.DuplicateDetected);
+        Assert.True(result.SelectedLaneEnabled);
+        Assert.Equal(["anarchy-ai@anarchy-ai-user-profile"], result.DisabledLanes);
+        Assert.Matches("\\[plugins\\.\"anarchy-ai@anarchy-ai-repo-brainymigrator\"\\]\\s+enabled = true", result.UpdatedText);
+        Assert.Matches("\\[plugins\\.\"anarchy-ai@anarchy-ai-user-profile\"\\]\\s+enabled = false", result.UpdatedText);
+        Assert.Contains("[plugins.\"teams@openai-curated\"]\r\nenabled = true", result.UpdatedText.Replace("\n", "\r\n"));
+    }
+
     /// <summary>
     /// Confirms that a fully absent repo-local plugin root reports the missing bundle itself without noisy child-surface findings.
     /// </summary>
@@ -916,13 +955,42 @@ public sealed class SetupEngineTests
     }
 
     /// <summary>
-    /// Walks upward from the test binary directory until the repo root is found.
+    /// Locates the repo root from source location first, then explicit/current/runtime fallbacks.
     /// </summary>
     /// <returns>The absolute repo root path containing <c>AGENTS.md</c>.</returns>
-    /// <remarks>Critical dependencies: the repo keeping <c>AGENTS.md</c> at its root and tests running from a descendant directory.</remarks>
-    private static string FindRepoRoot()
+    /// <remarks>Critical dependencies: the repo keeping <c>AGENTS.md</c> at its root and build output potentially living outside the repo.</remarks>
+    private static string FindRepoRoot([CallerFilePath] string sourceFilePath = "")
     {
-        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        var candidateRoots = new[]
+        {
+            Path.GetDirectoryName(sourceFilePath) ?? string.Empty,
+            Environment.GetEnvironmentVariable("ANARCHY_AI_REPO_ROOT") ?? string.Empty,
+            Directory.GetCurrentDirectory(),
+            AppContext.BaseDirectory
+        };
+
+        foreach (var candidateRoot in candidateRoots.Where(path => !string.IsNullOrWhiteSpace(path)))
+        {
+            var found = TryFindRepoRoot(candidateRoot);
+            if (found is not null)
+            {
+                return found;
+            }
+        }
+
+        throw new DirectoryNotFoundException("Could not locate repo root for setup tests.");
+    }
+
+    /// <summary>
+    /// Walks upward from one candidate path until the repo root marker is found.
+    /// </summary>
+    /// <param name="startPath">Candidate file or directory path.</param>
+    /// <returns>The repo root path, or null when the marker is not found.</returns>
+    /// <remarks>Critical dependencies: the repo root AGENTS.md marker.</remarks>
+    private static string? TryFindRepoRoot(string startPath)
+    {
+        var fullPath = Path.GetFullPath(startPath);
+        var current = new DirectoryInfo(File.Exists(fullPath) ? Path.GetDirectoryName(fullPath)! : fullPath);
         while (current is not null)
         {
             if (File.Exists(Path.Combine(current.FullName, "AGENTS.md")))
@@ -933,7 +1001,7 @@ public sealed class SetupEngineTests
             current = current.Parent;
         }
 
-        throw new DirectoryNotFoundException("Could not locate repo root for setup tests.");
+        return null;
     }
 
     /// <summary>

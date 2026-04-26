@@ -2,17 +2,17 @@
 .SYNOPSIS
 Validates the Anarchy-AI retirement helpers against the recent live cleanup incident.
 .DESCRIPTION
-Creates temporary user-profile fixtures inside the repo workspace, then proves the machine-facing
+Creates temporary user-profile fixtures inside a machine-local AppData lane, then proves the machine-facing
 retirement helper detects legacy bundles, retires Anarchy-only marketplace files instead of leaving
 empty shells, removes Anarchy plugin enable-state, and preserves unrelated Codex config sections
 unless explicit legacy custom-MCP cleanup is requested.
 .PARAMETER RepoRoot
-Absolute repo root used to locate the helper and create workspace-safe temporary fixtures.
+Absolute repo root used to locate the helper under test.
 .OUTPUTS
 Plain-language success output on pass; throws on the first failed assertion.
 .NOTES
 Critical dependencies: the current remove-anarchy-ai.ps1 helper, PowerShell JSON parsing, and a
-writable temporary lane beneath the repo workspace.
+writable machine-local temporary lane beneath AppData.
 #>
 param(
   [Parameter(Mandatory = $true)]
@@ -94,9 +94,9 @@ function Invoke-RemovalHelperJson {
 Creates one temporary user-profile fixture for retirement-helper validation.
 .DESCRIPTION
 Builds a legacy home-local Anarchy bundle, Anarchy-only marketplace, optional custom-MCP config,
-and documented plugin cache inside a workspace-safe path.
+and documented plugin cache inside a machine-local path.
 .PARAMETER RootPath
-Absolute fixture root beneath the repo workspace.
+Absolute fixture root beneath the test fixture root.
 .OUTPUTS
 Hashtable describing the created paths.
 .NOTES
@@ -181,7 +181,12 @@ $resolvedRepoRoot = [System.IO.Path]::GetFullPath($RepoRoot)
 $helperPath = Join-Path $resolvedRepoRoot 'plugins\anarchy-ai\scripts\remove-anarchy-ai.ps1'
 Assert-Condition -Condition (Test-Path $helperPath) -Message "Retirement helper not found: $helperPath"
 
-$fixtureRoot = Join-Path $resolvedRepoRoot '.tmp\removal-safety-compliance'
+$localAppDataRoot = [Environment]::GetFolderPath('LocalApplicationData')
+Assert-Condition -Condition (-not [string]::IsNullOrWhiteSpace($localAppDataRoot)) -Message 'LocalApplicationData path is required for machine-local test fixtures.'
+
+$fixtureParentRoot = [System.IO.Path]::GetFullPath((Join-Path $localAppDataRoot 'Anarchy-AI\AI-Links\test-fixtures'))
+$fixtureRoot = [System.IO.Path]::GetFullPath((Join-Path $fixtureParentRoot 'removal-safety-compliance'))
+Assert-Condition -Condition ($fixtureRoot.StartsWith($fixtureParentRoot, [System.StringComparison]::OrdinalIgnoreCase)) -Message "Fixture root resolved outside expected AppData test lane: $fixtureRoot"
 if (Test-Path $fixtureRoot) {
   Remove-Item -LiteralPath $fixtureRoot -Recurse -Force
 }

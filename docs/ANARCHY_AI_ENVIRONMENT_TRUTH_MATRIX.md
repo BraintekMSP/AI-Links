@@ -170,7 +170,8 @@ Proven by local build output and a throwaway-repo smoke install on `2026-04-25`:
 - build output:
   - `status = "completed"`
   - `plugin_payload_staged = true`
-  - `published_runtime_executable = "C:\\Users\\herri\\AppData\\Local\\Temp\\ai-links-setup-build\\server-publish\\AnarchyAi.Mcp.Server.exe"`
+  - historical run: `published_runtime_executable = "C:\\Users\\herri\\AppData\\Local\\Temp\\ai-links-setup-build\\server-publish\\AnarchyAi.Mcp.Server.exe"`
+  - current build helper lane: `%LOCALAPPDATA%\Anarchy-AI\AI-Links\setup-build`
   - `target_executable = "C:\\Users\\herri\\OneDrive - Braintek LLC\\Documents\\GitHub\\AI-Links\\plugins\\AnarchyAi.Setup.exe"`
 - smoke install:
   - setup EXE installed into a generated throwaway repo with a `.git` marker
@@ -387,14 +388,16 @@ Proven at source/build-helper level on `2026-04-25` after `AA-BUG-026`:
   - `dotnet.exe` on `PATH`
   - `%USERPROFILE%\.dotnet\dotnet.exe`
   - `C:\Program Files\dotnet\dotnet.exe`
-- the build helper stages build output under `%LOCALAPPDATA%\Temp\ai-links-setup-build`
+- the build helper stages build output under `%LOCALAPPDATA%\Anarchy-AI\AI-Links\setup-build`
+- `Directory.Build.props` redirects ordinary repo-local .NET `bin/obj` output to `%LOCALAPPDATA%\Anarchy-AI\AI-Links\dotnet` unless a developer explicitly opts into repo-local artifacts
+- removal-safety test fixtures now use `%LOCALAPPDATA%\Anarchy-AI\AI-Links\test-fixtures`
 - the build helper now rejects a resolved `.NET SDK` path inside the source workspace
 - setup/repo install docs state that .NET SDK/runtime prerequisites, NuGet caches, restore scratch, and package caches must not live inside the source repo or target repo
 
 What this proves:
 
 - repo-local install means Anarchy plugin bundle placement, not .NET SDK placement
-- the current source build path has a guard against accidentally using a repo-local SDK path
+- the current source build path has a guard against accidentally using a repo-local SDK path and a default redirect for .NET build/test outputs
 
 What this does not yet prove:
 
@@ -463,10 +466,17 @@ Observed on `2026-04-25` during the Fissure / Docker-Builder-Project proving run
 - a Fissure-session agent reported callable Anarchy tools and an installed plugin root at `C:\Users\herri\.codex\plugins\anarchy-ai`
 - the same Fissure-session report said exposed skill metadata still referenced cache version `0.1.7` while installed/cache state on disk was `0.1.8`
 
+Observed again on `2026-04-26` during a second-computer user-profile install:
+
+- pre-install assess on `C:\Users\mherring` found the user-profile source and cache still at `0.1.7`, install-state missing, and the Codex plugin lane disabled
+- install materialized user-profile source `0.1.9`, wrote install-state, and enabled `anarchy-ai@anarchy-ai-user-profile`
+- post-install cache still contained only `anarchy-ai-user-profile/anarchy-ai/0.1.7`, so `source_plugin_version_not_materialized_in_codex_cache` remained
+
 What this proves:
 
 - Codex's home-local plugin cache is materially involved after restart.
 - Fresh-session host surfacing worked in Fissure after the user-profile install.
+- Setup can repair user-profile source/install-state/config on a second profile while Codex cache materialization still lags.
 
 What remains unresolved:
 
@@ -492,13 +502,16 @@ Why this remains inferred:
 - the current Anarchy-AI home-local install now resolves in a fresh session and an Anarchy-specific cache directory has been observed, but the observed cache path uses a versioned folder (`0.1.8`) rather than the documented `local` suffix
 - the current `~/.codex/config.toml` still shows only the curated plugin enable-state entries, not an Anarchy-specific plugin state entry
 - Fissure evidence indicates the home install and cache can disagree at the metadata layer, so config/cache/install-state relationships remain under-specified
+- the bundled Codex `plugin-creator` skill describes a generic home-local plugin convention as `~/.agents/plugins/marketplace.json` plus marketplace-relative `./plugins/<plugin-name>`, while Anarchy's tested user-profile lane uses `./.codex/plugins/anarchy-ai`
+- Codex has changed rapidly during these tests, so Anarchy's observed-good lane may reflect a valid workaround for earlier host behavior rather than the host's intended canonical method
 
 Promotion test:
 
 1. restart Codex from the current installed state
 2. install or enable Anarchy-AI through the Codex Plugins UI if prompted
 3. observe whether Codex materializes the documented cache path or config entry
-4. repeat after a no-op reinstall if needed
+4. compare current `plugin-creator` scaffold output, official Codex documentation, and fresh-session host behavior for the home-local source path convention
+5. repeat after a no-op reinstall if needed
 
 ### C. Repo-local Codex UI source visibility is observed, but cache/runtime activation remains unresolved
 
@@ -510,6 +523,9 @@ Why this remains inferred:
 - that UI observation did not update the Codex plugin cache to the same manifest version (`0.1.9`), so source visibility and cache/runtime activation are not the same proof surface
 - local config evidence shows the UI install/remove state is a `[plugins."anarchy-ai@anarchy-ai-repo-workorders"] enabled = true` entry, not merely the marketplace file existing
 - after restarting Codex with user-profile, Workorders repo-local, and Fissure repo-local Anarchy marketplaces visible, the Plugins UI listed all three distributions and showed the selected Fissure distribution checked while Workorders and user-profile were not selected
+- a second-computer BrainyMigrator repo-local install observed the crossed-profile path problem directly: copied install-state from `C:\Users\herri\...` was invalid under `C:\Users\mherring\...`, and the installer rewrote install-state for the current profile
+- that same BrainyMigrator run also exposed `AA-BUG-033`: selecting a repo-local lane with no existing Codex config section disabled duplicate Anarchy lanes but did not create the selected section before the local patch
+- a second-computer TheLinks repo-local install confirmed the same `AA-BUG-033` class in the no-duplicate case: setup created the plugin bundle and repo marketplace, selected `anarchy-ai@anarchy-ai-repo-thelinks`, but left `codex_plugin_enabled = null` because the selected Codex config section was absent and no duplicate-lane rewrite occurred
 - the documentation describes the layout as a scope option, not explicitly as an auto-discovery rule
 
 Status summary: **repo-local source visibility is observed; active chat/runtime activation from the matching repo-local cache remains unproven.** The installer disclosure text reflects this distinction.
@@ -601,6 +617,7 @@ Why:
 - Fissure / Docker-Builder-Project fresh-session report on `2026-04-25` confirmed Anarchy tools were callable after a user-profile install and Codex restart
 - setup status for the same run reported `bootstrap_state = "ready"` and `install_state.state_valid = true`
 - however, the same report exposed a version mismatch between skill metadata (`0.1.7`) and installed/cache state (`0.1.8`)
+- second-computer user-profile install on `2026-04-26` repaired install-state and selected-lane enablement, but did not yet include a fresh-session tool-call proof after Codex cache refresh
 - this proves session surfacing occurred, but does not yet prove clean active-lane selection or repeatable cache invalidation behavior
 
 ### 3. Different-device portability
@@ -611,12 +628,17 @@ Claim:
 
 Current status:
 
-- inferred
+- partially observed, not fully proven
 
 Why:
 
-- current evidence is from one Windows profile only
-- no second-device run has yet been captured in repo evidence
+- BrainyMigrator repo-local install output from a second Windows profile (`C:\Users\mherring`) has been captured
+- the second-computer assess correctly invalidated copied install-state from the first profile (`C:\Users\herri`) through target/path/root mismatch findings
+- the second-computer install rewrote install-state for the current profile and selected the BrainyMigrator repo-local lane
+- the same run did not prove fresh Codex runtime availability because the selected Codex config section was missing before `AA-BUG-033` and the Codex cache root was still absent
+- user-profile install output from the same second profile has also been captured
+- the second-computer user-profile install repaired missing install-state, upgraded source plugin manifest from `0.1.7` to `0.1.9`, and enabled `anarchy-ai@anarchy-ai-user-profile`
+- the same user-profile run did not prove cache refresh because Codex cache remained at `0.1.7`
 
 Promotion test for device portability:
 
