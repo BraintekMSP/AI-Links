@@ -459,6 +459,24 @@ What this does not yet prove:
 - cross-device cache invalidation to `0.1.9` is observed on Workorders after refresh/restart, but the host timing and trigger remain host-owned rather than setup-owned
 - rebuilt EXE/plugin redeploy proof for the AA-BUG-036 runtime patch is still pending
 
+### 18. Codex cache invalidation follows plugin manifest version after restart, but version is doing double duty
+
+Proven by user-profile and cache observations on `2026-04-26`:
+
+- after the `0.2.0` user-profile install, Codex initially kept older cache materialization until restart/reindex
+- after restart, the user-profile source and Codex cache both exposed `anarchy-ai-user-profile/anarchy-ai/0.2.0`
+- the currently installed user-profile source can move ahead again (`0.2.1` observed by runtime provenance) while session skill metadata may still come from the older materialized cache path until the next host refresh boundary
+
+What this proves:
+
+- the version bump path is a real Codex cache invalidation signal once Codex crosses a restart/reindex boundary
+- cache materialization is host-owned evidence and must still be inspected separately from the installed source bundle
+
+Design caveat:
+
+- `plugin.json.version` is currently serving two purposes: semantic release identity and Codex cache invalidation key
+- this is acceptable for the current release lane, but if semantic version and cache refresh needs diverge, add an explicit `cache_key` or `cache_generation` field rather than making build helpers silently overload version meaning
+
 ## Inferred (Not Yet Fully Proven)
 
 ### A. Codex materializes an installed-copy cache under `~/.codex/plugins/cache/...`, but active-lane selection remains unresolved

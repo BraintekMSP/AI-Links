@@ -1,8 +1,8 @@
 {
   "contract_name": "harness_gap_state_contract",
-  "contract_version": "0.2.1",
+  "contract_version": "0.2.2",
   "function_name": "assess_harness_gap_state",
-  "purpose": "Assess installation, runtime, schema, startup, and adoption gaps so the harness can report what is missing and what to do next.",
+  "purpose": "Assess installation, runtime, schema, startup, adoption, underlay readiness, and artifact-hygiene gaps so the harness can measure state and suggest corrections without acting as an instruction authority.",
   "input_contract": {
     "workspace_root": {
       "type": "absolute_path",
@@ -129,7 +129,8 @@
           "type": "string_array"
         },
         "agent_actions": {
-          "type": "string_array"
+          "type": "string_array",
+          "description": "Compatibility suggestions for agent-available follow-up. Values are advisory terrain/correction options, not instructions from the harness."
         }
       }
     },
@@ -159,6 +160,48 @@
         }
       }
     },
+    "doctor_summary": {
+      "type": "object",
+      "description": "Measurement-first readiness summary that describes observed state, gaps, suggested corrections, and common pitfalls without issuing agent or human instructions.",
+      "fields": {
+        "measurement_summary": {
+          "type": "string",
+          "description": "Concise statement of what was measured and the non-authoritative posture of correction fields."
+        },
+        "observed_state": {
+          "type": "object",
+          "description": "Condensed state facts drawn from installation, runtime, schema, underlay readiness, artifact hygiene, and adoption measurements."
+        },
+        "blocking_gaps": {
+          "type": "string_array",
+          "description": "Measured gaps likely to block a readiness/adoption claim until corrected or explicitly waived."
+        },
+        "non_blocking_gaps": {
+          "type": "string_array",
+          "description": "Measured gaps or utilization gaps that should remain visible but do not alone prove the workspace unusable."
+        },
+        "suggested_corrections": {
+          "type": "string_array",
+          "description": "Correction options derived from measured state. These are terrain suggestions, not commands."
+        },
+        "recommended_next_actions": {
+          "type": "string_array",
+          "description": "Suggested next measurement or correction moves. The field is advisory and does not override human or repo authority."
+        },
+        "human_review_recommended": {
+          "type": "boolean",
+          "description": "True when measured gaps or operator-lane suggestions should be surfaced for human attention."
+        },
+        "human_attention_reasons": {
+          "type": "string_array",
+          "description": "Reasons human attention may be useful, expressed as observed state or operator-lane suggestions."
+        },
+        "observed_pitfalls": {
+          "type": "string_array",
+          "description": "Common misreadings for the observed state, phrased as pitfalls rather than prohibitions."
+        }
+      }
+    },
     "adoption_state": {
       "type": "enum",
       "values": [
@@ -179,11 +222,11 @@
     },
     "admin_actions": {
       "type": "string_array",
-      "description": "Actions intended for a human operator or bootstrap lane."
+      "description": "Compatibility field for operator-lane suggestions. Values are advisory terrain/correction options, not instructions from the harness."
     },
     "agent_actions": {
       "type": "string_array",
-      "description": "Actions the agent can take next without redefining the harness."
+      "description": "Compatibility field for agent-available suggestions. Values are advisory terrain/correction options, not instructions from the harness."
     },
     "evidence_basis": {
       "type": "string_array",
@@ -264,6 +307,46 @@
       "safe_repairs": [
         "relocate_generated_artifacts_to_machine_local_cache",
         "inventory_and_quarantine_before_delete_never_delete_from_hygiene_assessment"
+      ]
+    },
+    "doctor_summary": {
+      "measurement_summary": "Measured install, runtime, schema, underlay utilization, artifact hygiene, adoption, and path evidence; correction fields are recommendations, not authority.",
+      "observed_state": {
+        "installation_state": "repo_bundle_present_unregistered",
+        "runtime_state": "callable_and_repo_bundled",
+        "adoption_state": "partially_adopted",
+        "consumer_material_governance_check": "not_applicable",
+        "schema_reality_state": "copied_only",
+        "integrity_state": "aligned",
+        "possession_state": "unpossessed",
+        "underlay_readiness_state": "portable_underlay_available_no_repo_utilization",
+        "artifact_hygiene_state": "repo_local_artifacts_observed"
+      },
+      "blocking_gaps": [
+        "codex_skill_surface_missing"
+      ],
+      "non_blocking_gaps": [
+        "underlay_utilization_gap:narrative_register_missing:.agents/anarchy-ai/narratives/register.json",
+        "artifact_hygiene:repo_local_artifacts_observed"
+      ],
+      "suggested_corrections": [
+        "relocate_generated_artifacts_to_machine_local_cache",
+        "seed_narrative_register_and_projects_from_underlay"
+      ],
+      "recommended_next_actions": [
+        "measure_blocking_gaps_again_after_targeted_corrections",
+        "seed_or_confirm_narrative_underlay_before_arc_capture",
+        "relocate_future_generated_artifacts_to_machine_local_cache"
+      ],
+      "human_review_recommended": true,
+      "human_attention_reasons": [
+        "blocking_gap:codex_skill_surface_missing",
+        "generated_artifact_relocation_policy_needed"
+      ],
+      "observed_pitfalls": [
+        "schema_presence_can_be_misread_as_schema_governance",
+        "portable_underlay_availability_can_be_misread_as_repo_utilization",
+        "generated_artifact_presence_can_be_misread_as_repo_truth"
       ]
     },
     "missing_components": [

@@ -4251,6 +4251,24 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
             agentActions.AddRange(underlayReadiness.AgentActions);
         }
 
+        var distinctMissingComponents = missingComponents.Distinct(StringComparer.Ordinal).ToArray();
+        var distinctSafeRepairs = safeRepairs.Distinct(StringComparer.Ordinal).ToArray();
+        var distinctAdminActions = adminActions.Distinct(StringComparer.Ordinal).ToArray();
+        var distinctAgentActions = agentActions.Distinct(StringComparer.Ordinal).ToArray();
+        var doctorSummary = BuildDoctorSummary(
+            installationState,
+            runtimeState,
+            adoptionState,
+            consumerMaterialGovernanceCheck,
+            schemaRealityState,
+            integrityState,
+            possessionState,
+            underlayReadiness,
+            artifactHygiene,
+            distinctMissingComponents,
+            distinctSafeRepairs,
+            distinctAdminActions);
+
         var assessmentPaths = BuildAssessmentPaths(
             resolvedWorkspaceRoot,
             pluginRoot,
@@ -4301,11 +4319,12 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
                 recommended_artifact_lanes = artifactHygiene.RecommendedArtifactLanes,
                 safe_repairs = artifactHygiene.SafeRepairs
             },
+            doctor_summary = doctorSummary,
             adoption_state = adoptionState,
-            missing_components = missingComponents.Distinct(StringComparer.Ordinal).ToArray(),
-            safe_repairs = safeRepairs.Distinct(StringComparer.Ordinal).ToArray(),
-            admin_actions = adminActions.Distinct(StringComparer.Ordinal).ToArray(),
-            agent_actions = agentActions.Distinct(StringComparer.Ordinal).ToArray(),
+            missing_components = distinctMissingComponents,
+            safe_repairs = distinctSafeRepairs,
+            admin_actions = distinctAdminActions,
+            agent_actions = distinctAgentActions,
             evidence_basis = new[]
             {
                 "repo_plugin_surfaces",
@@ -4337,6 +4356,175 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
                 marketplace_installed_by_default = marketplaceInspection.InstalledByDefault
             }
         };
+    }
+
+    // Purpose: Produces a measurement-first summary of the observed gap state without issuing commands.
+    // Expected input: Already-measured install/runtime/schema/underlay/artifact/adoption facts.
+    // Expected output: Non-imperative doctor summary with observed state, gaps, suggested corrections, and pitfalls.
+    // Critical dependencies: Harness gap-state vocabulary and the measurement-over-enforcement doctrine.
+    private static object BuildDoctorSummary(
+        string installationState,
+        string runtimeState,
+        string adoptionState,
+        string consumerMaterialGovernanceCheck,
+        string schemaRealityState,
+        string integrityState,
+        string possessionState,
+        UnderlayReadinessAssessment underlayReadiness,
+        ArtifactHygieneAssessment artifactHygiene,
+        string[] missingComponents,
+        string[] safeRepairs,
+        string[] adminActions)
+    {
+        var blockingGaps = missingComponents
+            .Where(IsBlockingGap)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        var nonBlockingGaps = missingComponents
+            .Except(blockingGaps, StringComparer.Ordinal)
+            .Concat(underlayReadiness.UtilizationGaps.Select(static gap => $"underlay_utilization_gap:{gap}"))
+            .Concat(artifactHygiene.State == "repo_local_artifacts_observed"
+                ? new[] { "artifact_hygiene:repo_local_artifacts_observed" }
+                : Array.Empty<string>())
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        var suggestedCorrections = safeRepairs
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        var recommendedNextActions = BuildRecommendedNextActions(
+            blockingGaps,
+            nonBlockingGaps,
+            underlayReadiness,
+            artifactHygiene);
+        var humanAttentionReasons = BuildHumanAttentionReasons(
+            blockingGaps,
+            adminActions,
+            artifactHygiene,
+            underlayReadiness);
+        var observedPitfalls = BuildObservedPitfalls(
+            schemaRealityState,
+            underlayReadiness,
+            artifactHygiene);
+
+        return new
+        {
+            measurement_summary = "Measured install, runtime, schema, underlay utilization, artifact hygiene, adoption, and path evidence; correction fields are recommendations, not authority.",
+            observed_state = new
+            {
+                installation_state = installationState,
+                runtime_state = runtimeState,
+                adoption_state = adoptionState,
+                consumer_material_governance_check = consumerMaterialGovernanceCheck,
+                schema_reality_state = schemaRealityState,
+                integrity_state = integrityState,
+                possession_state = possessionState,
+                underlay_readiness_state = underlayReadiness.ReadinessState,
+                artifact_hygiene_state = artifactHygiene.State
+            },
+            blocking_gaps = blockingGaps,
+            non_blocking_gaps = nonBlockingGaps,
+            suggested_corrections = suggestedCorrections,
+            recommended_next_actions = recommendedNextActions,
+            human_review_recommended = humanAttentionReasons.Length > 0,
+            human_attention_reasons = humanAttentionReasons,
+            observed_pitfalls = observedPitfalls
+        };
+    }
+
+    private static bool IsBlockingGap(string gap)
+    {
+        return gap is
+                   "bundled_runtime_missing" or
+                   "schema_bundle_manifest_missing" or
+                   "codex_plugin_manifest_missing" or
+                   "codex_mcp_declaration_missing" or
+                   "codex_skill_surface_missing" or
+                   "marketplace_json_invalid" or
+                   "reflection_workflow_not_available" ||
+               gap.StartsWith("missing_contract:", StringComparison.Ordinal) ||
+               gap.StartsWith("missing_narrative_template:", StringComparison.Ordinal);
+    }
+
+    private static string[] BuildRecommendedNextActions(
+        string[] blockingGaps,
+        string[] nonBlockingGaps,
+        UnderlayReadinessAssessment underlayReadiness,
+        ArtifactHygieneAssessment artifactHygiene)
+    {
+        var actions = new List<string>();
+        if (blockingGaps.Length > 0)
+        {
+            actions.Add("measure_blocking_gaps_again_after_targeted_corrections");
+        }
+
+        if (underlayReadiness.ReadinessState is "portable_underlay_available_no_repo_utilization" or "portable_underlay_available_narrative_scaffolded")
+        {
+            actions.Add("seed_or_confirm_narrative_underlay_before_arc_capture");
+        }
+
+        if (artifactHygiene.State == "repo_local_artifacts_observed")
+        {
+            actions.Add("relocate_future_generated_artifacts_to_machine_local_cache");
+        }
+
+        if (nonBlockingGaps.Length > 0)
+        {
+            actions.Add("review_non_blocking_gaps_before_claiming_full_adoption");
+        }
+
+        if (actions.Count == 0)
+        {
+            actions.Add("rerun_assessment_after_environment_or_repo_changes");
+        }
+
+        return actions.Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    private static string[] BuildHumanAttentionReasons(
+        string[] blockingGaps,
+        string[] adminActions,
+        ArtifactHygieneAssessment artifactHygiene,
+        UnderlayReadinessAssessment underlayReadiness)
+    {
+        var reasons = new List<string>();
+        reasons.AddRange(blockingGaps.Select(static gap => $"blocking_gap:{gap}"));
+        reasons.AddRange(adminActions.Select(static action => $"operator_lane_suggested:{action}"));
+
+        if (artifactHygiene.State == "repo_local_artifacts_observed")
+        {
+            reasons.Add("generated_artifact_relocation_policy_needed");
+        }
+
+        if (underlayReadiness.ReadinessState == "portable_underlay_partial")
+        {
+            reasons.Add("portable_underlay_partial");
+        }
+
+        return reasons.Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    private static string[] BuildObservedPitfalls(
+        string schemaRealityState,
+        UnderlayReadinessAssessment underlayReadiness,
+        ArtifactHygieneAssessment artifactHygiene)
+    {
+        var pitfalls = new List<string>();
+        if (schemaRealityState is "copied_only" or "partial")
+        {
+            pitfalls.Add("schema_presence_can_be_misread_as_schema_governance");
+        }
+
+        if (underlayReadiness.ReadinessState is "portable_underlay_available_no_repo_utilization" or "portable_underlay_available_narrative_scaffolded")
+        {
+            pitfalls.Add("portable_underlay_availability_can_be_misread_as_repo_utilization");
+        }
+
+        if (artifactHygiene.State == "repo_local_artifacts_observed")
+        {
+            pitfalls.Add("generated_artifact_presence_can_be_misread_as_repo_truth");
+        }
+
+        return pitfalls.Distinct(StringComparer.Ordinal).ToArray();
     }
 
     // Purpose: Classifies installation state from bundle presence, marketplace registration, and plugin-root placement.

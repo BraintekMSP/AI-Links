@@ -2,6 +2,14 @@
 
 ## 2026-04-26
 
+### Anarchy-AI 0.2.2 measurement-first doctor summary
+
+- Captured Arc decision `d022`: enforcement is weaker than measurement, so Anarchy should measure terrain, surface gaps, and point to corrective courses instead of becoming an instruction authority.
+- Added `doctor_summary` to `assess_harness_gap_state` with measurement-first fields for observed state, blocking/non-blocking gaps, suggested corrections, recommended next actions, human-review reasons, and observed pitfalls.
+- Preserved existing `agent_actions` and `admin_actions` compatibility fields while clarifying that they are advisory terrain/correction options, not harness commands.
+- Recorded the Codex cache proof/caveat: `0.2.0` materialized after restart, while plugin manifest version currently doubles as semantic release identity and Codex cache invalidation key.
+- Bumped the Anarchy-AI plugin manifest target to `0.2.2` for the contract change.
+
 ### Anarchy-AI 0.2.0 remediation
 
 - Added `underlay_readiness` to harness gap assessment so agents can see when portable schemas/templates are available but the repo has not yet materialized or used narrative arc surfaces.

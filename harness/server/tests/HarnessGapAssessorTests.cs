@@ -160,6 +160,83 @@ public sealed class HarnessGapAssessorTests
     }
 
     /// <summary>
+    /// Confirms that gap assessment exposes the measurement-first doctor summary without instruction-authority field names.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts serialized JSON structure.</returns>
+    /// <remarks>Critical dependencies: doctor summary output and measurement-first field vocabulary.</remarks>
+    [Fact]
+    public void Assess_ReportsMeasurementFirstDoctorSummary()
+    {
+        var tempRoot = CreateTempWorkspace();
+        try
+        {
+            SeedPortableSchemaFiles(tempRoot);
+            SeedNarrativeTemplates(tempRoot);
+            Directory.CreateDirectory(Path.Combine(tempRoot, "src", "Example", "bin"));
+
+            var assessor = new HarnessGapAssessor(new SchemaRealityInspector());
+            var result = assessor.Assess(tempRoot, "generic", ["repo_underlay"]);
+            var serialized = JsonSerializer.Serialize(result);
+
+            using var document = JsonDocument.Parse(serialized);
+            var doctorSummary = document.RootElement.GetProperty("doctor_summary");
+            Assert.Contains("Measured install", doctorSummary.GetProperty("measurement_summary").GetString());
+
+            var observedState = doctorSummary.GetProperty("observed_state");
+            Assert.Equal("portable_underlay_available_no_repo_utilization", observedState.GetProperty("underlay_readiness_state").GetString());
+            Assert.Equal("repo_local_artifacts_observed", observedState.GetProperty("artifact_hygiene_state").GetString());
+
+            Assert.Contains("seed_or_confirm_narrative_underlay_before_arc_capture", ReadStringArray(doctorSummary, "recommended_next_actions"));
+            Assert.Contains("relocate_future_generated_artifacts_to_machine_local_cache", ReadStringArray(doctorSummary, "recommended_next_actions"));
+            Assert.Contains("portable_underlay_availability_can_be_misread_as_repo_utilization", ReadStringArray(doctorSummary, "observed_pitfalls"));
+
+            foreach (var forbiddenFieldName in ForbiddenInstructionAuthorityFieldNames())
+            {
+                Assert.DoesNotContain($"\"{forbiddenFieldName}\"", serialized, StringComparison.Ordinal);
+            }
+        }
+        finally
+        {
+            DeleteTempWorkspace(tempRoot);
+        }
+    }
+
+    /// <summary>
+    /// Confirms that the public gap-state contract uses measurement-first doctor vocabulary.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts contract text and JSON parseability.</returns>
+    /// <remarks>Critical dependencies: harness gap-state contract and plugin mirror contract.</remarks>
+    [Fact]
+    public void Contract_UsesMeasurementFirstDoctorVocabulary()
+    {
+        var repoRoot = FindRepoRoot();
+        var contractPaths = new[]
+        {
+            Path.Combine(repoRoot, "harness", "contracts", "harness-gap-state.contract.json"),
+            Path.Combine(repoRoot, "plugins", "anarchy-ai", "contracts", "harness-gap-state.contract.json")
+        };
+
+        foreach (var contractPath in contractPaths)
+        {
+            var contractText = File.ReadAllText(contractPath);
+            using var document = JsonDocument.Parse(contractText);
+            var outputContract = document.RootElement.GetProperty("output_contract");
+            var doctorSummary = outputContract.GetProperty("doctor_summary");
+
+            Assert.Equal("0.2.2", document.RootElement.GetProperty("contract_version").GetString());
+            Assert.True(doctorSummary.GetProperty("fields").TryGetProperty("suggested_corrections", out _));
+            Assert.True(doctorSummary.GetProperty("fields").TryGetProperty("recommended_next_actions", out _));
+            Assert.True(doctorSummary.GetProperty("fields").TryGetProperty("human_review_recommended", out _));
+            Assert.True(doctorSummary.GetProperty("fields").TryGetProperty("observed_pitfalls", out _));
+
+            foreach (var forbiddenFieldName in ForbiddenInstructionAuthorityFieldNames())
+            {
+                Assert.DoesNotContain($"\"{forbiddenFieldName}\"", contractText, StringComparison.Ordinal);
+            }
+        }
+    }
+
+    /// <summary>
     /// Confirms that an underlay with narrative register scaffolding but no records reports scaffolded state instead of full utilization.
     /// </summary>
     /// <returns>No direct return value; the method asserts serialized JSON structure.</returns>
@@ -260,6 +337,22 @@ public sealed class HarnessGapAssessorTests
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Cast<string>()
             .ToArray();
+    }
+
+    /// <summary>
+    /// Builds forbidden field names without leaving them as active source literals.
+    /// </summary>
+    /// <returns>Field names that would imply instruction authority instead of measurement-first correction posture.</returns>
+    /// <remarks>Critical dependencies: measurement-first doctor summary naming discipline.</remarks>
+    private static string[] ForbiddenInstructionAuthorityFieldNames()
+    {
+        return
+        [
+            "agent_" + "instruction",
+            "human_" + "instruction",
+            "do_not_" + "do",
+            "next_" + "correction"
+        ];
     }
 
     /// <summary>
