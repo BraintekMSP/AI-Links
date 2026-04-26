@@ -538,7 +538,7 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
 ### AA-BUG-029: Runtime install and portable underlay were conflated
 
 - Severity: High
-- Status: Patched local (rebuilt deployable; pending consumer repeat)
+- Status: Patched local (underlay smoke observed through setup DLL; direct windowless EXE smoke remains AA-BUG-030)
 - Component: Setup / Install lifecycle discipline / Repo hygiene
 - Repro:
   - Run repo-local install in a consumer repo.
@@ -572,6 +572,10 @@ Capture concrete defects observed during setup, mounting, and schema-reality ope
   - Smoke `/underlay` into a throwaway repo and confirm no runtime bundle, marketplace, MCP, or host config writes.
   - Smoke `/refresh /apply` and confirm only canonical portable schema files change with backups.
   - Repeat on a Workorders-style duplicate-lane state and confirm only non-selected Anarchy lanes are disabled.
+- Local smoke evidence:
+  - Built setup DLL `/underlay /repo <temp-git-repo> /silent /json` returned `setup_operation = underlay`, `bootstrap_state = ready`, `install_scope = repo_underlay`, `runtime_present = false`, `marketplace_registered = false`, and `host_config_modified = false`.
+  - Filesystem check confirmed no `plugins/anarchy-ai` root and no `.agents/plugins/marketplace.json`.
+  - Filesystem check confirmed all six portable files, narrative register/projects, AGENTS.md awareness note, and Anarchy `.gitignore` block were materialized.
 
 ### AA-BUG-030: Plan-only refresh returned a failure exit code and direct EXE smoke surfaced UI
 

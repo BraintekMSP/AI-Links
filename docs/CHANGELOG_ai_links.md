@@ -28,6 +28,8 @@
 - Added `AA-BUG-030` and patched CLI success-state handling so plan-only `/refresh` returns a successful exit code; direct windowless EXE smoke remains a release-proof caveat after the UI surfaced during manual smoke attempts.
 - Added `AA-BUG-031` and patched primary Codex lane reconciliation so runtime install/update re-enables the selected Anarchy plugin lane instead of leaving a disabled selected lane with `bootstrap_state = ready`.
 - Added `AA-BUG-032` and clarified that Codex's separate marketplace identities are valid host provenance, while Anarchy's normal repo-travel lane is `/underlay`, the normal runtime lane is `/userprofile`, and `/repolocal` is proving/debug only.
+- Promoted `/underlay` from source-tested to locally smoke-observed through the setup DLL: temp repo smoke produced `repo_underlay` with runtime, marketplace, and host config all false while seeding the portable six, narrative register/projects, AGENTS awareness note, and Anarchy `.gitignore` block.
+- Updated Arc d020 and observed-patterns so AA-BUG-031 is preserved as a class lesson: helpers must not report downstream state facts they have not observed from the authoritative host/config/runtime surface.
 - Recorded the correction in the Arc narrative as continuity against context-compression drift.
 
 ## 2026-04-24

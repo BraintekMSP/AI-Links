@@ -2,7 +2,7 @@
   "meta": {
     "schema-ref": "AGENTS-schema-narrative.json",
     "role": "index of narrative records in this workspace -- required by schema -- without this, records sprawl and go stale silently",
-    "last-updated": "2026-04-25"
+    "last-updated": "2026-04-26"
   },
   "records": [
     {
@@ -11,7 +11,7 @@
       "entity-type": "personal-project",
       "record-path": "narratives/projects/ai-links.json",
       "cadence": "monthly",
-      "last-updated": "2026-04-25",
+      "last-updated": "2026-04-26",
       "owner": "Mike Herring",
       "status": "active"
     }

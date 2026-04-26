@@ -401,7 +401,7 @@ What this does not yet prove:
 - every developer machine has a correctly installed user/machine-local SDK
 - external operators will not manually place SDK/cache folders under target repos outside the build helper
 
-### 17. Underlay and refresh lanes are source-tested, not yet cross-device proven
+### 17. Underlay and refresh lanes are source-tested; underlay smoke is locally observed
 
 Proven at setup-test/source level on `2026-04-25` after `AA-BUG-029`:
 
@@ -424,10 +424,23 @@ Proven at setup-test/source level on `2026-04-25` after `AA-BUG-029`:
 - duplicate Codex lane logic enables the selected owned Anarchy lane, disables only owned Anarchy non-selected plugin lanes in config text, and preserves unrelated plugin sections
 - Workorders live retest after rebuild returned `codex_materialization.codex_plugin_enabled = true` for the selected Workorders lane while the Codex cache remained at `0.1.8`
 - Fissure / Docker-Builder-Project live retest after rebuild enabled the selected Fissure lane and disabled the Workorders Anarchy lane as a duplicate
+- local `/underlay` smoke through the built setup DLL into `%TEMP%\anarchy-underlay-smoke-*` returned:
+  - `setup_operation = underlay`
+  - `bootstrap_state = ready`
+  - `install_scope = repo_underlay`
+  - `runtime_present = false`
+  - `marketplace_registered = false`
+  - `host_config_modified = false`
+  - no `plugins/anarchy-ai` root
+  - no `.agents/plugins/marketplace.json`
+  - all six portable files seeded
+  - narrative register and projects directory seeded
+  - AGENTS.md awareness note and Anarchy `.gitignore` block seeded
 
 What this proves:
 
 - the source implementation no longer requires repo-local runtime install for portable repo discipline
+- `/underlay` can materialize repo-portable discipline without creating runtime, marketplace, MCP, or host config surfaces in a clean throwaway repo
 - the old write-by-default `/refreshschemas` surface is treated as a safety defect and requires `/apply`
 - duplicate-lane repair is bounded to Anarchy-owned plugin enable-state
 - a selected disabled Anarchy Codex lane is not treated as ready until install/update re-enables it
@@ -436,7 +449,7 @@ What this proves:
 What this does not yet prove:
 
 - direct windowless EXE smoke remains pending after the UI surfaced during manual smoke attempts; current proof is source/test/build-level
-- a consumer repo has run `/underlay` and committed only portable underlay truth
+- a long-lived consumer repo has committed only portable underlay truth
 - cross-device cache invalidation to `0.1.9` remains pending
 
 ## Inferred (Not Yet Fully Proven)
