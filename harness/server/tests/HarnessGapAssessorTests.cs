@@ -185,6 +185,13 @@ public sealed class HarnessGapAssessorTests
             var observedState = doctorSummary.GetProperty("observed_state");
             Assert.Equal("portable_underlay_available_no_repo_utilization", observedState.GetProperty("underlay_readiness_state").GetString());
             Assert.Equal("repo_local_artifacts_observed", observedState.GetProperty("artifact_hygiene_state").GetString());
+            Assert.True(observedState.TryGetProperty("structural_grounding_state", out _));
+
+            var structuralGrounding = document.RootElement.GetProperty("structural_grounding");
+            Assert.True(IsAllowedGroundingState(structuralGrounding.GetProperty("grounding_state").GetString()));
+            Assert.Equal(
+                structuralGrounding.GetProperty("grounding_state").GetString(),
+                doctorSummary.GetProperty("structural_grounding").GetProperty("grounding_state").GetString());
 
             Assert.Contains("seed_or_confirm_narrative_underlay_before_arc_capture", ReadStringArray(doctorSummary, "recommended_next_actions"));
             Assert.Contains("relocate_future_generated_artifacts_to_machine_local_cache", ReadStringArray(doctorSummary, "recommended_next_actions"));
@@ -223,15 +230,140 @@ public sealed class HarnessGapAssessorTests
             var outputContract = document.RootElement.GetProperty("output_contract");
             var doctorSummary = outputContract.GetProperty("doctor_summary");
 
-            Assert.Equal("0.2.2", document.RootElement.GetProperty("contract_version").GetString());
+            Assert.Equal("0.2.3", document.RootElement.GetProperty("contract_version").GetString());
+            Assert.True(document.RootElement.TryGetProperty("structural_grounding_requirement", out var requirement));
+            Assert.Equal("diagnostic", requirement.GetProperty("requirement_kind").GetString());
+            Assert.True(outputContract.TryGetProperty("structural_grounding", out _));
             Assert.True(doctorSummary.GetProperty("fields").TryGetProperty("suggested_corrections", out _));
             Assert.True(doctorSummary.GetProperty("fields").TryGetProperty("recommended_next_actions", out _));
             Assert.True(doctorSummary.GetProperty("fields").TryGetProperty("human_review_recommended", out _));
             Assert.True(doctorSummary.GetProperty("fields").TryGetProperty("observed_pitfalls", out _));
+            Assert.True(doctorSummary.GetProperty("fields").TryGetProperty("structural_grounding", out _));
 
             foreach (var forbiddenFieldName in ForbiddenInstructionAuthorityFieldNames())
             {
                 Assert.DoesNotContain($"\"{forbiddenFieldName}\"", contractText, StringComparison.Ordinal);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Confirms that active-work compilation remains usable but labels missing narrative/underlay grounding.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts serialized JSON structure.</returns>
+    /// <remarks>Critical dependencies: <see cref="ActiveWorkStateCompiler.Compile(string, string, string[]?, string[]?, string[]?, string?)"/> and structural grounding output.</remarks>
+    [Fact]
+    public void CompileActiveWorkState_ReturnsPacketPlusStructuralGroundingForMissingConsumerUnderlay()
+    {
+        var tempRoot = CreateTempWorkspace();
+        try
+        {
+            File.WriteAllText(Path.Combine(tempRoot, "AGENTS.md"), "# Temp Consumer");
+            File.WriteAllText(Path.Combine(tempRoot, "AGENTS-hello.md"), "# Hello");
+            File.WriteAllText(Path.Combine(tempRoot, "AGENTS-Terms.md"), "# Terms");
+            File.WriteAllText(Path.Combine(tempRoot, "AGENTS-Vision.md"), "# Vision");
+            File.WriteAllText(Path.Combine(tempRoot, "AGENTS-Rules.md"), "# Rules");
+
+            var compiler = new ActiveWorkStateCompiler(new StructuralGroundingInspector(new SchemaRealityInspector()));
+            var result = compiler.Compile(
+                tempRoot,
+                "capture durable narrative decision from current chat",
+                null,
+                null,
+                null,
+                "narrative");
+
+            using var document = JsonDocument.Parse(JsonSerializer.Serialize(result));
+            var root = document.RootElement;
+            Assert.Equal("capture durable narrative decision from current chat", root.GetProperty("active_objective").GetString());
+            Assert.Equal("narrative", root.GetProperty("active_lane").GetString());
+
+            var structuralGrounding = root.GetProperty("structural_grounding");
+            Assert.Contains(
+                structuralGrounding.GetProperty("grounding_state").GetString(),
+                new[] { "partially_grounded", "ungrounded" });
+            Assert.Contains("AGENTS-schema-narrative.json", ReadStringArray(structuralGrounding, "required_structural_surfaces"));
+            Assert.Contains("missing:AGENTS-schema-narrative.json", ReadStringArray(structuralGrounding, "missing_or_partial_surfaces"));
+            Assert.Contains("/underlay /refresh /apply", ReadStringArray(structuralGrounding, "recommended_next_actions"));
+        }
+        finally
+        {
+            DeleteTempWorkspace(tempRoot);
+        }
+    }
+
+    /// <summary>
+    /// Confirms that AI-Links source authoring workspaces are labeled as not applicable for consumer schema adoption pressure.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts serialized JSON structure.</returns>
+    /// <remarks>Critical dependencies: source-authoring role detection and structural grounding output.</remarks>
+    [Fact]
+    public void CompileActiveWorkState_LabelsSourceAuthoringWorkspaceAsNotApplicable()
+    {
+        var repoRoot = FindRepoRoot();
+        var compiler = new ActiveWorkStateCompiler(new StructuralGroundingInspector(new SchemaRealityInspector()));
+
+        var result = compiler.Compile(
+            repoRoot,
+            "update Anarchy harness contract output",
+            null,
+            null,
+            null,
+            "governance");
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(result));
+        var structuralGrounding = document.RootElement.GetProperty("structural_grounding");
+        Assert.Equal("source_authoring_not_applicable", structuralGrounding.GetProperty("grounding_state").GetString());
+        Assert.Contains("source_workspace_authors_schema_not_adopts_schema", ReadStringArray(structuralGrounding, "claim_scope_effect"));
+    }
+
+    /// <summary>
+    /// Confirms that harness contract mirrors stay byte-equivalent after structural grounding metadata is added.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts mirrored contract contents.</returns>
+    /// <remarks>Critical dependencies: harness/contracts and plugins/anarchy-ai/contracts mirror layout.</remarks>
+    [Fact]
+    public void ContractMirrors_AreByteEquivalent()
+    {
+        var repoRoot = FindRepoRoot();
+        var harnessContractRoot = Path.Combine(repoRoot, "harness", "contracts");
+        var pluginContractRoot = Path.Combine(repoRoot, "plugins", "anarchy-ai", "contracts");
+
+        foreach (var harnessContract in Directory.GetFiles(harnessContractRoot, "*.json"))
+        {
+            var fileName = Path.GetFileName(harnessContract);
+            var pluginContract = Path.Combine(pluginContractRoot, fileName);
+            Assert.True(File.Exists(pluginContract), $"Missing plugin contract mirror: {fileName}");
+            Assert.Equal(File.ReadAllText(harnessContract), File.ReadAllText(pluginContract));
+        }
+    }
+
+    /// <summary>
+    /// Confirms structural-grounding contracts use non-blocking measurement language rather than refusal-style output names.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts contract text.</returns>
+    /// <remarks>Critical dependencies: structural grounding requirement vocabulary.</remarks>
+    [Fact]
+    public void Contracts_DescribeStructuralGroundingAsNonBlockingMeasurement()
+    {
+        var repoRoot = FindRepoRoot();
+        var forbiddenFragments = new[]
+        {
+            "cannot_operate",
+            "refusal_state",
+            "blocked_by_grounding"
+        };
+
+        foreach (var contractPath in Directory.GetFiles(Path.Combine(repoRoot, "harness", "contracts"), "*.json"))
+        {
+            var text = File.ReadAllText(contractPath);
+            using var document = JsonDocument.Parse(text);
+            var requirement = document.RootElement.GetProperty("structural_grounding_requirement");
+            Assert.Contains("tools always run", requirement.GetProperty("output_behavior").GetString());
+
+            foreach (var forbiddenFragment in forbiddenFragments)
+            {
+                Assert.DoesNotContain(forbiddenFragment, text, StringComparison.Ordinal);
             }
         }
     }
@@ -353,6 +485,22 @@ public sealed class HarnessGapAssessorTests
             "do_not_" + "do",
             "next_" + "correction"
         ];
+    }
+
+    /// <summary>
+    /// Checks the bounded structural grounding state vocabulary.
+    /// </summary>
+    /// <param name="value">Grounding state value from serialized output.</param>
+    /// <returns>True when the value is one of the public grounding states.</returns>
+    /// <remarks>Critical dependencies: structural grounding contract vocabulary.</remarks>
+    private static bool IsAllowedGroundingState(string? value)
+    {
+        return value is
+            "fully_grounded" or
+            "partially_grounded" or
+            "ungrounded" or
+            "not_required" or
+            "source_authoring_not_applicable";
     }
 
     /// <summary>

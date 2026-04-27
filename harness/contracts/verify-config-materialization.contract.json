@@ -1,112 +1,122 @@
 {
-  "contract_name": "verify_config_materialization_contract",
-  "contract_version": "0.1.0",
-  "function_name": "verify_config_materialization",
-  "purpose": "Mechanical gate that distinguishes declared configuration from observable configuration. Given one or more declared observables, the contract probes the workspace and environment and returns a bounded materialization state with structured evidence and a required next action. Its specific job is to prevent the failure class in which an agent treats 'config acknowledged' (a claim was made) as 'config materialized' (the claim matches reality).",
-  "input_contract": {
-    "workspace_root": {
-      "type": "absolute_path",
-      "required": true,
-      "description": "Workspace root the claim is checked against. Relative paths inside required_* items resolve against this root."
-    },
-    "claim_text": {
-      "type": "string",
-      "required": false,
-      "description": "Optional plain-language restatement of what the agent or user claimed. Echoed in the result so the prose claim is preserved alongside structured evidence and cannot be silently edited during verification."
-    },
-    "required_files": {
-      "type": "object_array",
-      "required": false,
-      "description": "Files claimed to be present (or absent). Each entry specifies: path (relative to workspace_root or absolute), optional expected_sha256 for content identity, optional expected_contains (substring that must appear in the file), and optional expected_absent (when true, the gate passes only when the file does not exist)."
-    },
-    "required_config_values": {
-      "type": "object_array",
-      "required": false,
-      "description": "Declared key/value pairs inside a config file. Each entry specifies: source_path (relative or absolute), key_path (dotted or bracket form for nested keys), and expected_value. Format is auto-detected from extension (json, toml, yaml, ini, env) or can be set explicitly via format."
-    },
-    "required_env_vars": {
-      "type": "object_array",
-      "required": false,
-      "description": "Environment variables claimed to be set in the current process environment. Each entry specifies: name and optional expected_value (presence-only check when expected_value is omitted)."
-    },
-    "required_executables": {
-      "type": "object_array",
-      "required": false,
-      "description": "Executable binaries claimed to be present and runnable. Each entry specifies: path (relative or absolute) and an optional expected_version_probe_args array. When probe args are present, the contract invokes the binary with those args and records stdout as version evidence; the probe is read-only and is expected to terminate in under five seconds."
-    },
-    "required_processes": {
-      "type": "object_array",
-      "required": false,
-      "description": "Processes claimed to be running under the current user. Each entry specifies: process_name. Scope is intentionally narrow -- this contract does not probe system services, other users' sessions, or container workloads. Omit when process state is out of scope for the claim."
-    }
-  },
-  "output_contract": {
-    "materialization_state": {
-      "type": "enum",
-      "values": [
-        "materialized",
-        "partially_materialized",
-        "divergent",
-        "acknowledged_only",
-        "no_observable_anchor"
-      ],
-      "description": "Bounded materialization result. 'materialized' means every checked item matched the claim. 'partially_materialized' means some items matched and some diverged. 'divergent' means the claim was checked and the observable state disagrees with every item examined. 'acknowledged_only' is the report-to-human state -- the claim included only prose (claim_text) or items the contract could not probe, so the claim cannot be confirmed or denied; the agent's next action is to sharpen the claim into observables. 'no_observable_anchor' means no required_* fields were populated at all; the claim is unverifiable by construction and must be re-stated with observables before the gate can return a meaningful result."
-    },
-    "matches": {
-      "type": "object_array",
-      "description": "Claimed items that were observed as claimed. Each entry includes: item_type, the original claim fields, and an evidence field describing how the match was observed (file present with expected sha256, env var set with expected value, version probe stdout, etc.)."
-    },
-    "divergences": {
-      "type": "object_array",
-      "description": "Claimed items that were checked and did not match. Each entry includes: item_type, the original claim fields, an observed field describing what was actually found, and an evidence field citing the source of the observation."
-    },
-    "missing_observables": {
-      "type": "object_array",
-      "description": "Claimed items for which the contract could not produce an observable result (file or config source missing, unreadable process table, unsupported config format, probe binary not executable). Each entry includes: item_type, the original claim fields, and a reason. Missing observables do not pass or fail the gate by themselves, but they prevent 'materialized' and must be resolved before the gate can return a clean result."
-    },
-    "echoed_claim_text": {
-      "type": "string",
-      "description": "The input claim_text returned verbatim. Present even when claim_text was omitted (empty string). Keeps the prose form of the claim visible in the result so prose and evidence remain paired in the same payload."
-    },
-    "recommended_next_action": {
-      "type": "string",
-      "description": "Required. Single next action to close the gap between claim and observable state. The contract never returns without naming an action -- even when the action is 'report_to_human' (for acknowledged_only or no_observable_anchor states) or 'continue' (for materialized state)."
-    },
-    "recommended_next_call": {
-      "type": "string",
-      "description": "Required. Named callable the agent should invoke next. Values include: 'verify_config_materialization' (re-probe after a corrective edit), another harness tool name, a setup command, or 'report_to_human' when no mechanical lane remains. A trace that ends at diagnosis without naming the next call is incomplete."
-    },
-    "evidence_basis": {
-      "type": "string_array",
-      "description": "What the verification pass used to ground the result. Typical values: 'filesystem_probe', 'config_read:json', 'config_read:dotenv', 'env_snapshot', 'process_enum', 'version_probe'."
-    }
-  },
-  "result_example": {
-    "materialization_state": "partially_materialized",
-    "matches": [
-      {
-        "item_type": "required_file",
-        "path": ".env.local",
-        "evidence": "present, 412 bytes"
-      }
-    ],
-    "divergences": [
-      {
-        "item_type": "required_config_value",
-        "source_path": ".env.local",
-        "key_path": "DATABASE_URL",
-        "expected_value": "postgres://localhost:5432/workorders",
-        "observed_value": "postgres://localhost:5432/workorders_old",
-        "evidence": "line 3 of .env.local"
-      }
-    ],
-    "missing_observables": [],
-    "echoed_claim_text": "I configured .env.local with the new database URL.",
-    "recommended_next_action": "update DATABASE_URL in .env.local to the claimed value, then re-verify",
-    "recommended_next_call": "verify_config_materialization",
-    "evidence_basis": [
-      "filesystem_probe:.env.local",
-      "config_read:dotenv"
-    ]
-  }
+    "contract_name":  "verify_config_materialization_contract",
+    "contract_version":  "0.1.0",
+    "function_name":  "verify_config_materialization",
+    "purpose":  "Mechanical gate that distinguishes declared configuration from observable configuration. Given one or more declared observables, the contract probes the workspace and environment and returns a bounded materialization state with structured evidence and a required next action. Its specific job is to prevent the failure class in which an agent treats \u0027config acknowledged\u0027 (a claim was made) as \u0027config materialized\u0027 (the claim matches reality).",
+    "input_contract":  {
+                           "workspace_root":  {
+                                                  "type":  "absolute_path",
+                                                  "required":  true,
+                                                  "description":  "Workspace root the claim is checked against. Relative paths inside required_* items resolve against this root."
+                                              },
+                           "claim_text":  {
+                                              "type":  "string",
+                                              "required":  false,
+                                              "description":  "Optional plain-language restatement of what the agent or user claimed. Echoed in the result so the prose claim is preserved alongside structured evidence and cannot be silently edited during verification."
+                                          },
+                           "required_files":  {
+                                                  "type":  "object_array",
+                                                  "required":  false,
+                                                  "description":  "Files claimed to be present (or absent). Each entry specifies: path (relative to workspace_root or absolute), optional expected_sha256 for content identity, optional expected_contains (substring that must appear in the file), and optional expected_absent (when true, the gate passes only when the file does not exist)."
+                                              },
+                           "required_config_values":  {
+                                                          "type":  "object_array",
+                                                          "required":  false,
+                                                          "description":  "Declared key/value pairs inside a config file. Each entry specifies: source_path (relative or absolute), key_path (dotted or bracket form for nested keys), and expected_value. Format is auto-detected from extension (json, toml, yaml, ini, env) or can be set explicitly via format."
+                                                      },
+                           "required_env_vars":  {
+                                                     "type":  "object_array",
+                                                     "required":  false,
+                                                     "description":  "Environment variables claimed to be set in the current process environment. Each entry specifies: name and optional expected_value (presence-only check when expected_value is omitted)."
+                                                 },
+                           "required_executables":  {
+                                                        "type":  "object_array",
+                                                        "required":  false,
+                                                        "description":  "Executable binaries claimed to be present and runnable. Each entry specifies: path (relative or absolute) and an optional expected_version_probe_args array. When probe args are present, the contract invokes the binary with those args and records stdout as version evidence; the probe is read-only and is expected to terminate in under five seconds."
+                                                    },
+                           "required_processes":  {
+                                                      "type":  "object_array",
+                                                      "required":  false,
+                                                      "description":  "Processes claimed to be running under the current user. Each entry specifies: process_name. Scope is intentionally narrow -- this contract does not probe system services, other users\u0027 sessions, or container workloads. Omit when process state is out of scope for the claim."
+                                                  }
+                       },
+    "output_contract":  {
+                            "materialization_state":  {
+                                                          "type":  "enum",
+                                                          "values":  [
+                                                                         "materialized",
+                                                                         "partially_materialized",
+                                                                         "divergent",
+                                                                         "acknowledged_only",
+                                                                         "no_observable_anchor"
+                                                                     ],
+                                                          "description":  "Bounded materialization result. \u0027materialized\u0027 means every checked item matched the claim. \u0027partially_materialized\u0027 means some items matched and some diverged. \u0027divergent\u0027 means the claim was checked and the observable state disagrees with every item examined. \u0027acknowledged_only\u0027 is the report-to-human state -- the claim included only prose (claim_text) or items the contract could not probe, so the claim cannot be confirmed or denied; the agent\u0027s next action is to sharpen the claim into observables. \u0027no_observable_anchor\u0027 means no required_* fields were populated at all; the claim is unverifiable by construction and must be re-stated with observables before the gate can return a meaningful result."
+                                                      },
+                            "matches":  {
+                                            "type":  "object_array",
+                                            "description":  "Claimed items that were observed as claimed. Each entry includes: item_type, the original claim fields, and an evidence field describing how the match was observed (file present with expected sha256, env var set with expected value, version probe stdout, etc.)."
+                                        },
+                            "divergences":  {
+                                                "type":  "object_array",
+                                                "description":  "Claimed items that were checked and did not match. Each entry includes: item_type, the original claim fields, an observed field describing what was actually found, and an evidence field citing the source of the observation."
+                                            },
+                            "missing_observables":  {
+                                                        "type":  "object_array",
+                                                        "description":  "Claimed items for which the contract could not produce an observable result (file or config source missing, unreadable process table, unsupported config format, probe binary not executable). Each entry includes: item_type, the original claim fields, and a reason. Missing observables do not pass or fail the gate by themselves, but they prevent \u0027materialized\u0027 and must be resolved before the gate can return a clean result."
+                                                    },
+                            "echoed_claim_text":  {
+                                                      "type":  "string",
+                                                      "description":  "The input claim_text returned verbatim. Present even when claim_text was omitted (empty string). Keeps the prose form of the claim visible in the result so prose and evidence remain paired in the same payload."
+                                                  },
+                            "recommended_next_action":  {
+                                                            "type":  "string",
+                                                            "description":  "Required. Single next action to close the gap between claim and observable state. The contract never returns without naming an action -- even when the action is \u0027report_to_human\u0027 (for acknowledged_only or no_observable_anchor states) or \u0027continue\u0027 (for materialized state)."
+                                                        },
+                            "recommended_next_call":  {
+                                                          "type":  "string",
+                                                          "description":  "Required. Named callable the agent should invoke next. Values include: \u0027verify_config_materialization\u0027 (re-probe after a corrective edit), another harness tool name, a setup command, or \u0027report_to_human\u0027 when no mechanical lane remains. A trace that ends at diagnosis without naming the next call is incomplete."
+                                                      },
+                            "evidence_basis":  {
+                                                   "type":  "string_array",
+                                                   "description":  "What the verification pass used to ground the result. Typical values: \u0027filesystem_probe\u0027, \u0027config_read:json\u0027, \u0027config_read:dotenv\u0027, \u0027env_snapshot\u0027, \u0027process_enum\u0027, \u0027version_probe\u0027."
+                                               }
+                        },
+    "result_example":  {
+                           "materialization_state":  "partially_materialized",
+                           "matches":  [
+                                           {
+                                               "item_type":  "required_file",
+                                               "path":  ".env.local",
+                                               "evidence":  "present, 412 bytes"
+                                           }
+                                       ],
+                           "divergences":  [
+                                               {
+                                                   "item_type":  "required_config_value",
+                                                   "source_path":  ".env.local",
+                                                   "key_path":  "DATABASE_URL",
+                                                   "expected_value":  "postgres://localhost:5432/workorders",
+                                                   "observed_value":  "postgres://localhost:5432/workorders_old",
+                                                   "evidence":  "line 3 of .env.local"
+                                               }
+                                           ],
+                           "missing_observables":  [
+
+                                                   ],
+                           "echoed_claim_text":  "I configured .env.local with the new database URL.",
+                           "recommended_next_action":  "update DATABASE_URL in .env.local to the claimed value, then re-verify",
+                           "recommended_next_call":  "verify_config_materialization",
+                           "evidence_basis":  [
+                                                  "filesystem_probe:.env.local",
+                                                  "config_read:dotenv"
+                                              ]
+                       },
+    "structural_grounding_requirement":  {
+                                             "requirement_kind":  "mechanical-proof",
+                                             "output_behavior":  "non_blocking_measurement_label; tools always run and label grounding rather than refusing execution",
+                                             "description":  "verify_config_materialization observes concrete files, config values, environment variables, executables, and processes; portable schema application is not required.",
+                                             "typical_required_surfaces":  [
+                                                                               "caller-supplied observables"
+                                                                           ]
+                                         }
 }

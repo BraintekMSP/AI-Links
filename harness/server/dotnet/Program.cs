@@ -844,6 +844,336 @@ internal sealed record RuntimeProvenanceEnvelope(
     [property: JsonPropertyName("claim_scope_effect")] string[] ClaimScopeEffect,
     [property: JsonPropertyName("confidence")] string Confidence);
 
+internal sealed record StructuralGroundingAssessment(
+    [property: JsonPropertyName("grounding_state")] string GroundingState,
+    [property: JsonPropertyName("required_structural_surfaces")] string[] RequiredStructuralSurfaces,
+    [property: JsonPropertyName("observed_structural_surfaces")] string[] ObservedStructuralSurfaces,
+    [property: JsonPropertyName("missing_or_partial_surfaces")] string[] MissingOrPartialSurfaces,
+    [property: JsonPropertyName("recommended_next_actions")] string[] RecommendedNextActions,
+    [property: JsonPropertyName("claim_scope_effect")] string[] ClaimScopeEffect);
+
+// Purpose: Labels harness output with the structural grounding observed at tool entry without blocking tool execution.
+// Expected input: Workspace root plus the tool/lane whose output is being labeled.
+// Expected output: A structural_grounding payload describing required, observed, and missing schema/underlay surfaces.
+// Critical dependencies: RuntimeEnvelopeBuilder, SchemaRealityInspector, and repo-local narrative/underlay conventions.
+internal sealed class StructuralGroundingInspector(SchemaRealityInspector schemaRealityInspector)
+{
+    private const string NarrativeSchemaFileName = "AGENTS-schema-narrative.json";
+    private const string NarrativeRegisterRelativePath = ".agents/anarchy-ai/narratives/register.json";
+    private const string NarrativeProjectsDirectoryRelativePath = ".agents/anarchy-ai/narratives/projects";
+
+    private static readonly string[] DiagnosticClaimScope =
+    [
+        "diagnostic_lane_observes_structural_grounding_without_requiring_it",
+        "tools_always_run_and_label_grounding"
+    ];
+
+    // Purpose: Builds grounding for operational output whose usefulness depends on applied portable schema/underlay state.
+    // Expected input: Workspace root, tool name, active lane, and optional workspace posture.
+    // Expected output: Grounding label; never a refusal or blocked state.
+    // Critical dependencies: BuildRequiredSurfacesForLane and BuildMissingSurfacesForLane.
+    public StructuralGroundingAssessment EvaluateOperationalOutput(
+        string workspaceRoot,
+        string toolName,
+        string? activeLane,
+        string? workspacePosture = null)
+    {
+        return Evaluate(workspaceRoot, toolName, "schema_dependent_operational_output", activeLane, workspacePosture);
+    }
+
+    // Purpose: Builds grounding for diagnostic/readiness output; diagnostics measure state even when prerequisites are absent.
+    // Expected input: Workspace root, tool name, and optional workspace posture.
+    // Expected output: Grounding label for the observed workspace state.
+    // Critical dependencies: Evaluate and diagnostic claim-scope wording.
+    public StructuralGroundingAssessment EvaluateDiagnosticOutput(
+        string workspaceRoot,
+        string toolName,
+        string? workspacePosture = null)
+    {
+        return Evaluate(workspaceRoot, toolName, "diagnostic_or_readiness_lane", "diagnostic", workspacePosture);
+    }
+
+    // Purpose: Builds grounding for migration output; migration is the corrective lane and does not require already-applied state.
+    // Expected input: Workspace root, tool name, and optional workspace posture.
+    // Expected output: Non-blocking grounding label.
+    // Critical dependencies: RuntimeEnvelopeBuilder workspace-role classification.
+    public StructuralGroundingAssessment EvaluateMigrationOutput(
+        string workspaceRoot,
+        string toolName,
+        string? workspacePosture = null)
+    {
+        return Evaluate(workspaceRoot, toolName, "migration_lane", "gov2gov", workspacePosture);
+    }
+
+    // Purpose: Builds grounding for mechanical proof/config tools that observe concrete files/config/env/process state.
+    // Expected input: Workspace root and tool name.
+    // Expected output: not_required grounding label.
+    // Critical dependencies: RuntimeEnvelopeBuilder workspace-role classification.
+    public StructuralGroundingAssessment EvaluateMechanicalProofOutput(string workspaceRoot, string toolName)
+    {
+        var resolvedWorkspaceRoot = Path.GetFullPath(workspaceRoot);
+        var workspaceRole = RuntimeEnvelopeBuilder.BuildWorkspaceRole(resolvedWorkspaceRoot);
+        return new StructuralGroundingAssessment(
+            GroundingState: "not_required",
+            RequiredStructuralSurfaces: ["concrete_observable_claims_supplied_by_caller"],
+            ObservedStructuralSurfaces:
+            [
+                $"tool:{toolName}",
+                $"workspace_role:{workspaceRole.MachineKey}",
+                "mechanical_proof_lane_uses_declared_observables_not_portable_schema_application"
+            ],
+            MissingOrPartialSurfaces: [],
+            RecommendedNextActions: ["continue_with_materialization_evidence"],
+            ClaimScopeEffect:
+            [
+                "portable_schema_application_not_required_for_mechanical_observable_checks",
+                "tools_always_run_and_label_grounding"
+            ]);
+    }
+
+    private StructuralGroundingAssessment Evaluate(
+        string workspaceRoot,
+        string toolName,
+        string requirementKind,
+        string? activeLane,
+        string? workspacePosture)
+    {
+        var resolvedWorkspaceRoot = Path.GetFullPath(workspaceRoot);
+        var workspaceRole = RuntimeEnvelopeBuilder.BuildWorkspaceRole(resolvedWorkspaceRoot);
+        var consumerMaterialGovernanceCheck = RuntimeEnvelopeBuilder.ConsumerMaterialGovernanceCheck(workspaceRole);
+        var requiredSurfaces = BuildRequiredSurfacesForLane(activeLane);
+        var observedSurfaces = BuildObservedSurfaces(resolvedWorkspaceRoot, workspaceRole, toolName, requirementKind, workspacePosture);
+
+        if (consumerMaterialGovernanceCheck == "not_applicable")
+        {
+            return new StructuralGroundingAssessment(
+                GroundingState: "source_authoring_not_applicable",
+                RequiredStructuralSurfaces: requiredSurfaces,
+                ObservedStructuralSurfaces: observedSurfaces,
+                MissingOrPartialSurfaces: [],
+                RecommendedNextActions: ["continue_with_source_authoring_context"],
+                ClaimScopeEffect:
+                [
+                    "source_workspace_authors_schema_not_adopts_schema",
+                    "consumer_schema_application_pressure_not_applicable",
+                    "tools_always_run_and_label_grounding"
+                ]);
+        }
+
+        var missingOrPartialSurfaces = BuildMissingSurfacesForLane(resolvedWorkspaceRoot, activeLane, workspacePosture);
+        var groundingState = requirementKind switch
+        {
+            "migration_lane" => "not_required",
+            "diagnostic_or_readiness_lane" when missingOrPartialSurfaces.Length == 0 => "fully_grounded",
+            "diagnostic_or_readiness_lane" => "partially_grounded",
+            _ when consumerMaterialGovernanceCheck == "undetermined" && missingOrPartialSurfaces.Length > 0 => "ungrounded",
+            _ when missingOrPartialSurfaces.Length == 0 => "fully_grounded",
+            _ when missingOrPartialSurfaces.Length < requiredSurfaces.Length => "partially_grounded",
+            _ => "ungrounded"
+        };
+
+        return new StructuralGroundingAssessment(
+            GroundingState: groundingState,
+            RequiredStructuralSurfaces: requiredSurfaces,
+            ObservedStructuralSurfaces: observedSurfaces,
+            MissingOrPartialSurfaces: missingOrPartialSurfaces,
+            RecommendedNextActions: BuildRecommendedActions(groundingState, requirementKind, missingOrPartialSurfaces),
+            ClaimScopeEffect: BuildClaimScopeEffect(consumerMaterialGovernanceCheck, requirementKind));
+    }
+
+    private string[] BuildObservedSurfaces(
+        string workspaceRoot,
+        WorkspaceRoleEnvelope workspaceRole,
+        string toolName,
+        string requirementKind,
+        string? workspacePosture)
+    {
+        var observed = new List<string>
+        {
+            $"tool:{toolName}",
+            $"requirement_kind:{requirementKind}",
+            $"workspace_role:{workspaceRole.MachineKey}"
+        };
+
+        if (!string.IsNullOrWhiteSpace(workspacePosture))
+        {
+            observed.Add($"workspace_posture:{RuntimeEnvelopeBuilder.ResolveWorkspacePosture(workspaceRoot, workspacePosture)}");
+        }
+
+        try
+        {
+            var evaluation = JsonSerializer.SerializeToElement(
+                schemaRealityInspector.Evaluate(workspaceRoot, "AGENTS-schema-family", null, workspacePosture));
+            observed.Add($"schema_reality_state:{GetString(evaluation, "schema_reality_state")}");
+            observed.Add($"integrity_state:{GetString(evaluation, "integrity_state")}");
+            observed.Add($"possession_state:{GetString(evaluation, "possession_state")}");
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or ArgumentException)
+        {
+            observed.Add($"schema_reality_observation_failed:{ex.GetType().Name}");
+        }
+
+        if (File.Exists(Path.Combine(workspaceRoot, NarrativeSchemaFileName)))
+        {
+            observed.Add($"portable_schema:{NarrativeSchemaFileName}");
+        }
+
+        if (File.Exists(Path.Combine(workspaceRoot, NarrativeRegisterRelativePath)))
+        {
+            observed.Add($"narrative_register:{NarrativeRegisterRelativePath}");
+        }
+
+        if (Directory.Exists(Path.Combine(workspaceRoot, NarrativeProjectsDirectoryRelativePath)))
+        {
+            observed.Add($"narrative_projects_directory:{NarrativeProjectsDirectoryRelativePath}");
+        }
+
+        return observed.Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    private static string[] BuildRequiredSurfacesForLane(string? activeLane)
+    {
+        return NormalizeLane(activeLane) switch
+        {
+            "narrative" => [NarrativeSchemaFileName, NarrativeRegisterRelativePath, NarrativeProjectsDirectoryRelativePath],
+            "gov2gov" => ["AGENTS-schema-gov2gov-migration.json"],
+            "1project" => ["AGENTS-schema-1project.json"],
+            "triage" => ["AGENTS-schema-triage.md"],
+            "governance" => ["AGENTS.md", "AGENTS-schema-governance.json"],
+            _ => ["AGENTS.md", NarrativeSchemaFileName]
+        };
+    }
+
+    private static string[] BuildMissingSurfacesForLane(string workspaceRoot, string? activeLane, string? workspacePosture)
+    {
+        var missing = new List<string>();
+        foreach (var surface in BuildRequiredSurfacesForLane(activeLane))
+        {
+            var path = Path.Combine(workspaceRoot, surface);
+            if (!File.Exists(path) && !Directory.Exists(path))
+            {
+                missing.Add($"missing:{surface}");
+            }
+        }
+
+        var registerPath = Path.Combine(workspaceRoot, NarrativeRegisterRelativePath);
+        if (File.Exists(registerPath) && !IsValidJsonFile(registerPath))
+        {
+            missing.Add($"invalid_json:{NarrativeRegisterRelativePath}");
+        }
+
+        if (RuntimeEnvelopeBuilder.ConsumerMaterialGovernanceCheck(RuntimeEnvelopeBuilder.BuildWorkspaceRole(workspaceRoot)) == "undetermined")
+        {
+            missing.Add("workspace_role_undetermined");
+        }
+
+        var posture = RuntimeEnvelopeBuilder.ResolveWorkspacePosture(workspaceRoot, workspacePosture);
+        if (posture == RuntimeEnvelopeBuilder.RepoLocalRuntimePosture)
+        {
+            var marketplacePath = AnarchyPathCanon.ResolveRepoLocalMarketplaceFilePath(workspaceRoot);
+            if (!File.Exists(marketplacePath))
+            {
+                missing.Add($"missing:{AnarchyPathCanon.RepoLocalMarketplaceFileRelativePath}");
+            }
+        }
+
+        return missing.Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    private static string[] BuildRecommendedActions(string groundingState, string requirementKind, string[] missingOrPartialSurfaces)
+    {
+        if (requirementKind == "migration_lane")
+        {
+            return ["run_gov2gov_migration_when_schema_reality_is_partial_or_copied_only"];
+        }
+
+        if (groundingState == "fully_grounded")
+        {
+            return ["continue_with_structural_grounding_visible"];
+        }
+
+        var actions = new List<string>
+        {
+            "run_preflight_session",
+            "assess_harness_gap_state"
+        };
+
+        if (missingOrPartialSurfaces.Any(static surface => surface.Contains("AGENTS-schema", StringComparison.Ordinal) || surface.Contains("AGENTS.md", StringComparison.Ordinal)))
+        {
+            actions.Add("/underlay /refresh /apply");
+        }
+
+        if (missingOrPartialSurfaces.Any(static surface => surface.Contains("narrative_", StringComparison.Ordinal) || surface.Contains(".agents/anarchy-ai/narratives", StringComparison.Ordinal)))
+        {
+            actions.Add("run_gov2gov_migration:plan_only");
+        }
+
+        return actions.Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    private static string[] BuildClaimScopeEffect(string consumerMaterialGovernanceCheck, string requirementKind)
+    {
+        var effects = new List<string> { "tools_always_run_and_label_grounding" };
+
+        if (requirementKind == "diagnostic_or_readiness_lane")
+        {
+            effects.AddRange(DiagnosticClaimScope);
+        }
+        else if (requirementKind == "migration_lane")
+        {
+            effects.Add("migration_lane_constructs_or_audits_structural_state");
+        }
+        else
+        {
+            effects.Add("operational_output_grounding_depends_on_observed_structural_state");
+        }
+
+        effects.Add(consumerMaterialGovernanceCheck switch
+        {
+            "applicable" => "consumer_schema_application_pressure_applicable",
+            "undetermined" => "workspace_role_undetermined_grounding_qualified",
+            _ => "consumer_schema_application_pressure_not_applicable"
+        });
+
+        return effects.Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    private static string NormalizeLane(string? activeLane)
+    {
+        return string.IsNullOrWhiteSpace(activeLane)
+            ? "general"
+            : activeLane.Trim().ToLowerInvariant();
+    }
+
+    private static bool IsValidJsonFile(string filePath)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(filePath));
+            return document.RootElement.ValueKind is JsonValueKind.Object or JsonValueKind.Array;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static string GetString(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
+            ? property.GetString() ?? string.Empty
+            : string.Empty;
+    }
+}
+
 // Purpose: Evaluates whether a workspace has materially real Anarchy schema surfaces or only partial/copied traces.
 // Expected input: Workspace root, expected schema-package label, and optional startup-surface list.
 // Expected output: An anonymous object describing schema reality, integrity, possession, reasons, repairs, and inspection facts.
@@ -1407,9 +1737,13 @@ internal sealed class SchemaRealityInspector
 // Expected input: Workspace root, precomputed schema-reality context, optional startup surfaces, and migration mode.
 // Expected output: An anonymous object describing planned actions, applied actions, audit pressure, and resulting state.
 // Critical dependencies: SchemaRealityInspector, CanonicalSchemaBundle, and workspace filesystem access.
-internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealityInspector)
+internal sealed class Gov2GovMigrationRunner(
+    SchemaRealityInspector schemaRealityInspector,
+    StructuralGroundingInspector? structuralGroundingInspector = null)
 {
     private readonly CanonicalSchemaBundle _canonicalSchemaBundle = CanonicalSchemaBundle.TryLoad();
+    private readonly StructuralGroundingInspector _structuralGroundingInspector =
+        structuralGroundingInspector ?? new StructuralGroundingInspector(schemaRealityInspector);
 
     internal const string Gov2GovArtifactModeActive = "active";
     internal const string Gov2GovArtifactModeReference = "reference";
@@ -1458,6 +1792,10 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
         var workspacePostureState = RuntimeEnvelopeBuilder.ResolveWorkspacePosture(resolvedWorkspaceRoot, workspacePosture);
         var gov2GovArtifactModeState = ResolveGov2GovArtifactMode(resolvedWorkspaceRoot, gov2GovArtifactMode);
         var consumerMaterialGovernanceCheck = RuntimeEnvelopeBuilder.ConsumerMaterialGovernanceCheck(workspaceRole);
+        var structuralGrounding = _structuralGroundingInspector.EvaluateMigrationOutput(
+            resolvedWorkspaceRoot,
+            "run_gov2gov_migration",
+            workspacePostureState);
 
         var preEvaluation = JsonSerializer.SerializeToElement(
             schemaRealityInspector.Evaluate(resolvedWorkspaceRoot, expectedSchemaPackage, startupSurfaces, workspacePostureState));
@@ -1600,6 +1938,7 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
             workspace_posture = workspacePostureState,
             gov2gov_artifact_mode = gov2GovArtifactModeState,
             consumer_material_governance_check = consumerMaterialGovernanceCheck,
+            structural_grounding = structuralGrounding,
             migration_result_state = migrationResultState,
             planned_actions = plannedActions.Distinct(StringComparer.Ordinal).ToArray(),
             actions_taken = actionsTaken.Distinct(StringComparer.Ordinal).ToArray(),
@@ -2122,7 +2461,7 @@ internal sealed class Gov2GovMigrationRunner(SchemaRealityInspector schemaRealit
 // Expected input: Workspace root, current objective, optional working set, blockers, residue, and preferred lane.
 // Expected output: An anonymous object describing active lane, status, blockers, remaining steps, and measurement basis.
 // Critical dependencies: workspace filesystem state, lane heuristics, and working-surface presence checks.
-internal sealed class ActiveWorkStateCompiler
+internal sealed class ActiveWorkStateCompiler(StructuralGroundingInspector structuralGroundingInspector)
 {
     private static readonly string[] KnownLanes =
     [
@@ -2238,7 +2577,11 @@ internal sealed class ActiveWorkStateCompiler
                 present = workingSurfacePresence.Present.ToArray(),
                 missing = workingSurfacePresence.Missing.ToArray()
             },
-            measurement_basis = measurementBasis
+            measurement_basis = measurementBasis,
+            structural_grounding = structuralGroundingInspector.EvaluateOperationalOutput(
+                resolvedWorkspaceRoot,
+                "compile_active_work_state",
+                laneInference.ActiveLane)
         };
     }
 
@@ -4018,8 +4361,13 @@ internal sealed class VerifyConfigMaterializationRunner
 // Expected input: Workspace root, optional host context, and optional expected capability list.
 // Expected output: An anonymous object describing installation, runtime, schema, adoption, findings, repairs, and nested path facts.
 // Critical dependencies: HarnessInstallDiscovery, SchemaRealityInspector, marketplace inspection, and bundle-surface inspection.
-internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityInspector)
+internal sealed class HarnessGapAssessor(
+    SchemaRealityInspector schemaRealityInspector,
+    StructuralGroundingInspector? structuralGroundingInspector = null)
 {
+    private readonly StructuralGroundingInspector _structuralGroundingInspector =
+        structuralGroundingInspector ?? new StructuralGroundingInspector(schemaRealityInspector);
+
     private static readonly string[] ExpectedContractFiles =
     [
         "active-work-state.contract.json",
@@ -4195,6 +4543,9 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
             consumerMaterialGovernanceCheck,
             normalizedHostContext,
             missingComponents);
+        var structuralGrounding = _structuralGroundingInspector.EvaluateDiagnosticOutput(
+            resolvedWorkspaceRoot,
+            "assess_harness_gap_state");
 
         var safeRepairs = new List<string>();
         var adminActions = new List<string>();
@@ -4265,6 +4616,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
             possessionState,
             underlayReadiness,
             artifactHygiene,
+            structuralGrounding,
             distinctMissingComponents,
             distinctSafeRepairs,
             distinctAdminActions);
@@ -4319,6 +4671,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
                 recommended_artifact_lanes = artifactHygiene.RecommendedArtifactLanes,
                 safe_repairs = artifactHygiene.SafeRepairs
             },
+            structural_grounding = structuralGrounding,
             doctor_summary = doctorSummary,
             adoption_state = adoptionState,
             missing_components = distinctMissingComponents,
@@ -4372,6 +4725,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         string possessionState,
         UnderlayReadinessAssessment underlayReadiness,
         ArtifactHygieneAssessment artifactHygiene,
+        StructuralGroundingAssessment structuralGrounding,
         string[] missingComponents,
         string[] safeRepairs,
         string[] adminActions)
@@ -4383,18 +4737,21 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         var nonBlockingGaps = missingComponents
             .Except(blockingGaps, StringComparer.Ordinal)
             .Concat(underlayReadiness.UtilizationGaps.Select(static gap => $"underlay_utilization_gap:{gap}"))
+            .Concat(structuralGrounding.MissingOrPartialSurfaces.Select(static gap => $"structural_grounding_gap:{gap}"))
             .Concat(artifactHygiene.State == "repo_local_artifacts_observed"
                 ? new[] { "artifact_hygiene:repo_local_artifacts_observed" }
                 : Array.Empty<string>())
             .Distinct(StringComparer.Ordinal)
             .ToArray();
         var suggestedCorrections = safeRepairs
+            .Concat(structuralGrounding.RecommendedNextActions)
             .Distinct(StringComparer.Ordinal)
             .ToArray();
         var recommendedNextActions = BuildRecommendedNextActions(
             blockingGaps,
             nonBlockingGaps,
             underlayReadiness,
+            structuralGrounding,
             artifactHygiene);
         var humanAttentionReasons = BuildHumanAttentionReasons(
             blockingGaps,
@@ -4404,6 +4761,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         var observedPitfalls = BuildObservedPitfalls(
             schemaRealityState,
             underlayReadiness,
+            structuralGrounding,
             artifactHygiene);
 
         return new
@@ -4419,8 +4777,10 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
                 integrity_state = integrityState,
                 possession_state = possessionState,
                 underlay_readiness_state = underlayReadiness.ReadinessState,
+                structural_grounding_state = structuralGrounding.GroundingState,
                 artifact_hygiene_state = artifactHygiene.State
             },
+            structural_grounding = structuralGrounding,
             blocking_gaps = blockingGaps,
             non_blocking_gaps = nonBlockingGaps,
             suggested_corrections = suggestedCorrections,
@@ -4449,6 +4809,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         string[] blockingGaps,
         string[] nonBlockingGaps,
         UnderlayReadinessAssessment underlayReadiness,
+        StructuralGroundingAssessment structuralGrounding,
         ArtifactHygieneAssessment artifactHygiene)
     {
         var actions = new List<string>();
@@ -4460,6 +4821,11 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         if (underlayReadiness.ReadinessState is "portable_underlay_available_no_repo_utilization" or "portable_underlay_available_narrative_scaffolded")
         {
             actions.Add("seed_or_confirm_narrative_underlay_before_arc_capture");
+        }
+
+        if (structuralGrounding.GroundingState is "partially_grounded" or "ungrounded")
+        {
+            actions.AddRange(structuralGrounding.RecommendedNextActions);
         }
 
         if (artifactHygiene.State == "repo_local_artifacts_observed")
@@ -4506,6 +4872,7 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
     private static string[] BuildObservedPitfalls(
         string schemaRealityState,
         UnderlayReadinessAssessment underlayReadiness,
+        StructuralGroundingAssessment structuralGrounding,
         ArtifactHygieneAssessment artifactHygiene)
     {
         var pitfalls = new List<string>();
@@ -4517,6 +4884,11 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
         if (underlayReadiness.ReadinessState is "portable_underlay_available_no_repo_utilization" or "portable_underlay_available_narrative_scaffolded")
         {
             pitfalls.Add("portable_underlay_availability_can_be_misread_as_repo_utilization");
+        }
+
+        if (structuralGrounding.GroundingState is "partially_grounded" or "ungrounded")
+        {
+            pitfalls.Add("operational_output_can_be_misread_as_fully_grounded_when_structural_surfaces_are_partial");
         }
 
         if (artifactHygiene.State == "repo_local_artifacts_observed")
@@ -5317,7 +5689,8 @@ internal sealed class HarnessGapAssessor(SchemaRealityInspector schemaRealityIns
 internal sealed class PreflightSessionRunner(
     HarnessGapAssessor harnessGapAssessor,
     SchemaRealityInspector schemaRealityInspector,
-    ActiveWorkStateCompiler activeWorkStateCompiler)
+    ActiveWorkStateCompiler activeWorkStateCompiler,
+    StructuralGroundingInspector structuralGroundingInspector)
 {
     // Purpose: Produces one bounded preflight decision for complex changes.
     // Expected input: Workspace root, current objective, optional host context, optional startup surfaces, and optional user intent.
@@ -5362,6 +5735,9 @@ internal sealed class PreflightSessionRunner(
         var workspaceRole = RuntimeEnvelopeBuilder.BuildWorkspaceRole(resolvedWorkspaceRoot);
         var runtimeProvenance = RuntimeEnvelopeBuilder.BuildRuntimeProvenance(resolvedWorkspaceRoot);
         var consumerMaterialGovernanceCheck = RuntimeEnvelopeBuilder.ConsumerMaterialGovernanceCheck(workspaceRole);
+        var structuralGrounding = structuralGroundingInspector.EvaluateDiagnosticOutput(
+            resolvedWorkspaceRoot,
+            "preflight_session");
 
         var currentStatus = GetString(activeWorkElement, "current_status");
         var evidenceStatus = GetString(activeWorkElement, "evidence_status");
@@ -5458,6 +5834,7 @@ internal sealed class PreflightSessionRunner(
                 .ToArray(),
             active_lane = activeLane,
             current_status = currentStatus,
+            structural_grounding = structuralGrounding,
             schema_state = new
             {
                 schema_reality_state = schemaRealityState,
@@ -5724,6 +6101,7 @@ internal static class Program
         builder.Logging.ClearProviders();
         builder.Services.AddSingleton<ContractLoader>();
         builder.Services.AddSingleton<SchemaRealityInspector>();
+        builder.Services.AddSingleton<StructuralGroundingInspector>();
         builder.Services.AddSingleton<Gov2GovMigrationRunner>();
         builder.Services.AddSingleton<ActiveWorkStateCompiler>();
         builder.Services.AddSingleton<DirectionAssistRunner>();

@@ -1,172 +1,184 @@
 {
-  "contract_name": "schema_reality_contract",
-  "contract_version": "0.1.2",
-  "function_name": "is_schema_real_or_shadow_copied",
-  "purpose": "Determine whether the schema package in a target workspace is real enough to govern work, only partially materialized, copied only, or fully missing.",
-  "input_contract": {
-    "workspace_root": {
-      "type": "absolute_path",
-      "required": true,
-      "description": "Workspace root to inspect."
-    },
-    "expected_schema_package": {
-      "type": "string",
-      "required": true,
-      "description": "Expected schema family or package name."
-    },
-    "startup_surfaces": {
-      "type": "string_array",
-      "required": false,
-      "description": "Optional startup or package surfaces that should align with the schema package."
-    },
-    "workspace_posture": {
-      "type": "enum",
-      "required": false,
-      "values": [
-        "auto",
-        "repo_underlay",
-        "repo_local_runtime",
-        "undetermined"
-      ],
-      "description": "Optional Anarchy posture override. In repo_underlay posture, repo-local plugin marketplace discovery is not required."
-    }
-  },
-  "output_contract": {
-    "workspace_role": {
-      "type": "object",
-      "description": "Role envelope declaring whether this workspace is schema/plugin source-delivery, a material governance consumer, or mixed/undetermined before schema claims are interpreted."
-    },
-    "runtime_provenance": {
-      "type": "object",
-      "description": "Runtime provenance envelope declaring whether the callable harness came from user profile install, repo-local install, source checkout, or an unknown/external runtime lane."
-    },
-    "workspace_posture": {
-      "type": "enum",
-      "values": [
-        "repo_underlay",
-        "repo_local_runtime",
-        "undetermined"
-      ],
-      "description": "Resolved Anarchy posture used to interpret startup-surface requirements."
-    },
-    "consumer_material_governance_check": {
-      "type": "enum",
-      "values": [
-        "applicable",
-        "not_applicable",
-        "undetermined"
-      ],
-      "description": "Whether governed AGENTS materialization checks apply to this workspace role."
-    },
-    "schema_reality_state": {
-      "type": "enum",
-      "values": [
-        "real",
-        "partial",
-        "copied_only",
-        "fully_missing"
-      ],
-      "description": "Highest-confidence current state for the schema package in the workspace."
-    },
-    "integrity_state": {
-      "type": "enum",
-      "values": [
-        "aligned",
-        "diverged",
-        "unknown"
-      ],
-      "description": "Hash-alignment state between canonical schema bundle files and workspace schema files."
-    },
-    "possession_state": {
-      "type": "enum",
-      "values": [
-        "unpossessed",
-        "possessed",
-        "not_applicable",
-        "unknown"
-      ],
-      "description": "Derived diagnostic label for operative but canonically diverged schema surfaces."
-    },
-    "state_reasons": {
-      "type": "map",
-      "description": "Reason vocabulary grouped by state so the active result can use bounded explanations.",
-      "values": {
-        "real": [
-          "current_schema_files_present",
-          "package_surface_aligned",
-          "folder_topology_aligned",
-          "startup_discovery_path_real"
-        ],
-        "partial": [
-          "current_schema_files_present_with_missing_surfaces",
-          "package_surface_out_of_sync",
-          "folder_topology_partial",
-          "startup_discovery_path_weakened"
-        ],
-        "copied_only": [
-          "schema_files_present_without_materialization",
-          "stale_companion_artifacts",
-          "copied_without_package_alignment",
-          "folder_topology_mismatch",
-          "schema_present_not_governing"
-        ],
-        "fully_missing": [
-          "schema_package_absent",
-          "startup_surface_absent",
-          "package_surface_absent"
-        ]
-      }
-    },
-    "active_reasons": {
-      "type": "string_array",
-      "description": "Reason list selected from the active state's allowed reason vocabulary."
-    },
-    "integrity_findings": {
-      "type": "string_array",
-      "description": "Integrity-specific findings such as canonical-schema hash mismatches or missing bundle files."
-    },
-    "recommended_next_action": {
-      "type": "enum",
-      "values": [
-        "none",
-        "run_gov2gov_migration",
-        "audit_canonical_divergence_before_continuing"
-      ],
-      "description": "Safe next routing action based on the current state."
-    },
-    "safe_repairs": {
-      "type": "string_array",
-      "description": "Non-destructive repairs or updates that may be proposed from this state."
-    }
-  },
-  "result_example": {
-    "workspace_role": {
-      "machine_key": "schema_authoring_and_plugin_delivery_workspace",
-      "statement": "This workspace deliberately combines schema/harness development with plugin delivery in one source repo.",
-      "evidence": [
-        "root_portable_schema_family_present"
-      ],
-      "claim_scope_effect": [
-        "consumer_material_governance_check:not_applicable_unless_explicitly_requested"
-      ],
-      "confidence": "inferred_from_workspace"
-    },
-    "runtime_provenance": {
-      "machine_key": "user_profile_installed_runtime",
-      "statement": "This callable harness is running from the current user's installed plugin bundle. It is convenient and valid as an installed runtime, but it is not source truth for the workspace being evaluated."
-    },
-    "workspace_posture": "undetermined",
-    "consumer_material_governance_check": "not_applicable",
-    "schema_reality_state": "copied_only",
-    "integrity_state": "aligned",
-    "possession_state": "unpossessed",
-    "active_reasons": [
-      "stale_companion_artifacts",
-      "copied_without_package_alignment",
-      "schema_present_not_governing"
-    ],
-    "integrity_findings": [],
-    "recommended_next_action": "none",
-    "safe_repairs": []
-  }
+    "contract_name":  "schema_reality_contract",
+    "contract_version":  "0.1.2",
+    "function_name":  "is_schema_real_or_shadow_copied",
+    "purpose":  "Determine whether the schema package in a target workspace is real enough to govern work, only partially materialized, copied only, or fully missing.",
+    "input_contract":  {
+                           "workspace_root":  {
+                                                  "type":  "absolute_path",
+                                                  "required":  true,
+                                                  "description":  "Workspace root to inspect."
+                                              },
+                           "expected_schema_package":  {
+                                                           "type":  "string",
+                                                           "required":  true,
+                                                           "description":  "Expected schema family or package name."
+                                                       },
+                           "startup_surfaces":  {
+                                                    "type":  "string_array",
+                                                    "required":  false,
+                                                    "description":  "Optional startup or package surfaces that should align with the schema package."
+                                                },
+                           "workspace_posture":  {
+                                                     "type":  "enum",
+                                                     "required":  false,
+                                                     "values":  [
+                                                                    "auto",
+                                                                    "repo_underlay",
+                                                                    "repo_local_runtime",
+                                                                    "undetermined"
+                                                                ],
+                                                     "description":  "Optional Anarchy posture override. In repo_underlay posture, repo-local plugin marketplace discovery is not required."
+                                                 }
+                       },
+    "output_contract":  {
+                            "workspace_role":  {
+                                                   "type":  "object",
+                                                   "description":  "Role envelope declaring whether this workspace is schema/plugin source-delivery, a material governance consumer, or mixed/undetermined before schema claims are interpreted."
+                                               },
+                            "runtime_provenance":  {
+                                                       "type":  "object",
+                                                       "description":  "Runtime provenance envelope declaring whether the callable harness came from user profile install, repo-local install, source checkout, or an unknown/external runtime lane."
+                                                   },
+                            "workspace_posture":  {
+                                                      "type":  "enum",
+                                                      "values":  [
+                                                                     "repo_underlay",
+                                                                     "repo_local_runtime",
+                                                                     "undetermined"
+                                                                 ],
+                                                      "description":  "Resolved Anarchy posture used to interpret startup-surface requirements."
+                                                  },
+                            "consumer_material_governance_check":  {
+                                                                       "type":  "enum",
+                                                                       "values":  [
+                                                                                      "applicable",
+                                                                                      "not_applicable",
+                                                                                      "undetermined"
+                                                                                  ],
+                                                                       "description":  "Whether governed AGENTS materialization checks apply to this workspace role."
+                                                                   },
+                            "schema_reality_state":  {
+                                                         "type":  "enum",
+                                                         "values":  [
+                                                                        "real",
+                                                                        "partial",
+                                                                        "copied_only",
+                                                                        "fully_missing"
+                                                                    ],
+                                                         "description":  "Highest-confidence current state for the schema package in the workspace."
+                                                     },
+                            "integrity_state":  {
+                                                    "type":  "enum",
+                                                    "values":  [
+                                                                   "aligned",
+                                                                   "diverged",
+                                                                   "unknown"
+                                                               ],
+                                                    "description":  "Hash-alignment state between canonical schema bundle files and workspace schema files."
+                                                },
+                            "possession_state":  {
+                                                     "type":  "enum",
+                                                     "values":  [
+                                                                    "unpossessed",
+                                                                    "possessed",
+                                                                    "not_applicable",
+                                                                    "unknown"
+                                                                ],
+                                                     "description":  "Derived diagnostic label for operative but canonically diverged schema surfaces."
+                                                 },
+                            "state_reasons":  {
+                                                  "type":  "map",
+                                                  "description":  "Reason vocabulary grouped by state so the active result can use bounded explanations.",
+                                                  "values":  {
+                                                                 "real":  [
+                                                                              "current_schema_files_present",
+                                                                              "package_surface_aligned",
+                                                                              "folder_topology_aligned",
+                                                                              "startup_discovery_path_real"
+                                                                          ],
+                                                                 "partial":  [
+                                                                                 "current_schema_files_present_with_missing_surfaces",
+                                                                                 "package_surface_out_of_sync",
+                                                                                 "folder_topology_partial",
+                                                                                 "startup_discovery_path_weakened"
+                                                                             ],
+                                                                 "copied_only":  [
+                                                                                     "schema_files_present_without_materialization",
+                                                                                     "stale_companion_artifacts",
+                                                                                     "copied_without_package_alignment",
+                                                                                     "folder_topology_mismatch",
+                                                                                     "schema_present_not_governing"
+                                                                                 ],
+                                                                 "fully_missing":  [
+                                                                                       "schema_package_absent",
+                                                                                       "startup_surface_absent",
+                                                                                       "package_surface_absent"
+                                                                                   ]
+                                                             }
+                                              },
+                            "active_reasons":  {
+                                                   "type":  "string_array",
+                                                   "description":  "Reason list selected from the active state\u0027s allowed reason vocabulary."
+                                               },
+                            "integrity_findings":  {
+                                                       "type":  "string_array",
+                                                       "description":  "Integrity-specific findings such as canonical-schema hash mismatches or missing bundle files."
+                                                   },
+                            "recommended_next_action":  {
+                                                            "type":  "enum",
+                                                            "values":  [
+                                                                           "none",
+                                                                           "run_gov2gov_migration",
+                                                                           "audit_canonical_divergence_before_continuing"
+                                                                       ],
+                                                            "description":  "Safe next routing action based on the current state."
+                                                        },
+                            "safe_repairs":  {
+                                                 "type":  "string_array",
+                                                 "description":  "Non-destructive repairs or updates that may be proposed from this state."
+                                             }
+                        },
+    "result_example":  {
+                           "workspace_role":  {
+                                                  "machine_key":  "schema_authoring_and_plugin_delivery_workspace",
+                                                  "statement":  "This workspace deliberately combines schema/harness development with plugin delivery in one source repo.",
+                                                  "evidence":  [
+                                                                   "root_portable_schema_family_present"
+                                                               ],
+                                                  "claim_scope_effect":  [
+                                                                             "consumer_material_governance_check:not_applicable_unless_explicitly_requested"
+                                                                         ],
+                                                  "confidence":  "inferred_from_workspace"
+                                              },
+                           "runtime_provenance":  {
+                                                      "machine_key":  "user_profile_installed_runtime",
+                                                      "statement":  "This callable harness is running from the current user\u0027s installed plugin bundle. It is convenient and valid as an installed runtime, but it is not source truth for the workspace being evaluated."
+                                                  },
+                           "workspace_posture":  "undetermined",
+                           "consumer_material_governance_check":  "not_applicable",
+                           "schema_reality_state":  "copied_only",
+                           "integrity_state":  "aligned",
+                           "possession_state":  "unpossessed",
+                           "active_reasons":  [
+                                                  "stale_companion_artifacts",
+                                                  "copied_without_package_alignment",
+                                                  "schema_present_not_governing"
+                                              ],
+                           "integrity_findings":  [
+
+                                                  ],
+                           "recommended_next_action":  "none",
+                           "safe_repairs":  [
+
+                                            ]
+                       },
+    "structural_grounding_requirement":  {
+                                             "requirement_kind":  "source-role-aware diagnostic",
+                                             "output_behavior":  "non_blocking_measurement_label; tools always run and label grounding rather than refusing execution",
+                                             "description":  "is_schema_real_or_shadow_copied is the schema reality source used by other grounding labels and interprets source-authoring workspaces differently from consumer workspaces.",
+                                             "typical_required_surfaces":  [
+
+                                                                           ]
+                                         }
 }

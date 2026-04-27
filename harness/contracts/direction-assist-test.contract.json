@@ -1,78 +1,86 @@
 {
-  "contract_name": "direction_assist_test_contract",
-  "contract_version": "0.1.0",
-  "function_name": "direction_assist_test",
-  "purpose": "Qualify long direction text using bounded linguistic checks, return explicit findings plus cleaned direction, and append local test telemetry.",
-  "input_contract": {
-    "workspace_root": {
-      "type": "absolute_path",
-      "required": true,
-      "description": "Absolute workspace root where local test telemetry can be appended."
-    },
-    "direction_text": {
-      "type": "string",
-      "required": true,
-      "description": "Direction text to evaluate with threshold and linguistic findings."
-    },
-    "selected_option": {
-      "type": "string",
-      "required": false,
-      "description": "Optional selected choice after options are presented."
-    }
-  },
-  "output_contract": {
-    "assist_triggered": {
-      "type": "boolean",
-      "description": "True when word_count > 30 or sentence_count > 2."
-    },
-    "trigger_metrics": {
-      "type": "object",
-      "description": "Word and sentence metrics used to decide whether assist should trigger."
-    },
-    "choice_options": {
-      "type": "string_array",
-      "description": "Fixed two-choice response options for clarification or best effort."
-    },
-    "selected_option": {
-      "type": "string",
-      "description": "Normalized selected option if provided and recognized."
-    },
-    "linguistic_findings": {
-      "type": "object_array",
-      "description": "Explicit finding objects with code and detail for negation-heavy, ambiguity, and underdefined fragments."
-    },
-    "cleaned_direction": {
-      "type": "string",
-      "description": "Affirmative cleanup pass that rewrites problematic linguistic elements in affirmative form while preserving original intent."
-    },
-    "register_path": {
-      "type": "absolute_path",
-      "description": "Local JSONL register path receiving appended test entries."
-    }
-  },
-  "result_example": {
-    "assist_triggered": true,
-    "trigger_metrics": {
-      "word_count": 46,
-      "sentence_count": 3,
-      "threshold": "word_count > 30 OR sentence_count > 2"
-    },
-    "choice_options": [
-      "I need to ask clarification on a few things",
-      "Do your best with what I gave you"
-    ],
-    "selected_option": "",
-    "linguistic_findings": [
-      {
-        "code": "negation_heavy_direction",
-        "detail": "Detected 3 negation-heavy tokens that reduce directional determinacy."
-      },
-      {
-        "code": "ambiguous_references_detected",
-        "detail": "Detected 2 ambiguous reference tokens that can blur intent."
-      }
-    ],
-    "cleaned_direction": "Implement the install lane in user profile and preserve stable MCP identity.",
-    "register_path": "C:\\your-repo\\.agents\\anarchy-ai\\direction-assist-test.jsonl"
-  }
+    "contract_name":  "direction_assist_test_contract",
+    "contract_version":  "0.1.0",
+    "function_name":  "direction_assist_test",
+    "purpose":  "Qualify long direction text using bounded linguistic checks, return explicit findings plus cleaned direction, and append local test telemetry.",
+    "input_contract":  {
+                           "workspace_root":  {
+                                                  "type":  "absolute_path",
+                                                  "required":  true,
+                                                  "description":  "Absolute workspace root where local test telemetry can be appended."
+                                              },
+                           "direction_text":  {
+                                                  "type":  "string",
+                                                  "required":  true,
+                                                  "description":  "Direction text to evaluate with threshold and linguistic findings."
+                                              },
+                           "selected_option":  {
+                                                   "type":  "string",
+                                                   "required":  false,
+                                                   "description":  "Optional selected choice after options are presented."
+                                               }
+                       },
+    "output_contract":  {
+                            "assist_triggered":  {
+                                                     "type":  "boolean",
+                                                     "description":  "True when word_count \u003e 30 or sentence_count \u003e 2."
+                                                 },
+                            "trigger_metrics":  {
+                                                    "type":  "object",
+                                                    "description":  "Word and sentence metrics used to decide whether assist should trigger."
+                                                },
+                            "choice_options":  {
+                                                   "type":  "string_array",
+                                                   "description":  "Fixed two-choice response options for clarification or best effort."
+                                               },
+                            "selected_option":  {
+                                                    "type":  "string",
+                                                    "description":  "Normalized selected option if provided and recognized."
+                                                },
+                            "linguistic_findings":  {
+                                                        "type":  "object_array",
+                                                        "description":  "Explicit finding objects with code and detail for negation-heavy, ambiguity, and underdefined fragments."
+                                                    },
+                            "cleaned_direction":  {
+                                                      "type":  "string",
+                                                      "description":  "Affirmative cleanup pass that rewrites problematic linguistic elements in affirmative form while preserving original intent."
+                                                  },
+                            "register_path":  {
+                                                  "type":  "absolute_path",
+                                                  "description":  "Local JSONL register path receiving appended test entries."
+                                              }
+                        },
+    "result_example":  {
+                           "assist_triggered":  true,
+                           "trigger_metrics":  {
+                                                   "word_count":  46,
+                                                   "sentence_count":  3,
+                                                   "threshold":  "word_count \u003e 30 OR sentence_count \u003e 2"
+                                               },
+                           "choice_options":  [
+                                                  "I need to ask clarification on a few things",
+                                                  "Do your best with what I gave you"
+                                              ],
+                           "selected_option":  "",
+                           "linguistic_findings":  [
+                                                       {
+                                                           "code":  "negation_heavy_direction",
+                                                           "detail":  "Detected 3 negation-heavy tokens that reduce directional determinacy."
+                                                       },
+                                                       {
+                                                           "code":  "ambiguous_references_detected",
+                                                           "detail":  "Detected 2 ambiguous reference tokens that can blur intent."
+                                                       }
+                                                   ],
+                           "cleaned_direction":  "Implement the install lane in user profile and preserve stable MCP identity.",
+                           "register_path":  "C:\\your-repo\\.agents\\anarchy-ai\\direction-assist-test.jsonl"
+                       },
+    "structural_grounding_requirement":  {
+                                             "requirement_kind":  "diagnostic",
+                                             "output_behavior":  "non_blocking_measurement_label; tools always run and label grounding rather than refusing execution",
+                                             "description":  "direction_assist_test is a bounded test/diagnostic helper and does not require consumer schema application to report linguistic findings.",
+                                             "typical_required_surfaces":  [
+
+                                                                           ]
+                                         }
 }

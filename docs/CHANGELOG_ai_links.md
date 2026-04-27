@@ -2,6 +2,13 @@
 
 ## 2026-04-26
 
+### Anarchy-AI 0.2.3 structural grounding labels
+
+- Added non-blocking `structural_grounding` payloads to schema-dependent/runtime outputs so tools label required structural surfaces, observed surfaces, missing/partial surfaces, advisory next measurements, and claim-scope effects without refusing execution.
+- Added `structural_grounding_requirement` contract metadata across harness contracts, including diagnostic, migration, mechanical-proof, source-role-aware diagnostic, and schema-dependent operational-output lanes.
+- Surfaced structural grounding inside `doctor_summary` so readiness output measures whether consumer schema/underlay state supports the claims being made while preserving the source-authoring boundary for AI-Links.
+- Bumped the Anarchy-AI plugin/package identity to `0.2.3`; the canonical schema bundle remains `0.2.0`.
+
 ### Anarchy-AI 0.2.2 measurement-first doctor summary
 
 - Captured Arc decision `d022`: enforcement is weaker than measurement, so Anarchy should measure terrain, surface gaps, and point to corrective courses instead of becoming an instruction authority.

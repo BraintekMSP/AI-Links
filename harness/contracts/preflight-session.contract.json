@@ -1,145 +1,214 @@
 {
-  "contract_name": "preflight_session_contract",
-  "contract_version": "0.1.1",
-  "function_name": "preflight_session",
-  "purpose": "Decide whether the current repo/session is ready for complex changes before the agent continues.",
-  "input_contract": {
-    "workspace_root": {
-      "type": "absolute_path",
-      "required": true,
-      "description": "Workspace root to inspect."
-    },
-    "current_objective": {
-      "type": "string",
-      "required": true,
-      "description": "Current work objective in plain language."
-    },
-    "host_context": {
-      "type": "string",
-      "required": false,
-      "description": "Optional host context such as codex, claude, cursor, or generic."
-    },
-    "startup_surfaces": {
-      "type": "string_array",
-      "required": false,
-      "description": "Optional startup or package surfaces that should align with the schema package."
-    },
-    "user_intent": {
-      "type": "string",
-      "required": false,
-      "description": "Optional user-intent summary that should sharpen preflight assessment."
-    }
-  },
-  "output_contract": {
-    "workspace_role": {
-      "type": "object",
-      "description": "Role envelope declaring whether this workspace is schema/plugin source-delivery, a material governance consumer, or mixed/undetermined before readiness claims are interpreted."
-    },
-    "runtime_provenance": {
-      "type": "object",
-      "description": "Runtime provenance envelope declaring whether the callable harness came from user profile install, repo-local install, source checkout, or an unknown/external runtime lane."
-    },
-    "consumer_material_governance_check": {
-      "type": "enum",
-      "values": [
-        "applicable",
-        "not_applicable",
-        "undetermined"
-      ],
-      "description": "Whether governed AGENTS materialization checks apply to this workspace role."
-    },
-    "preflight_state": {
-      "type": "enum",
-      "values": [
-        "ready",
-        "ready_with_gaps",
-        "bootstrap_needed",
-        "manual_review_required"
-      ],
-      "description": "Bounded readiness result for the current repo/session. The value 'manual_review_required' is the report-to-human state at the schema level — the agent's next action is to report findings to the human and receive direction."
-    },
-    "recommended_path": {
-      "type": "enum",
-      "values": [
-        "continue",
-        "compile_active_work",
-        "inspect_schema_reality",
-        "bootstrap_harness",
-        "stop_for_human"
-      ],
-      "description": "Best next lane after the preflight pass. The value 'stop_for_human' maps to the report-to-human pattern at the schema level — pause automated continuation and report findings for human direction."
-    },
-    "active_gaps": {
-      "type": "string_array",
-      "description": "Current install, schema, or session gaps that still pressure the work."
-    },
-    "required_next_action": {
-      "type": "string",
-      "description": "Single next action the agent or human should take after preflight."
-    },
-    "adoption_state": {
-      "type": "enum",
-      "values": [
-        "fully_adopted",
-        "partially_adopted",
-        "bootstrap_required",
-        "adapter_gap_present"
-      ],
-      "description": "Current adoption state for the harness in this repo and host context."
-    },
-    "evidence_basis": {
-      "type": "string_array",
-      "description": "What the preflight pass used to ground the result."
-    },
-    "active_lane": {
-      "type": "string",
-      "description": "Best-fit lane inferred during preflight."
-    },
-    "current_status": {
-      "type": "string",
-      "description": "Current bounded work status as seen during preflight."
-    },
-    "schema_state": {
-      "type": "object",
-      "description": "Condensed schema reality summary used during preflight."
-    }
-  },
-  "result_example": {
-    "workspace_role": {
-      "machine_key": "schema_authoring_and_plugin_delivery_workspace",
-      "statement": "This workspace deliberately combines schema/harness development with plugin delivery in one source repo.",
-      "evidence": [
-        "root_portable_schema_family_present"
-      ],
-      "claim_scope_effect": [
-        "consumer_material_governance_check:not_applicable_unless_explicitly_requested"
-      ],
-      "confidence": "inferred_from_workspace"
-    },
-    "runtime_provenance": {
-      "machine_key": "user_profile_installed_runtime",
-      "statement": "This callable harness is running from the current user's installed plugin bundle. It is convenient and valid as an installed runtime, but it is not source truth for the workspace being evaluated."
-    },
-    "consumer_material_governance_check": "not_applicable",
-    "preflight_state": "ready_with_gaps",
-    "recommended_path": "inspect_schema_reality",
-    "active_gaps": [
-      "schema:package_surface_out_of_sync",
-      "session:no_declared_working_set"
-    ],
-    "required_next_action": "inspect_schema_reality_and_choose_safe_repair",
-    "adoption_state": "partially_adopted",
-    "evidence_basis": [
-      "AGENTS.md",
-      "schema_reality_inspection",
-      "harness_gap_assessment"
-    ],
-    "active_lane": "governance",
-    "current_status": "in_progress",
-    "schema_state": {
-      "schema_reality_state": "partial",
-      "integrity_state": "aligned",
-      "possession_state": "unpossessed"
-    }
-  }
+    "contract_name":  "preflight_session_contract",
+    "contract_version":  "0.1.2",
+    "function_name":  "preflight_session",
+    "purpose":  "Decide whether the current repo/session is ready for complex changes before the agent continues.",
+    "input_contract":  {
+                           "workspace_root":  {
+                                                  "type":  "absolute_path",
+                                                  "required":  true,
+                                                  "description":  "Workspace root to inspect."
+                                              },
+                           "current_objective":  {
+                                                     "type":  "string",
+                                                     "required":  true,
+                                                     "description":  "Current work objective in plain language."
+                                                 },
+                           "host_context":  {
+                                                "type":  "string",
+                                                "required":  false,
+                                                "description":  "Optional host context such as codex, claude, cursor, or generic."
+                                            },
+                           "startup_surfaces":  {
+                                                    "type":  "string_array",
+                                                    "required":  false,
+                                                    "description":  "Optional startup or package surfaces that should align with the schema package."
+                                                },
+                           "user_intent":  {
+                                               "type":  "string",
+                                               "required":  false,
+                                               "description":  "Optional user-intent summary that should sharpen preflight assessment."
+                                           }
+                       },
+    "output_contract":  {
+                            "workspace_role":  {
+                                                   "type":  "object",
+                                                   "description":  "Role envelope declaring whether this workspace is schema/plugin source-delivery, a material governance consumer, or mixed/undetermined before readiness claims are interpreted."
+                                               },
+                            "runtime_provenance":  {
+                                                       "type":  "object",
+                                                       "description":  "Runtime provenance envelope declaring whether the callable harness came from user profile install, repo-local install, source checkout, or an unknown/external runtime lane."
+                                                   },
+                            "consumer_material_governance_check":  {
+                                                                       "type":  "enum",
+                                                                       "values":  [
+                                                                                      "applicable",
+                                                                                      "not_applicable",
+                                                                                      "undetermined"
+                                                                                  ],
+                                                                       "description":  "Whether governed AGENTS materialization checks apply to this workspace role."
+                                                                   },
+                            "preflight_state":  {
+                                                    "type":  "enum",
+                                                    "values":  [
+                                                                   "ready",
+                                                                   "ready_with_gaps",
+                                                                   "bootstrap_needed",
+                                                                   "manual_review_required"
+                                                               ],
+                                                    "description":  "Bounded readiness result for the current repo/session. The value \u0027manual_review_required\u0027 is the report-to-human state at the schema level -- the agent\u0027s next action is to report findings to the human and receive direction."
+                                                },
+                            "recommended_path":  {
+                                                     "type":  "enum",
+                                                     "values":  [
+                                                                    "continue",
+                                                                    "compile_active_work",
+                                                                    "inspect_schema_reality",
+                                                                    "bootstrap_harness",
+                                                                    "stop_for_human"
+                                                                ],
+                                                     "description":  "Best next lane after the preflight pass. The value \u0027stop_for_human\u0027 maps to the report-to-human pattern at the schema level -- pause automated continuation and report findings for human direction."
+                                                 },
+                            "active_gaps":  {
+                                                "type":  "string_array",
+                                                "description":  "Current install, schema, or session gaps that still pressure the work."
+                                            },
+                            "required_next_action":  {
+                                                         "type":  "string",
+                                                         "description":  "Single next action the agent or human should take after preflight."
+                                                     },
+                            "adoption_state":  {
+                                                   "type":  "enum",
+                                                   "values":  [
+                                                                  "fully_adopted",
+                                                                  "partially_adopted",
+                                                                  "bootstrap_required",
+                                                                  "adapter_gap_present"
+                                                              ],
+                                                   "description":  "Current adoption state for the harness in this repo and host context."
+                                               },
+                            "evidence_basis":  {
+                                                   "type":  "string_array",
+                                                   "description":  "What the preflight pass used to ground the result."
+                                               },
+                            "active_lane":  {
+                                                "type":  "string",
+                                                "description":  "Best-fit lane inferred during preflight."
+                                            },
+                            "current_status":  {
+                                                   "type":  "string",
+                                                   "description":  "Current bounded work status as seen during preflight."
+                                               },
+                            "schema_state":  {
+                                                 "type":  "object",
+                                                 "description":  "Condensed schema reality summary used during preflight."
+                                             },
+                            "structural_grounding":  {
+                                                         "type":  "object",
+                                                         "description":  "Measurement-aware structural grounding payload. The tool still runs; this field labels the schema/underlay surfaces the output presumes, what was observed, and how missing or partial surfaces qualify claim scope.",
+                                                         "fields":  {
+                                                                        "grounding_state":  {
+                                                                                                "type":  "enum",
+                                                                                                "values":  [
+                                                                                                               "fully_grounded",
+                                                                                                               "partially_grounded",
+                                                                                                               "ungrounded",
+                                                                                                               "not_required",
+                                                                                                               "source_authoring_not_applicable"
+                                                                                                           ]
+                                                                                            },
+                                                                        "required_structural_surfaces":  {
+                                                                                                             "type":  "string_array",
+                                                                                                             "description":  "Schema, narrative, underlay, or marketplace surfaces the output depends on for structurally grounded claims."
+                                                                                                         },
+                                                                        "observed_structural_surfaces":  {
+                                                                                                             "type":  "string_array",
+                                                                                                             "description":  "Observed schema, narrative, underlay, repo-role, and tool facts measured at tool entry."
+                                                                                                         },
+                                                                        "missing_or_partial_surfaces":  {
+                                                                                                            "type":  "string_array",
+                                                                                                            "description":  "Missing, invalid, partial, or role-ambiguous surfaces that weaken grounding."
+                                                                                                        },
+                                                                        "recommended_next_actions":  {
+                                                                                                         "type":  "string_array",
+                                                                                                         "description":  "Advisory measurement or correction moves such as run_gov2gov_migration:plan_only or /underlay /refresh /apply. These are terrain suggestions, not commands."
+                                                                                                     },
+                                                                        "claim_scope_effect":  {
+                                                                                                   "type":  "string_array",
+                                                                                                   "description":  "How the observed structural grounding qualifies the scope of the tool output."
+                                                                                               }
+                                                                    }
+                                                     }
+                        },
+    "result_example":  {
+                           "workspace_role":  {
+                                                  "machine_key":  "schema_authoring_and_plugin_delivery_workspace",
+                                                  "statement":  "This workspace deliberately combines schema/harness development with plugin delivery in one source repo.",
+                                                  "evidence":  [
+                                                                   "root_portable_schema_family_present"
+                                                               ],
+                                                  "claim_scope_effect":  [
+                                                                             "consumer_material_governance_check:not_applicable_unless_explicitly_requested"
+                                                                         ],
+                                                  "confidence":  "inferred_from_workspace"
+                                              },
+                           "runtime_provenance":  {
+                                                      "machine_key":  "user_profile_installed_runtime",
+                                                      "statement":  "This callable harness is running from the current user\u0027s installed plugin bundle. It is convenient and valid as an installed runtime, but it is not source truth for the workspace being evaluated."
+                                                  },
+                           "consumer_material_governance_check":  "not_applicable",
+                           "preflight_state":  "ready_with_gaps",
+                           "recommended_path":  "inspect_schema_reality",
+                           "active_gaps":  [
+                                               "schema:package_surface_out_of_sync",
+                                               "session:no_declared_working_set"
+                                           ],
+                           "required_next_action":  "inspect_schema_reality_and_choose_safe_repair",
+                           "adoption_state":  "partially_adopted",
+                           "evidence_basis":  [
+                                                  "AGENTS.md",
+                                                  "schema_reality_inspection",
+                                                  "harness_gap_assessment"
+                                              ],
+                           "active_lane":  "governance",
+                           "current_status":  "in_progress",
+                           "schema_state":  {
+                                                "schema_reality_state":  "partial",
+                                                "integrity_state":  "aligned",
+                                                "possession_state":  "unpossessed"
+                                            },
+                           "structural_grounding":  {
+                                                        "grounding_state":  "partially_grounded",
+                                                        "required_structural_surfaces":  [
+                                                                                             "AGENTS.md",
+                                                                                             "AGENTS-schema-narrative.json"
+                                                                                         ],
+                                                        "observed_structural_surfaces":  [
+                                                                                             "tool:preflight_session",
+                                                                                             "requirement_kind:diagnostic_or_readiness_lane",
+                                                                                             "workspace_role:material_governance_consumer_workspace",
+                                                                                             "schema_reality_state:partial"
+                                                                                         ],
+                                                        "missing_or_partial_surfaces":  [
+                                                                                            "missing:AGENTS-schema-narrative.json"
+                                                                                        ],
+                                                        "recommended_next_actions":  [
+                                                                                         "run_preflight_session",
+                                                                                         "assess_harness_gap_state",
+                                                                                         "/underlay /refresh /apply"
+                                                                                     ],
+                                                        "claim_scope_effect":  [
+                                                                                   "diagnostic_lane_observes_structural_grounding_without_requiring_it",
+                                                                                   "tools_always_run_and_label_grounding"
+                                                                               ]
+                                                    }
+                       },
+    "structural_grounding_requirement":  {
+                                             "requirement_kind":  "diagnostic",
+                                             "output_behavior":  "non_blocking_measurement_label; tools always run and label grounding rather than refusing execution",
+                                             "description":  "preflight_session is a readiness lane; it surfaces structural grounding and gaps without blocking diagnostic output.",
+                                             "typical_required_surfaces":  [
+
+                                                                           ]
+                                         }
 }

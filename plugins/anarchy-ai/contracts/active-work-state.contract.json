@@ -1,123 +1,201 @@
 {
-  "contract_name": "active_work_state_contract",
-  "contract_version": "0.1.0",
-  "function_name": "compile_active_work_state",
-  "purpose": "Compile current work into a bounded operational packet so the agent can work from stable state instead of raw session turbulence.",
-  "input_contract": {
-    "workspace_root": {
-      "type": "absolute_path",
-      "required": true,
-      "description": "Workspace root to inspect."
-    },
-    "current_objective": {
-      "type": "string",
-      "required": true,
-      "description": "Current work objective in plain language."
-    },
-    "working_set": {
-      "type": "string_array",
-      "required": false,
-      "description": "Optional files, directories, or named surfaces currently believed to be in play."
-    },
-    "known_blockers": {
-      "type": "string_array",
-      "required": false,
-      "description": "Explicit blockers already known to the agent or user."
-    },
-    "recent_residue": {
-      "type": "string_array",
-      "required": false,
-      "description": "Short recent facts, interruptions, or unfinished observations that should survive the current turn."
-    },
-    "preferred_lane": {
-      "type": "string",
-      "required": false,
-      "description": "Optional preferred lane if the user already knows the work should stay in governance, gov2gov, 1project, narrative, or triage."
-    }
-  },
-  "output_contract": {
-    "active_objective": {
-      "type": "string",
-      "description": "Normalized current objective."
-    },
-    "active_lane": {
-      "type": "string",
-      "description": "Best-fit working lane for the current objective."
-    },
-    "current_status": {
-      "type": "enum",
-      "values": [
-        "ready",
-        "in_progress",
-        "blocked",
-        "needs_clarification"
-      ],
-      "description": "Bounded current-work status."
-    },
-    "next_required_action": {
-      "type": "string",
-      "description": "Single next action that should move the work forward."
-    },
-    "ordered_remaining_steps": {
-      "type": "string_array",
-      "description": "Short ordered sequence for continuing the work from the compiled state."
-    },
-    "active_blockers": {
-      "type": "string_array",
-      "description": "Known blockers still in force."
-    },
-    "stop_point": {
-      "type": "string",
-      "description": "Best current continuation anchor if the work stops here."
-    },
-    "evidence_status": {
-      "type": "enum",
-      "values": [
-        "none",
-        "partial",
-        "grounded"
-      ],
-      "description": "How strongly the compiled state is anchored to observable workspace context or residue."
-    },
-    "session_degradation_signals": {
-      "type": "string_array",
-      "description": "Signals that the rider/horse relationship is degrading into drift, negation, or pseudo-state."
-    },
-    "working_surface_presence": {
-      "type": "object",
-      "description": "Present and missing path-like surfaces from the declared working set."
-    },
-    "measurement_basis": {
-      "type": "string_array",
-      "description": "What the compiler used to ground the packet."
-    }
-  },
-  "result_example": {
-    "active_objective": "materialize current governance work without trusting copied schema presence",
-    "active_lane": "governance",
-    "current_status": "in_progress",
-    "next_required_action": "inspect_declared_working_surfaces",
-    "ordered_remaining_steps": [
-      "inspect_startup_truth_chain",
-      "inspect_declared_working_surfaces",
-      "confirm_current_objective_against_workspace_state",
-      "execute_next_required_change",
-      "record_stop_point_and_evidence"
-    ],
-    "active_blockers": [],
-    "stop_point": "resume from declared working surfaces and current residue",
-    "evidence_status": "partial",
-    "session_degradation_signals": [
-      "no_declared_working_set"
-    ],
-    "working_surface_presence": {
-      "present": [],
-      "missing": []
-    },
-    "measurement_basis": [
-      "workspace_root",
-      "current_objective",
-      "recent_residue"
-    ]
-  }
+    "contract_name":  "active_work_state_contract",
+    "contract_version":  "0.1.1",
+    "function_name":  "compile_active_work_state",
+    "purpose":  "Compile current work into a bounded operational packet so the agent can work from stable state instead of raw session turbulence.",
+    "input_contract":  {
+                           "workspace_root":  {
+                                                  "type":  "absolute_path",
+                                                  "required":  true,
+                                                  "description":  "Workspace root to inspect."
+                                              },
+                           "current_objective":  {
+                                                     "type":  "string",
+                                                     "required":  true,
+                                                     "description":  "Current work objective in plain language."
+                                                 },
+                           "working_set":  {
+                                               "type":  "string_array",
+                                               "required":  false,
+                                               "description":  "Optional files, directories, or named surfaces currently believed to be in play."
+                                           },
+                           "known_blockers":  {
+                                                  "type":  "string_array",
+                                                  "required":  false,
+                                                  "description":  "Explicit blockers already known to the agent or user."
+                                              },
+                           "recent_residue":  {
+                                                  "type":  "string_array",
+                                                  "required":  false,
+                                                  "description":  "Short recent facts, interruptions, or unfinished observations that should survive the current turn."
+                                              },
+                           "preferred_lane":  {
+                                                  "type":  "string",
+                                                  "required":  false,
+                                                  "description":  "Optional preferred lane if the user already knows the work should stay in governance, gov2gov, 1project, narrative, or triage."
+                                              }
+                       },
+    "output_contract":  {
+                            "active_objective":  {
+                                                     "type":  "string",
+                                                     "description":  "Normalized current objective."
+                                                 },
+                            "active_lane":  {
+                                                "type":  "string",
+                                                "description":  "Best-fit working lane for the current objective."
+                                            },
+                            "current_status":  {
+                                                   "type":  "enum",
+                                                   "values":  [
+                                                                  "ready",
+                                                                  "in_progress",
+                                                                  "blocked",
+                                                                  "needs_clarification"
+                                                              ],
+                                                   "description":  "Bounded current-work status."
+                                               },
+                            "next_required_action":  {
+                                                         "type":  "string",
+                                                         "description":  "Single next action that should move the work forward."
+                                                     },
+                            "ordered_remaining_steps":  {
+                                                            "type":  "string_array",
+                                                            "description":  "Short ordered sequence for continuing the work from the compiled state."
+                                                        },
+                            "active_blockers":  {
+                                                    "type":  "string_array",
+                                                    "description":  "Known blockers still in force."
+                                                },
+                            "stop_point":  {
+                                               "type":  "string",
+                                               "description":  "Best current continuation anchor if the work stops here."
+                                           },
+                            "evidence_status":  {
+                                                    "type":  "enum",
+                                                    "values":  [
+                                                                   "none",
+                                                                   "partial",
+                                                                   "grounded"
+                                                               ],
+                                                    "description":  "How strongly the compiled state is anchored to observable workspace context or residue."
+                                                },
+                            "session_degradation_signals":  {
+                                                                "type":  "string_array",
+                                                                "description":  "Signals that the rider/horse relationship is degrading into drift, negation, or pseudo-state."
+                                                            },
+                            "working_surface_presence":  {
+                                                             "type":  "object",
+                                                             "description":  "Present and missing path-like surfaces from the declared working set."
+                                                         },
+                            "measurement_basis":  {
+                                                      "type":  "string_array",
+                                                      "description":  "What the compiler used to ground the packet."
+                                                  },
+                            "structural_grounding":  {
+                                                         "type":  "object",
+                                                         "description":  "Measurement-aware structural grounding payload. The tool still runs; this field labels the schema/underlay surfaces the output presumes, what was observed, and how missing or partial surfaces qualify claim scope.",
+                                                         "fields":  {
+                                                                        "grounding_state":  {
+                                                                                                "type":  "enum",
+                                                                                                "values":  [
+                                                                                                               "fully_grounded",
+                                                                                                               "partially_grounded",
+                                                                                                               "ungrounded",
+                                                                                                               "not_required",
+                                                                                                               "source_authoring_not_applicable"
+                                                                                                           ]
+                                                                                            },
+                                                                        "required_structural_surfaces":  {
+                                                                                                             "type":  "string_array",
+                                                                                                             "description":  "Schema, narrative, underlay, or marketplace surfaces the output depends on for structurally grounded claims."
+                                                                                                         },
+                                                                        "observed_structural_surfaces":  {
+                                                                                                             "type":  "string_array",
+                                                                                                             "description":  "Observed schema, narrative, underlay, repo-role, and tool facts measured at tool entry."
+                                                                                                         },
+                                                                        "missing_or_partial_surfaces":  {
+                                                                                                            "type":  "string_array",
+                                                                                                            "description":  "Missing, invalid, partial, or role-ambiguous surfaces that weaken grounding."
+                                                                                                        },
+                                                                        "recommended_next_actions":  {
+                                                                                                         "type":  "string_array",
+                                                                                                         "description":  "Advisory measurement or correction moves such as run_gov2gov_migration:plan_only or /underlay /refresh /apply. These are terrain suggestions, not commands."
+                                                                                                     },
+                                                                        "claim_scope_effect":  {
+                                                                                                   "type":  "string_array",
+                                                                                                   "description":  "How the observed structural grounding qualifies the scope of the tool output."
+                                                                                               }
+                                                                    }
+                                                     }
+                        },
+    "result_example":  {
+                           "active_objective":  "materialize current governance work without trusting copied schema presence",
+                           "active_lane":  "governance",
+                           "current_status":  "in_progress",
+                           "next_required_action":  "inspect_declared_working_surfaces",
+                           "ordered_remaining_steps":  [
+                                                           "inspect_startup_truth_chain",
+                                                           "inspect_declared_working_surfaces",
+                                                           "confirm_current_objective_against_workspace_state",
+                                                           "execute_next_required_change",
+                                                           "record_stop_point_and_evidence"
+                                                       ],
+                           "active_blockers":  [
+
+                                               ],
+                           "stop_point":  "resume from declared working surfaces and current residue",
+                           "evidence_status":  "partial",
+                           "session_degradation_signals":  [
+                                                               "no_declared_working_set"
+                                                           ],
+                           "working_surface_presence":  {
+                                                            "present":  [
+
+                                                                        ],
+                                                            "missing":  [
+
+                                                                        ]
+                                                        },
+                           "measurement_basis":  [
+                                                     "workspace_root",
+                                                     "current_objective",
+                                                     "recent_residue"
+                                                 ],
+                           "structural_grounding":  {
+                                                        "grounding_state":  "partially_grounded",
+                                                        "required_structural_surfaces":  [
+                                                                                             "AGENTS-schema-narrative.json",
+                                                                                             ".agents/anarchy-ai/narratives/register.json",
+                                                                                             ".agents/anarchy-ai/narratives/projects"
+                                                                                         ],
+                                                        "observed_structural_surfaces":  [
+                                                                                             "tool:compile_active_work_state",
+                                                                                             "requirement_kind:schema_dependent_operational_output",
+                                                                                             "workspace_role:material_governance_consumer_workspace",
+                                                                                             "portable_schema:AGENTS-schema-narrative.json"
+                                                                                         ],
+                                                        "missing_or_partial_surfaces":  [
+                                                                                            "missing:.agents/anarchy-ai/narratives/register.json"
+                                                                                        ],
+                                                        "recommended_next_actions":  [
+                                                                                         "run_preflight_session",
+                                                                                         "assess_harness_gap_state",
+                                                                                         "run_gov2gov_migration:plan_only"
+                                                                                     ],
+                                                        "claim_scope_effect":  [
+                                                                                   "operational_output_grounding_depends_on_observed_structural_state",
+                                                                                   "tools_always_run_and_label_grounding"
+                                                                               ]
+                                                    }
+                       },
+    "structural_grounding_requirement":  {
+                                             "requirement_kind":  "schema-dependent operational output",
+                                             "output_behavior":  "non_blocking_measurement_label; tools always run and label grounding rather than refusing execution",
+                                             "description":  "compile_active_work_state emits an operational packet whose claim scope is strengthened or weakened by observed schema and narrative underlay state.",
+                                             "typical_required_surfaces":  [
+                                                                               "AGENTS.md",
+                                                                               "AGENTS-schema-narrative.json",
+                                                                               ".agents/anarchy-ai/narratives/register.json"
+                                                                           ]
+                                         }
 }

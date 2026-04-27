@@ -1,85 +1,93 @@
 {
-  "contract_name": "declare_proof_requirement_contract",
-  "contract_version": "0.1.0",
-  "function_name": "declare_proof_requirement",
-  "purpose": "Author a durable proof requirement record before work begins. The contract persists the declared objective and the observable proof items that must be satisfied before the work is allowed to close. Its specific job is to prevent the failure class in which an agent invents its own stop criterion mid-session -- particularly the pattern in which recovery grammar (graceful exit on sub-goal failure) is silently repurposed as exit grammar when the actual work has not been proven. Pairs with validate_exit_readiness: this call writes the record, that call checks it.",
-  "input_contract": {
-    "workspace_root": {
-      "type": "absolute_path",
-      "required": true,
-      "description": "Workspace root the proof requirement is anchored to. The record is written under this root and relative paths inside proof_items resolve against it."
-    },
-    "objective": {
-      "type": "string",
-      "required": true,
-      "description": "Plain-language statement of what this work is expected to accomplish. Preserved verbatim in the record and echoed back when validate_exit_readiness is called, so the stated goal stays paired with its observable proof."
-    },
-    "proof_items": {
-      "type": "object_array",
-      "required": true,
-      "description": "Observable conditions that must hold for the objective to be considered satisfied. Each entry specifies: item_type (one of 'expected_file', 'expected_config_value', 'expected_env_var', 'expected_executable', 'expected_process'), and the fields appropriate to that type (path, key_path, expected_value, expected_contains, expected_sha256, expected_absent, name, expected_version_probe_args, process_name). The item_type set is deliberately aligned with verify_config_materialization so the same observables can be probed by that contract. An empty array is rejected -- a proof requirement with no observable items is unverifiable by construction."
-    },
-    "declared_by": {
-      "type": "enum",
-      "values": [
-        "human",
-        "agent",
-        "harness"
-      ],
-      "required": true,
-      "description": "Who declared the requirement. Informational, not authenticated. Recorded so a later reviewer can see whether the proof contract was introduced by the human directing the work, by the agent doing the work, or by another harness tool."
-    },
-    "requirement_id": {
-      "type": "string",
-      "required": false,
-      "description": "Optional caller-supplied identifier. When omitted, the contract mints a ULID-shape id (Crockford base32, time-anchored). When supplied, must be unique within the workspace -- a collision with an existing record is refused rather than silently overwriting."
-    }
-  },
-  "output_contract": {
-    "proof_requirement_id": {
-      "type": "string",
-      "description": "Stable identifier for the written record. Either the caller-supplied requirement_id or a freshly minted ULID-shape id. This is the id validate_exit_readiness must be called with."
-    },
-    "declared_at_utc": {
-      "type": "string",
-      "description": "UTC timestamp (ISO 8601) recording when the requirement was written. Surfaced in validate_exit_readiness output so same-turn declare-and-validate patterns are visible and easy to flag."
-    },
-    "record_path": {
-      "type": "absolute_path",
-      "description": "Filesystem path of the persisted record, under '.anarchy-ai/proof-requirements/<id>.json' inside workspace_root. The path is returned so the human can read the record directly and so downstream tooling does not have to guess the layout."
-    },
-    "item_count": {
-      "type": "integer",
-      "description": "Number of proof items persisted. Echoed back so the caller can confirm the record was written with the expected shape before moving on."
-    },
-    "echoed_objective": {
-      "type": "string",
-      "description": "The input objective returned verbatim. Keeps the prose form of the goal visible in the result so prose and structured proof items remain paired in the same payload."
-    },
-    "recommended_next_action": {
-      "type": "string",
-      "description": "Required. Single next action after the requirement is recorded. The contract never returns without naming an action -- even when the action is 'begin work against the declared proof items' or 'report_to_human' if the record could not be written."
-    },
-    "recommended_next_call": {
-      "type": "string",
-      "description": "Required. Named callable the agent should invoke next. Values include: another harness tool name, a setup command, or 'report_to_human' when no mechanical lane remains. A trace that ends at declaration without naming the next call is incomplete."
-    },
-    "evidence_basis": {
-      "type": "string_array",
-      "description": "What the declaration pass used to ground the result. Typical values: 'record_write:proof-requirements', 'id_mint:ulid', 'id_accept:caller_supplied'."
-    }
-  },
-  "result_example": {
-    "proof_requirement_id": "01J7Z3K8MNXAMPL3PROOF0REQID",
-    "declared_at_utc": "2026-04-22T22:05:00Z",
-    "record_path": "C:/work/gateway/.anarchy-ai/proof-requirements/01J7Z3K8MNXAMPL3PROOF0REQID.json",
-    "item_count": 3,
-    "echoed_objective": "fix the auth redirect bug in the gateway so login no longer 302s to /null",
-    "recommended_next_action": "begin work against the declared proof items, then call validate_exit_readiness with proof_requirement_id before closing the session",
-    "recommended_next_call": "validate_exit_readiness",
-    "evidence_basis": [
-      "record_write:proof-requirements",
-      "id_mint:ulid"
-    ]
-  }
+    "contract_name":  "declare_proof_requirement_contract",
+    "contract_version":  "0.1.0",
+    "function_name":  "declare_proof_requirement",
+    "purpose":  "Author a durable proof requirement record before work begins. The contract persists the declared objective and the observable proof items that must be satisfied before the work is allowed to close. Its specific job is to prevent the failure class in which an agent invents its own stop criterion mid-session -- particularly the pattern in which recovery grammar (graceful exit on sub-goal failure) is silently repurposed as exit grammar when the actual work has not been proven. Pairs with validate_exit_readiness: this call writes the record, that call checks it.",
+    "input_contract":  {
+                           "workspace_root":  {
+                                                  "type":  "absolute_path",
+                                                  "required":  true,
+                                                  "description":  "Workspace root the proof requirement is anchored to. The record is written under this root and relative paths inside proof_items resolve against it."
+                                              },
+                           "objective":  {
+                                             "type":  "string",
+                                             "required":  true,
+                                             "description":  "Plain-language statement of what this work is expected to accomplish. Preserved verbatim in the record and echoed back when validate_exit_readiness is called, so the stated goal stays paired with its observable proof."
+                                         },
+                           "proof_items":  {
+                                               "type":  "object_array",
+                                               "required":  true,
+                                               "description":  "Observable conditions that must hold for the objective to be considered satisfied. Each entry specifies: item_type (one of \u0027expected_file\u0027, \u0027expected_config_value\u0027, \u0027expected_env_var\u0027, \u0027expected_executable\u0027, \u0027expected_process\u0027), and the fields appropriate to that type (path, key_path, expected_value, expected_contains, expected_sha256, expected_absent, name, expected_version_probe_args, process_name). The item_type set is deliberately aligned with verify_config_materialization so the same observables can be probed by that contract. An empty array is rejected -- a proof requirement with no observable items is unverifiable by construction."
+                                           },
+                           "declared_by":  {
+                                               "type":  "enum",
+                                               "values":  [
+                                                              "human",
+                                                              "agent",
+                                                              "harness"
+                                                          ],
+                                               "required":  true,
+                                               "description":  "Who declared the requirement. Informational, not authenticated. Recorded so a later reviewer can see whether the proof contract was introduced by the human directing the work, by the agent doing the work, or by another harness tool."
+                                           },
+                           "requirement_id":  {
+                                                  "type":  "string",
+                                                  "required":  false,
+                                                  "description":  "Optional caller-supplied identifier. When omitted, the contract mints a ULID-shape id (Crockford base32, time-anchored). When supplied, must be unique within the workspace -- a collision with an existing record is refused rather than silently overwriting."
+                                              }
+                       },
+    "output_contract":  {
+                            "proof_requirement_id":  {
+                                                         "type":  "string",
+                                                         "description":  "Stable identifier for the written record. Either the caller-supplied requirement_id or a freshly minted ULID-shape id. This is the id validate_exit_readiness must be called with."
+                                                     },
+                            "declared_at_utc":  {
+                                                    "type":  "string",
+                                                    "description":  "UTC timestamp (ISO 8601) recording when the requirement was written. Surfaced in validate_exit_readiness output so same-turn declare-and-validate patterns are visible and easy to flag."
+                                                },
+                            "record_path":  {
+                                                "type":  "absolute_path",
+                                                "description":  "Filesystem path of the persisted record, under \u0027.anarchy-ai/proof-requirements/\u003cid\u003e.json\u0027 inside workspace_root. The path is returned so the human can read the record directly and so downstream tooling does not have to guess the layout."
+                                            },
+                            "item_count":  {
+                                               "type":  "integer",
+                                               "description":  "Number of proof items persisted. Echoed back so the caller can confirm the record was written with the expected shape before moving on."
+                                           },
+                            "echoed_objective":  {
+                                                     "type":  "string",
+                                                     "description":  "The input objective returned verbatim. Keeps the prose form of the goal visible in the result so prose and structured proof items remain paired in the same payload."
+                                                 },
+                            "recommended_next_action":  {
+                                                            "type":  "string",
+                                                            "description":  "Required. Single next action after the requirement is recorded. The contract never returns without naming an action -- even when the action is \u0027begin work against the declared proof items\u0027 or \u0027report_to_human\u0027 if the record could not be written."
+                                                        },
+                            "recommended_next_call":  {
+                                                          "type":  "string",
+                                                          "description":  "Required. Named callable the agent should invoke next. Values include: another harness tool name, a setup command, or \u0027report_to_human\u0027 when no mechanical lane remains. A trace that ends at declaration without naming the next call is incomplete."
+                                                      },
+                            "evidence_basis":  {
+                                                   "type":  "string_array",
+                                                   "description":  "What the declaration pass used to ground the result. Typical values: \u0027record_write:proof-requirements\u0027, \u0027id_mint:ulid\u0027, \u0027id_accept:caller_supplied\u0027."
+                                               }
+                        },
+    "result_example":  {
+                           "proof_requirement_id":  "01J7Z3K8MNXAMPL3PROOF0REQID",
+                           "declared_at_utc":  "2026-04-22T22:05:00Z",
+                           "record_path":  "C:/work/gateway/.anarchy-ai/proof-requirements/01J7Z3K8MNXAMPL3PROOF0REQID.json",
+                           "item_count":  3,
+                           "echoed_objective":  "fix the auth redirect bug in the gateway so login no longer 302s to /null",
+                           "recommended_next_action":  "begin work against the declared proof items, then call validate_exit_readiness with proof_requirement_id before closing the session",
+                           "recommended_next_call":  "validate_exit_readiness",
+                           "evidence_basis":  [
+                                                  "record_write:proof-requirements",
+                                                  "id_mint:ulid"
+                                              ]
+                       },
+    "structural_grounding_requirement":  {
+                                             "requirement_kind":  "diagnostic",
+                                             "output_behavior":  "non_blocking_measurement_label; tools always run and label grounding rather than refusing execution",
+                                             "description":  "declare_proof_requirement describes proof expectations and does not depend on portable schema application.",
+                                             "typical_required_surfaces":  [
+
+                                                                           ]
+                                         }
 }

@@ -1,250 +1,320 @@
 {
-  "contract_name": "gov2gov_migration_contract",
-  "contract_version": "0.1.4",
-  "function_name": "run_gov2gov_migration",
-  "purpose": "Non-destructively reconcile a partial or copied-only schema package using the AGENTS-schema-gov2gov-migration model, then return the resulting schema reality state.",
-  "input_contract": {
-    "workspace_root": {
-      "type": "absolute_path",
-      "required": true,
-      "description": "Workspace root to inspect and reconcile."
-    },
-    "expected_schema_package": {
-      "type": "string",
-      "required": true,
-      "description": "Expected schema family or package name."
-    },
-    "schema_reality_state": {
-      "type": "enum",
-      "required": true,
-      "values": [
-        "real",
-        "partial",
-        "copied_only"
-      ],
-      "description": "Input state from is_schema_real_or_shadow_copied. This function is not the bootstrap lane for fully missing packages, but it may still audit or reconcile a possessed real package."
-    },
-    "active_reasons": {
-      "type": "string_array",
-      "required": true,
-      "description": "Reason list from the active schema reality state."
-    },
-    "startup_surfaces": {
-      "type": "string_array",
-      "required": false,
-      "description": "Optional startup or package surfaces that should align with the schema package."
-    },
-    "migration_mode": {
-      "type": "enum",
-      "required": true,
-      "values": [
-        "plan_only",
-        "non_destructive_apply"
-      ],
-      "description": "Plan changes only, or apply only non-destructive reconciliation steps."
-    },
-    "workspace_posture": {
-      "type": "enum",
-      "required": false,
-      "values": [
-        "auto",
-        "repo_underlay",
-        "repo_local_runtime",
-        "undetermined"
-      ],
-      "description": "Optional Anarchy posture override. In repo_underlay posture, missing repo-local plugin marketplace discovery is not treated as a startup-discovery gap."
-    },
-    "gov2gov_artifact_mode": {
-      "type": "enum",
-      "required": false,
-      "values": [
-        "auto",
-        "active",
-        "reference"
-      ],
-      "description": "Optional GOV2GOV artifact mode. Auto treats existing GOV2GOV-* files as active mode and absence of GOV2GOV-* files as reference mode, which is the expected completed-migration posture."
-    }
-  },
-  "output_contract": {
-    "workspace_role": {
-      "type": "object",
-      "description": "Role envelope declaring whether this workspace is schema/plugin source-delivery, a material governance consumer, or mixed/undetermined before migration claims are interpreted."
-    },
-    "runtime_provenance": {
-      "type": "object",
-      "description": "Runtime provenance envelope declaring whether the callable harness came from user profile install, repo-local install, source checkout, or an unknown/external runtime lane."
-    },
-    "workspace_posture": {
-      "type": "enum",
-      "values": [
-        "repo_underlay",
-        "repo_local_runtime",
-        "undetermined"
-      ],
-      "description": "Resolved Anarchy posture used to interpret repo-local marketplace and runtime discovery expectations."
-    },
-    "gov2gov_artifact_mode": {
-      "type": "enum",
-      "values": [
-        "active",
-        "reference"
-      ],
-      "description": "Resolved GOV2GOV artifact mode. Reference mode means the schema remains available while root GOV2GOV-* files stay absent after completion."
-    },
-    "consumer_material_governance_check": {
-      "type": "enum",
-      "values": [
-        "applicable",
-        "not_applicable",
-        "undetermined"
-      ],
-      "description": "Whether governed AGENTS materialization checks apply to this workspace role."
-    },
-    "migration_result_state": {
-      "type": "enum",
-      "values": [
-        "no_action_needed",
-        "planned",
-        "partially_applied",
-        "materialized",
-        "manual_review_required"
-      ],
-      "description": "Current outcome of the gov2gov-backed reconciliation lane. The value 'manual_review_required' maps to the report-to-human pattern at the schema level — the agent's next action is to report migration findings to the human and receive direction."
-    },
-    "planned_actions": {
-      "type": "string_array",
-      "description": "Ordered non-destructive actions proposed from the migration contract."
-    },
-    "actions_taken": {
-      "type": "string_array",
-      "description": "Actions actually taken when migration_mode is non_destructive_apply."
-    },
-    "touched_surfaces": {
-      "type": "string_array",
-      "description": "Files or surfaces reviewed or updated during reconciliation."
-    },
-    "audit_needed": {
-      "type": "string_array",
-      "description": "Places where the contract found real divergence, ambiguity, or unresolved migration pressure that should be surfaced for audit rather than auto-resolved."
-    },
-    "remaining_findings": {
-      "type": "string_array",
-      "description": "Residual issues that keep the package from being fully real after this pass."
-    },
-    "resulting_schema_reality_state": {
-      "type": "enum",
-      "values": [
-        "real",
-        "partial",
-        "copied_only",
-        "fully_missing"
-      ],
-      "description": "Schema reality state after planning or applying the gov2gov migration lane."
-    },
-    "resulting_integrity_state": {
-      "type": "enum",
-      "values": [
-        "aligned",
-        "diverged",
-        "unknown"
-      ],
-      "description": "Canonical schema bundle integrity state after planning or applying the migration lane."
-    },
-    "resulting_possession_state": {
-      "type": "enum",
-      "values": [
-        "unpossessed",
-        "possessed",
-        "not_applicable",
-        "unknown"
-      ],
-      "description": "Derived possession label after the migration lane completes."
-    },
-    "post_migration_inventory": {
-      "type": "object",
-      "description": "Non-gating evidence inventory after the migration pass. Portable schema files are presence and hash checked against the current canonical bundle and this run's plan/action lists; governed AGENTS, narrative/arc artifacts, and GOV2GOV structure are presence-only because workspace-specific divergence is expected."
-    }
-  },
-  "gov2gov_alignment_targets": [
-    "package_surface_alignment",
-    "startup_discovery_path_alignment",
-    "repo_underlay_startup_discovery_non_requirement",
-    "stale_companion_artifact_refresh",
-    "folder_topology_reconciliation",
-    "canonical_schema_bundle_refresh_when_missing",
-    "canonical_schema_divergence_audit_when_detected",
-    "GOV2GOV_hello_materialization_when_required",
-    "GOV2GOV_source_target_map_materialization_when_required",
-    "GOV2GOV_registry_materialization_when_required",
-    "GOV2GOV_rules_materialization_when_required",
-    "narrative_register_materialization_when_schema_present",
-    "narrative_projects_directory_materialization_when_schema_present",
-    "GOV2GOV_companion_packet_materialization_when_active_mode_requested_or_observed",
-    "GOV2GOV_reference_mode_preserves_absent_root_packet_after_completion",
-    "historical_lane_preservation_for_demoted_surfaces"
-  ],
-  "result_example": {
-    "workspace_role": {
-      "machine_key": "material_governance_consumer_workspace",
-      "statement": "This workspace carries a material governed AGENTS family. Consumer material-governance checks are applicable because AGENTS.md and the governed AGENTS authority files are present as workspace-specific operating context.",
-      "evidence": [
-        "startup_surface_present:AGENTS.md"
-      ],
-      "claim_scope_effect": [
-        "consumer_material_governance_check:applicable"
-      ],
-      "confidence": "inferred_from_workspace"
-    },
-    "runtime_provenance": {
-      "machine_key": "user_profile_installed_runtime",
-      "statement": "This callable harness is running from the current user's installed plugin bundle. It is convenient and valid as an installed runtime, but it is not source truth for the workspace being evaluated."
-    },
-    "workspace_posture": "repo_local_runtime",
-    "gov2gov_artifact_mode": "active",
-    "consumer_material_governance_check": "applicable",
-    "migration_result_state": "planned",
-    "planned_actions": [
-      "refresh_package_surface",
-      "realign_startup_discovery_paths",
-      "update_stale_companion_artifacts",
-      "build_GOV2GOV_registry_if_parallel_authority_surfaces_exist"
-    ],
-    "actions_taken": [],
-    "touched_surfaces": [
-      "AGENTS package surface",
-      "startup spine",
-      "schema companion surfaces"
-    ],
-    "audit_needed": [],
-    "remaining_findings": [
-      "folder_topology_mismatch"
-    ],
-    "resulting_schema_reality_state": "partial",
-    "resulting_integrity_state": "aligned",
-    "resulting_possession_state": "unpossessed",
-    "post_migration_inventory": {
-      "inventory_state": "non_gating_evidence_only",
-      "comparison_basis": [
-        "current_canonical_schema_bundle_manifest",
-        "this_run_planned_actions",
-        "this_run_actions_taken"
-      ],
-      "portable_schema_family": [
-        {
-          "path": "AGENTS-schema-narrative.json",
-          "presence_state": "missing",
-          "hash_mode": "canonical_hash_checked",
-          "hash_alignment": "missing",
-          "delivery_plan_state": "planned_to_deliver"
-        }
-      ],
-      "governed_agents_structure": [
-        {
-          "path": "AGENTS.md",
-          "presence_state": "present",
-          "hash_mode": "presence_only_workspace_specific_divergence_expected"
-        }
-      ]
-    }
-  }
+    "contract_name":  "gov2gov_migration_contract",
+    "contract_version":  "0.1.5",
+    "function_name":  "run_gov2gov_migration",
+    "purpose":  "Non-destructively reconcile a partial or copied-only schema package using the AGENTS-schema-gov2gov-migration model, then return the resulting schema reality state.",
+    "input_contract":  {
+                           "workspace_root":  {
+                                                  "type":  "absolute_path",
+                                                  "required":  true,
+                                                  "description":  "Workspace root to inspect and reconcile."
+                                              },
+                           "expected_schema_package":  {
+                                                           "type":  "string",
+                                                           "required":  true,
+                                                           "description":  "Expected schema family or package name."
+                                                       },
+                           "schema_reality_state":  {
+                                                        "type":  "enum",
+                                                        "required":  true,
+                                                        "values":  [
+                                                                       "real",
+                                                                       "partial",
+                                                                       "copied_only"
+                                                                   ],
+                                                        "description":  "Input state from is_schema_real_or_shadow_copied. This function is not the bootstrap lane for fully missing packages, but it may still audit or reconcile a possessed real package."
+                                                    },
+                           "active_reasons":  {
+                                                  "type":  "string_array",
+                                                  "required":  true,
+                                                  "description":  "Reason list from the active schema reality state."
+                                              },
+                           "startup_surfaces":  {
+                                                    "type":  "string_array",
+                                                    "required":  false,
+                                                    "description":  "Optional startup or package surfaces that should align with the schema package."
+                                                },
+                           "migration_mode":  {
+                                                  "type":  "enum",
+                                                  "required":  true,
+                                                  "values":  [
+                                                                 "plan_only",
+                                                                 "non_destructive_apply"
+                                                             ],
+                                                  "description":  "Plan changes only, or apply only non-destructive reconciliation steps."
+                                              },
+                           "workspace_posture":  {
+                                                     "type":  "enum",
+                                                     "required":  false,
+                                                     "values":  [
+                                                                    "auto",
+                                                                    "repo_underlay",
+                                                                    "repo_local_runtime",
+                                                                    "undetermined"
+                                                                ],
+                                                     "description":  "Optional Anarchy posture override. In repo_underlay posture, missing repo-local plugin marketplace discovery is not treated as a startup-discovery gap."
+                                                 },
+                           "gov2gov_artifact_mode":  {
+                                                         "type":  "enum",
+                                                         "required":  false,
+                                                         "values":  [
+                                                                        "auto",
+                                                                        "active",
+                                                                        "reference"
+                                                                    ],
+                                                         "description":  "Optional GOV2GOV artifact mode. Auto treats existing GOV2GOV-* files as active mode and absence of GOV2GOV-* files as reference mode, which is the expected completed-migration posture."
+                                                     }
+                       },
+    "output_contract":  {
+                            "workspace_role":  {
+                                                   "type":  "object",
+                                                   "description":  "Role envelope declaring whether this workspace is schema/plugin source-delivery, a material governance consumer, or mixed/undetermined before migration claims are interpreted."
+                                               },
+                            "runtime_provenance":  {
+                                                       "type":  "object",
+                                                       "description":  "Runtime provenance envelope declaring whether the callable harness came from user profile install, repo-local install, source checkout, or an unknown/external runtime lane."
+                                                   },
+                            "workspace_posture":  {
+                                                      "type":  "enum",
+                                                      "values":  [
+                                                                     "repo_underlay",
+                                                                     "repo_local_runtime",
+                                                                     "undetermined"
+                                                                 ],
+                                                      "description":  "Resolved Anarchy posture used to interpret repo-local marketplace and runtime discovery expectations."
+                                                  },
+                            "gov2gov_artifact_mode":  {
+                                                          "type":  "enum",
+                                                          "values":  [
+                                                                         "active",
+                                                                         "reference"
+                                                                     ],
+                                                          "description":  "Resolved GOV2GOV artifact mode. Reference mode means the schema remains available while root GOV2GOV-* files stay absent after completion."
+                                                      },
+                            "consumer_material_governance_check":  {
+                                                                       "type":  "enum",
+                                                                       "values":  [
+                                                                                      "applicable",
+                                                                                      "not_applicable",
+                                                                                      "undetermined"
+                                                                                  ],
+                                                                       "description":  "Whether governed AGENTS materialization checks apply to this workspace role."
+                                                                   },
+                            "migration_result_state":  {
+                                                           "type":  "enum",
+                                                           "values":  [
+                                                                          "no_action_needed",
+                                                                          "planned",
+                                                                          "partially_applied",
+                                                                          "materialized",
+                                                                          "manual_review_required"
+                                                                      ],
+                                                           "description":  "Current outcome of the gov2gov-backed reconciliation lane. The value \u0027manual_review_required\u0027 maps to the report-to-human pattern at the schema level -- the agent\u0027s next action is to report migration findings to the human and receive direction."
+                                                       },
+                            "planned_actions":  {
+                                                    "type":  "string_array",
+                                                    "description":  "Ordered non-destructive actions proposed from the migration contract."
+                                                },
+                            "actions_taken":  {
+                                                  "type":  "string_array",
+                                                  "description":  "Actions actually taken when migration_mode is non_destructive_apply."
+                                              },
+                            "touched_surfaces":  {
+                                                     "type":  "string_array",
+                                                     "description":  "Files or surfaces reviewed or updated during reconciliation."
+                                                 },
+                            "audit_needed":  {
+                                                 "type":  "string_array",
+                                                 "description":  "Places where the contract found real divergence, ambiguity, or unresolved migration pressure that should be surfaced for audit rather than auto-resolved."
+                                             },
+                            "remaining_findings":  {
+                                                       "type":  "string_array",
+                                                       "description":  "Residual issues that keep the package from being fully real after this pass."
+                                                   },
+                            "resulting_schema_reality_state":  {
+                                                                   "type":  "enum",
+                                                                   "values":  [
+                                                                                  "real",
+                                                                                  "partial",
+                                                                                  "copied_only",
+                                                                                  "fully_missing"
+                                                                              ],
+                                                                   "description":  "Schema reality state after planning or applying the gov2gov migration lane."
+                                                               },
+                            "resulting_integrity_state":  {
+                                                              "type":  "enum",
+                                                              "values":  [
+                                                                             "aligned",
+                                                                             "diverged",
+                                                                             "unknown"
+                                                                         ],
+                                                              "description":  "Canonical schema bundle integrity state after planning or applying the migration lane."
+                                                          },
+                            "resulting_possession_state":  {
+                                                               "type":  "enum",
+                                                               "values":  [
+                                                                              "unpossessed",
+                                                                              "possessed",
+                                                                              "not_applicable",
+                                                                              "unknown"
+                                                                          ],
+                                                               "description":  "Derived possession label after the migration lane completes."
+                                                           },
+                            "post_migration_inventory":  {
+                                                             "type":  "object",
+                                                             "description":  "Non-gating evidence inventory after the migration pass. Portable schema files are presence and hash checked against the current canonical bundle and this run\u0027s plan/action lists; governed AGENTS, narrative/arc artifacts, and GOV2GOV structure are presence-only because workspace-specific divergence is expected."
+                                                         },
+                            "structural_grounding":  {
+                                                         "type":  "object",
+                                                         "description":  "Measurement-aware structural grounding payload. The tool still runs; this field labels the schema/underlay surfaces the output presumes, what was observed, and how missing or partial surfaces qualify claim scope.",
+                                                         "fields":  {
+                                                                        "grounding_state":  {
+                                                                                                "type":  "enum",
+                                                                                                "values":  [
+                                                                                                               "fully_grounded",
+                                                                                                               "partially_grounded",
+                                                                                                               "ungrounded",
+                                                                                                               "not_required",
+                                                                                                               "source_authoring_not_applicable"
+                                                                                                           ]
+                                                                                            },
+                                                                        "required_structural_surfaces":  {
+                                                                                                             "type":  "string_array",
+                                                                                                             "description":  "Schema, narrative, underlay, or marketplace surfaces the output depends on for structurally grounded claims."
+                                                                                                         },
+                                                                        "observed_structural_surfaces":  {
+                                                                                                             "type":  "string_array",
+                                                                                                             "description":  "Observed schema, narrative, underlay, repo-role, and tool facts measured at tool entry."
+                                                                                                         },
+                                                                        "missing_or_partial_surfaces":  {
+                                                                                                            "type":  "string_array",
+                                                                                                            "description":  "Missing, invalid, partial, or role-ambiguous surfaces that weaken grounding."
+                                                                                                        },
+                                                                        "recommended_next_actions":  {
+                                                                                                         "type":  "string_array",
+                                                                                                         "description":  "Advisory measurement or correction moves such as run_gov2gov_migration:plan_only or /underlay /refresh /apply. These are terrain suggestions, not commands."
+                                                                                                     },
+                                                                        "claim_scope_effect":  {
+                                                                                                   "type":  "string_array",
+                                                                                                   "description":  "How the observed structural grounding qualifies the scope of the tool output."
+                                                                                               }
+                                                                    }
+                                                     }
+                        },
+    "gov2gov_alignment_targets":  [
+                                      "package_surface_alignment",
+                                      "startup_discovery_path_alignment",
+                                      "repo_underlay_startup_discovery_non_requirement",
+                                      "stale_companion_artifact_refresh",
+                                      "folder_topology_reconciliation",
+                                      "canonical_schema_bundle_refresh_when_missing",
+                                      "canonical_schema_divergence_audit_when_detected",
+                                      "GOV2GOV_hello_materialization_when_required",
+                                      "GOV2GOV_source_target_map_materialization_when_required",
+                                      "GOV2GOV_registry_materialization_when_required",
+                                      "GOV2GOV_rules_materialization_when_required",
+                                      "narrative_register_materialization_when_schema_present",
+                                      "narrative_projects_directory_materialization_when_schema_present",
+                                      "GOV2GOV_companion_packet_materialization_when_active_mode_requested_or_observed",
+                                      "GOV2GOV_reference_mode_preserves_absent_root_packet_after_completion",
+                                      "historical_lane_preservation_for_demoted_surfaces"
+                                  ],
+    "result_example":  {
+                           "workspace_role":  {
+                                                  "machine_key":  "material_governance_consumer_workspace",
+                                                  "statement":  "This workspace carries a material governed AGENTS family. Consumer material-governance checks are applicable because AGENTS.md and the governed AGENTS authority files are present as workspace-specific operating context.",
+                                                  "evidence":  [
+                                                                   "startup_surface_present:AGENTS.md"
+                                                               ],
+                                                  "claim_scope_effect":  [
+                                                                             "consumer_material_governance_check:applicable"
+                                                                         ],
+                                                  "confidence":  "inferred_from_workspace"
+                                              },
+                           "runtime_provenance":  {
+                                                      "machine_key":  "user_profile_installed_runtime",
+                                                      "statement":  "This callable harness is running from the current user\u0027s installed plugin bundle. It is convenient and valid as an installed runtime, but it is not source truth for the workspace being evaluated."
+                                                  },
+                           "workspace_posture":  "repo_local_runtime",
+                           "gov2gov_artifact_mode":  "active",
+                           "consumer_material_governance_check":  "applicable",
+                           "migration_result_state":  "planned",
+                           "planned_actions":  [
+                                                   "refresh_package_surface",
+                                                   "realign_startup_discovery_paths",
+                                                   "update_stale_companion_artifacts",
+                                                   "build_GOV2GOV_registry_if_parallel_authority_surfaces_exist"
+                                               ],
+                           "actions_taken":  [
+
+                                             ],
+                           "touched_surfaces":  [
+                                                    "AGENTS package surface",
+                                                    "startup spine",
+                                                    "schema companion surfaces"
+                                                ],
+                           "audit_needed":  [
+
+                                            ],
+                           "remaining_findings":  [
+                                                      "folder_topology_mismatch"
+                                                  ],
+                           "resulting_schema_reality_state":  "partial",
+                           "resulting_integrity_state":  "aligned",
+                           "resulting_possession_state":  "unpossessed",
+                           "post_migration_inventory":  {
+                                                            "inventory_state":  "non_gating_evidence_only",
+                                                            "comparison_basis":  [
+                                                                                     "current_canonical_schema_bundle_manifest",
+                                                                                     "this_run_planned_actions",
+                                                                                     "this_run_actions_taken"
+                                                                                 ],
+                                                            "portable_schema_family":  [
+                                                                                           {
+                                                                                               "path":  "AGENTS-schema-narrative.json",
+                                                                                               "presence_state":  "missing",
+                                                                                               "hash_mode":  "canonical_hash_checked",
+                                                                                               "hash_alignment":  "missing",
+                                                                                               "delivery_plan_state":  "planned_to_deliver"
+                                                                                           }
+                                                                                       ],
+                                                            "governed_agents_structure":  [
+                                                                                              {
+                                                                                                  "path":  "AGENTS.md",
+                                                                                                  "presence_state":  "present",
+                                                                                                  "hash_mode":  "presence_only_workspace_specific_divergence_expected"
+                                                                                              }
+                                                                                          ]
+                                                        },
+                           "structural_grounding":  {
+                                                        "grounding_state":  "not_required",
+                                                        "required_structural_surfaces":  [
+                                                                                             "AGENTS-schema-gov2gov-migration.json"
+                                                                                         ],
+                                                        "observed_structural_surfaces":  [
+                                                                                             "tool:run_gov2gov_migration",
+                                                                                             "requirement_kind:migration_lane",
+                                                                                             "workspace_role:material_governance_consumer_workspace",
+                                                                                             "workspace_posture:repo_local_runtime"
+                                                                                         ],
+                                                        "missing_or_partial_surfaces":  [
+                                                                                            "missing:AGENTS-schema-gov2gov-migration.json"
+                                                                                        ],
+                                                        "recommended_next_actions":  [
+                                                                                         "run_gov2gov_migration_when_schema_reality_is_partial_or_copied_only"
+                                                                                     ],
+                                                        "claim_scope_effect":  [
+                                                                                   "migration_lane_constructs_or_audits_structural_state",
+                                                                                   "tools_always_run_and_label_grounding"
+                                                                               ]
+                                                    }
+                       },
+    "structural_grounding_requirement":  {
+                                             "requirement_kind":  "migration",
+                                             "output_behavior":  "non_blocking_measurement_label; tools always run and label grounding rather than refusing execution",
+                                             "description":  "run_gov2gov_migration is the corrective/migration lane and therefore remains callable when structural grounding is partial or missing.",
+                                             "typical_required_surfaces":  [
+                                                                               "AGENTS-schema-gov2gov-migration.json"
+                                                                           ]
+                                         }
 }
