@@ -248,7 +248,8 @@ $contractFiles = @(
   'schema-reality.contract.json',
   'gov2gov-migration.contract.json',
   'preflight-session.contract.json',
-  'harness-gap-state.contract.json'
+  'harness-gap-state.contract.json',
+  'narrative-arc-validation.contract.json'
 )
 
 $actionsTaken = New-Object System.Collections.Generic.List[string]

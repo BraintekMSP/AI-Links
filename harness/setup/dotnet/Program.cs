@@ -1538,7 +1538,8 @@ internal sealed class SetupEngine
         "schema-reality.contract.json",
         "gov2gov-migration.contract.json",
         "preflight-session.contract.json",
-        "harness-gap-state.contract.json"
+        "harness-gap-state.contract.json",
+        "narrative-arc-validation.contract.json"
     ];
 
     private const string ExperimentalDirectionAssistContract = "direction-assist-test.contract.json";
@@ -1564,6 +1565,7 @@ internal sealed class SetupEngine
         "compile_active_work_state",
         "is_schema_real_or_shadow_copied",
         "assess_harness_gap_state",
+        "validate_narrative_arc_state",
         "run_gov2gov_migration"
     ];
 
@@ -1677,7 +1679,7 @@ internal sealed class SetupEngine
         disclosureLines.AddRange(
         [
             "Product behavior:",
-            $"- Exposes {CoreToolNames.Length} core + {ExperimentalToolNames.Length} test harness tool for preflight, gap assessment, active-work compilation, schema reality, gov2gov reconciliation, and direction-assist testing.",
+            $"- Exposes {CoreToolNames.Length} core + {ExperimentalToolNames.Length} test harness tool for preflight, gap assessment, active-work compilation, schema reality, narrative Arc validation, gov2gov reconciliation, and direction-assist testing.",
             "Human impact:",
             installScope == InstallScope.UserProfile
                 ? "- Installs once for the current user profile; no machine-wide install or admin change."

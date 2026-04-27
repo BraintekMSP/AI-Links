@@ -148,7 +148,7 @@ public sealed class SetupEngineTests
     }
 
     /// <summary>
-    /// Confirms that the disclosure text reports both the five core tools and the single experimental test helper.
+    /// Confirms that the disclosure text reports both the six core tools and the single experimental test helper.
     /// </summary>
     /// <returns>No direct return value; the method asserts disclosure content.</returns>
     /// <remarks>Critical dependencies: generated disclosure text and the current tool-count contract.</remarks>
@@ -157,7 +157,7 @@ public sealed class SetupEngineTests
     {
         var disclosure = SetupEngine.BuildInstallDisclosure(string.Empty, InstallScope.UserProfile, HostTargets.Codex);
 
-        Assert.Contains("5 core + 1 test harness tool", disclosure, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("6 core + 1 test harness tool", disclosure, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -187,7 +187,7 @@ public sealed class SetupEngineTests
     {
         var help = SetupEngine.BuildCommandLineHelp(null);
 
-        Assert.Contains("5 core + 1 test harness tool", help, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("6 core + 1 test harness tool", help, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -1278,6 +1278,7 @@ public sealed class SetupEngineTests
             "gov2gov-migration.contract.json",
             "preflight-session.contract.json",
             "harness-gap-state.contract.json",
+            "narrative-arc-validation.contract.json",
             "direction-assist-test.contract.json"
         };
         foreach (var contractName in contractNames)

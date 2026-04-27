@@ -1,0 +1,16 @@
+{
+  "_comment": "Optional Claude Code Stop hook fragment. Warn-only: validates narrative Arc/register conformance through the installed Anarchy-AI user-profile runtime and exits 0 even when findings exist.",
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$exe = Join-Path $env:USERPROFILE '.codex\\plugins\\anarchy-ai\\runtime\\win-x64\\AnarchyAi.Mcp.Server.exe'; if (Test-Path -LiteralPath $exe) { & $exe --validate-narrative-arc --workspace-root (Get-Location).Path --json; exit 0 }; Write-Output 'Anarchy-AI narrative Arc validator unavailable; install or refresh the user-profile harness to enable checkpoint validation.'; exit 0\""
+          }
+        ]
+      }
+    ]
+  }
+}

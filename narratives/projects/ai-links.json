@@ -15,7 +15,7 @@
     ],
     "cadence": "monthly",
     "status": "active",
-    "last-updated": "2026-04-26",
+    "last-updated": "2026-04-27",
     "owner": "Mike Herring"
   },
 
@@ -144,6 +144,10 @@
       "date": "2026-04-22",
       "type": "thread-open",
       "summary": "recovery-vs-continuation language audit across all schemas is parked but not forgotten -- scratchpad #2 observation: recovery grammar may accidentally legitimize early exit when sub-goal failures are common -- not resolved in this session",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "open"
     },
     {
@@ -151,6 +155,10 @@
       "date": "2026-04-22",
       "type": "thread-open",
       "summary": "schema sync back to TheLinks is pending -- any schema or Getting-Started changes committed in AI-Links need to be mirrored to the TheLinks deployment that originated the migration work",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "open"
     },
     {
@@ -158,6 +166,10 @@
       "date": "2026-04-22",
       "type": "thread-open",
       "summary": "model-narration concept integration parked -- the observation that process state reconstructed in tokens is a weaker substrate than process state anchored in files is not yet captured as a schema-level principle -- may influence future schema fields that record where state lives",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "open"
     },
     {
@@ -165,6 +177,10 @@
       "date": "2026-04-22",
       "type": "thread-open",
       "summary": "2.2 / 4 layered model assessment parked -- the hypothesis that schemas currently sit at layer 2 and runtime-coupled state is layer 3 needs articulation before it shapes product direction -- not load-bearing for current decisions",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "open"
     },
     {
@@ -173,6 +189,10 @@
       "type": "correction",
       "summary": "corrects the framing of observed-patterns.bad related to 'skills sucks' -- the original framing implied the underlying position was anti-skills -- Mike's position is that skills are good but are not the right tool for terms specifically (terms are load-bearing by reference, block-read, negation-anchored; skills are optional by default and designed for discovery of capabilities) -- the failure mode being captured is glib dismissal as rationale, not a stance on skills as a feature -- original observed-pattern text preserved alongside this correction",
       "superseded-by": "observed-patterns.bad[0] corrected text",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "resolved"
     },
     {
@@ -191,6 +211,10 @@
       "date": "2026-04-23",
       "type": "thread-open",
       "summary": "in-session-capture-triggers live only in the narrative schema -- an agent working under 1project or governance does not learn about render-inversion or self-inspection digest -- decide whether the rule is narrative-specific or a cross-schema principle that should be surfaced from the meta block of every schema",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "open"
     },
     {
@@ -198,6 +222,10 @@
       "date": "2026-04-23",
       "type": "thread-open",
       "summary": "schema-to-harness cross-reference gap -- harness contracts (declare_proof_requirement, validate_exit_readiness, verify_config_materialization) exist in harness/contracts but no schema references them -- a deployment using the schemas alone never learns the gate layer exists -- consider adding a gate-layer-reference field to each schema's meta so the walls are discoverable from the terrain",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "open"
     },
     {
@@ -205,6 +233,10 @@
       "date": "2026-04-23",
       "type": "thread-open",
       "summary": "Arc use-case is not documented inside the narrative schema itself -- the personal-project entity type exists but the specific pattern of using narrative schema for a product's own longitudinal rationale (Arc) lives only in this pilot record and in commit messages -- a fresh deployment adopting the narrative schema gets client/vendor examples but not the second use-case that made the schema upstream -- consider adding Arc as an explicit use-case block in the narrative schema meta",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "open"
     },
     {
@@ -212,6 +244,10 @@
       "date": "2026-04-23",
       "type": "thread-open",
       "summary": ".claude/settings.json reference in Getting-Started points to the AI-Links workspace root -- for an adopting deployment that file does not yet exist -- the portable set (6 files) does not include settings.json by design, but the Getting-Started example wording may need a note that the hook is an optional deployment companion and must be created, not expected",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "open"
     },
     {
@@ -219,6 +255,10 @@
       "date": "2026-04-23",
       "type": "thread-open",
       "summary": "what-done-looks-like-at-this-scope role text in AGENTS-schema-governance.json is the one real drift risk surfaced by the recovery-vs-continuation audit -- the word 'done' carries session-close-shaped meaning without restraint from surrounding fields -- recommended pre-push fix: tighten role text to explicitly disown session-close and name it as a scope-level invariant that persists across sessions",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "open"
     },
     {
@@ -239,6 +279,10 @@
       "date": "2026-04-23",
       "type": "thread-close",
       "summary": "the recovery-vs-continuation language audit (e010) is closed -- audit completed this session, findings: the schemas are mostly continuation-grammar-safe; the one drift risk is what-done-looks-like-at-this-scope (now tracked as e020) -- audit itself is complete, the fix is tracked separately",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "resolved"
     },
     {
@@ -246,6 +290,10 @@
       "date": "2026-04-23",
       "type": "thread-close",
       "summary": "what-done-looks-like-at-this-scope role-text tightening (e020) is closed -- the field name is unchanged (non-breaking, gov2gov-resilient) -- the role text now affirms what the field IS (observable state, scope-level invariant that holds across the continuing session loop, durable target the scope is steering toward) and delineates from session-close by naming the sibling field agent-session-open-close-measurement, rather than using negation (the earlier draft said 'this is NOT a session-end criterion' which defined by exclusion and was rejected as weaker terrain -- affirmation-only language was chosen instead) -- manifest bumped to 0.1.5 with new governance sha256 79c387c5...",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "resolved"
     },
     {
@@ -266,6 +314,10 @@
       "date": "2026-04-23",
       "type": "thread-open",
       "summary": "gov2gov post-migration verification gap -- investigation needed to distinguish which of the three hypotheses explains WO2's missing schemas: (a) gov2gov migration silently underreported, (b) migrating agent bypassed or chose-not-to-transfer files and the harness did not catch it, (c) WO2 was last migrated before narrative and 1project existed and is simply stale -- method: check WO2 git history for the last schema-touching commit, check AI-Links history for when narrative/1project landed, and if the timelines say WO2 was migrated while those schemas existed in source, then hypothesis (a) or (b) is confirmed and gov2gov needs a post-migration verification contract -- outcome feeds either a bad-pattern entry (if a/b) or a staleness note (if c) and informs whether the WO2 push can trust gov2gov or needs manual verification this round",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "open"
     },
     {
@@ -287,6 +339,10 @@
       "date": "2026-04-23",
       "type": "thread-open",
       "summary": "repo-role declaration + runtime-provenance surface in harness output -- the harness currently does not know whether it is running inside an authoring/distribution repo, a consumer workspace that has adopted the family, or a hybrid dev-delivery repo (which AI-Links itself is; Mike confirmed: 'This repository was never meant to self fulfill, it was already difficult enough to handle dev and delivery in one -- However, I think the harness being in the home profile has inadvertently introduced some application of itself on itself') -- the harness also does not declare its own provenance: which plugin root, which version, which schema bundle hash, which install lane (home-profile vs repo-local vs source checkout) -- two fixes stack: (1) repo-role field readable from harness entry, candidate values include authoring-distribution-repo, consumer-governed-repo, hybrid-dev-delivery-repo; in authoring or hybrid modes, skip consumer-adoption checks or scope them appropriately; (2) provenance block in every harness output so an agent can tell whether it is trusting stale home-profile cache or current repo source -- without (2), same class of failure recurs silently in any repo where the home-profile plugin diverges from source",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "open"
     },
     {
@@ -294,6 +350,10 @@
       "date": "2026-04-23",
       "type": "thread-open",
       "summary": "templates under-transfer the safety ideas -- downstream adopters who install the portable 6 and work from templates do not inherit the strongest research insights (negation/span-ambiguity awareness, affirmative-over-negation wording rule, separation of session state from durable scope state, proof-state-belongs-in-artifacts principle, no-duplicate-authority-without-source-generated-labeling) -- the research is alive in AI-Links itself but the packaging loses it -- fix direction: promote a small number of portable writing rules from scratchpad state into an explicit authored-rules document or as commented guidance within templates -- structurally similar to e018 (Arc use-case not documented in narrative schema meta) and e019 (.claude/settings.json needs adoption-friendly wording in Getting-Started) -- all three are variants of 'upstream knowledge does not survive the adoption step'",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "open"
     },
     {
@@ -301,6 +361,10 @@
       "date": "2026-04-23",
       "type": "thread-open",
       "summary": "small canon-and-truth sweep surfaced by GPT-5.5 evaluation -- individually minor but collectively they signal the doc-truth verifier scope is too narrow: (1) docs/README_ai_links.md says samples file has 10 entries, file currently has 18; (2) root README.md and startup template still use 'meaningful governed work' phrasing that the active doc-truth verifier does not cover -- expand verifier scope to include root README and templates; (3) mojibake (squiggly em-dash and similar) in several markdown surfaces including README/runbook -- small mechanically but hurts trust in a language-sensitive repo; (4) path-canon audit failing on 4 hardcoded path fragments; (5) no repo-local .agents/plugins/marketplace.json -- acceptable if user-profile is the intended live lane but docs must declare that explicitly",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "open"
     },
     {
@@ -308,6 +372,10 @@
       "date": "2026-04-23",
       "type": "thread-open",
       "summary": "commission-and-archive first-contact evaluations as a product practice -- first-contact reads from fresh external agents are the primary measurement instrument for whether pre-context shaping is doing its job (see observed-patterns.good entry 'first-contact evaluations are load-bearing product data') -- method: invite a fresh agent to read the repo cold with no corrections, preserve the first-contact read verbatim before offering any context, then optionally offer the standard context and preserve the second-pass read, archive the pair (candidate path: docs/first-contact-evaluations/) so the delta between readings is studyable -- the canonical 2026-04-23 GPT-5.5 pair is the first archive candidate -- deltas over time measure whether pre-context shaping reduces the gap between 'intended' and 'received' framing -- this is also the product's honest check against the guardrail-against-self failure mode, because a fresh evaluator has no prior investment in current directions",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "open"
     },
     {
@@ -329,6 +397,10 @@
       "date": "2026-04-23",
       "type": "thread-close",
       "summary": "repo-role declaration + runtime-provenance surface (e027) is closed by implementation -- the harness now attaches workspace_role, runtime_provenance, and consumer_material_governance_check to preflight_session, assess_harness_gap_state, is_schema_real_or_shadow_copied, and run_gov2gov_migration outputs -- workspace_role uses exactly three machine keys (schema_authoring_and_plugin_delivery_workspace, material_governance_consumer_workspace, mixed_or_undetermined_workspace_role) with a long human-facing statement, evidence, claim_scope_effect, and confidence -- .anarchy-ai/workspace-role.json can declare a role and override auto-detection; invalid declarations surface as evidence rather than silently disappearing -- schema_authoring_and_plugin_delivery_workspace explicitly covers the deliberate hybrid dev+delivery framing and marks consumer materialization checks not_applicable unless explicitly requested -- runtime_provenance labels user-profile installs as user_profile_installed_runtime and states they are convenient installed runtime, not source truth -- run_gov2gov_migration now returns non-gating post_migration_inventory with portable schema files compared against both the current canonical schema bundle manifest and this run's planned/actions-taken delivery record, while governed AGENTS and GOV2GOV structures are presence-only because workspace-specific divergence is expected -- external Claude review verified the three sharpenings landed and found one small test gap; follow-up tests now cover both complete governed consumers carrying portable schemas and incomplete straddled signals resolving as mixed_or_undetermined -- server tests pass 17/17",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "resolved"
     },
     {
@@ -336,6 +408,10 @@
       "date": "2026-04-23",
       "type": "thread-close",
       "summary": "TheLinks deployment sync (e011) closed -- AGENTS-schema-governance.json (sha256 79c387c5...), AGENTS-schema-narrative.json, and Getting-Started-For-Humans.txt copied from AI-Links to TheLinks; all three files now match AI-Links hashes -- committed as 7e70530 'Sync schema family + Getting-Started from AI-Links' on TheLinks branch governance-schema -- commit was scoped via 'git commit <paths>' so it did not bundle with Mike's pre-existing in-flight work in the TheLinks index (Vision, docs, AR mapping) -- .claude/settings.json hook propagation is intentionally deferred and tracked under e019 (adoption-friendly wording still pending) -- this sync brings TheLinks current on the governance role-text fix from d009, the in-session-capture-triggers narrative meta from d007, and the schemas-describe-harnesses-enforce framing in Getting-Started -- the runtime-provenance/workspace-role harness changes from d010 are AI-Links-only by construction (harness layer, not schema layer) and do not need to travel to TheLinks",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "pre-conformance-migration"
+      },
       "status": "resolved"
     },
     {
@@ -504,6 +580,20 @@
         "context-holder": "Codex (subject of observation); Mike Herring (called out the confusion and the diagnosis-without-execution detail and the observation-not-conclusion framing); Claude (capture, with explicit acknowledgment of the prior mischaracterization)",
         "finalized-by": "Mike Herring",
         "requested-by": "Mike Herring (asked for capture as observation rather than conclusion; called out that 'self-corrected' was wrong because Codex suggested the fix and then stopped without executing it)"
+      },
+      "status": "resolved"
+    },
+    {
+      "id": "e050",
+      "date": "2026-04-27",
+      "type": "beat",
+      "summary": "WO2 narrative non-conformance exposed an author-time validation gap -- the WO2 register and project records were valid JSON but not conformant to the carried narrative shape (missing register fields, entries without id/type, known-decisions without decided-by, observed-patterns as arrays), and the failure existed from the moment an agent authored the records directly from schema prose without running a mechanical validator -- the later WO2 review caught the gap reactively, which proved measurement works when invoked but also showed that Arc authoring needed cheaper checkpoint measurement before completion claims",
+      "beat": "remediation implemented as read-only terrain rather than harness authorship: add validate_narrative_arc_state, surface narrative conformance in assess/preflight/gov2gov outputs, ship a warn-only Claude Stop-hook template, and update skills so agents validate Arc/narrative edits before declaring them complete; no AGENTS-schema definitions, Arc authoring wrapper, or commit hook are added in this batch",
+      "cast": {
+        "owner": "Mike Herring",
+        "context-holder": "Claude via user relay; Codex implementation pass",
+        "finalized-by": "Mike Herring",
+        "requested-by": "Mike Herring (accepted the WO2 author-time validation gap and directed a read-only validator plus checkpoint terrain, explicitly excluding schema edits, authoring wrappers, and commit hooks)"
       },
       "status": "resolved"
     }
@@ -771,6 +861,14 @@
       "decision": "harness operational lanes must produce measurement-aware output: when a tool's output presumes specific structural state (the relevant schema family being applied in the workspace), the tool observes that state at entry and labels its own output with the observed structural grounding, rather than producing presumed-useful output as if the prerequisite state were satisfied -- this is the third member of the family alongside AA-BUG-024 (identity facts asserted without canon) and AA-BUG-031 (downstream state facts asserted without observation), generalizing both to operational legitimacy: tools must observe what they assert, not assume it -- the rule: operational tools (compile_active_work_state, is_schema_real_or_shadow_copied in operational mode, future Arc-review tools, etc.) check observed schema-applied state for the schema family they depend on at entry; their response payload includes which structural state was observed, which state would have been required for full grounding, and a recommended next step (typically gov2gov migration) when the observed state is partial or missing -- the tools always run; they do not refuse to operate; what changes is that their output is honest about its own grounding -- this is explicitly NOT a gate (control-plane semantics would import enforcement that violates d019); labeling is measurement, gating would be enforcement, and the d019 class boundary is preserved by the labeling-not-blocking shape -- this preserves d022's measurement-first posture: the doctor/readiness lane (assess_harness_gap_state, preflight_session) surfaces unmet prerequisites prominently, the migration lane (run_gov2gov_migration) is the corrective path, and other operational tools annotate their output rather than blocking -- partial-application is honored at per-tool granularity: a tool that depends only on the narrative schema labels its grounding based on narrative-schema-applied state alone, even if other schemas are unapplied -- this is positioned as install discipline because schema-applied state is a property of how the harness is configured to operate in a repo, expected to be set at adoption boundary; the runtime tools' job is to observe and report that state, not to enforce or restore it ad hoc -- composes naturally with d020 (lane split: /underlay brings the repo to schema-applied state, /userprofile delivers the runtime, /repolocal is proving/debug only) -- mitigation against this becoming a wall (d016 alive-in-work-path concern): tools never refuse; the migration lane is always available; the recommended-next-action surfaced in tool output must be executable by the agent encountering the unfavorable label, not just nameable; the labeled output should read as 'this tool's output is grounded in partial state X; here is what would ground it more fully' rather than as refusal -- implementation scope is plugin/MCP/skill only: harness/server/dotnet/Program.cs tool runtime paths and harness/contracts/*.contract.json metadata for each tool's declared structural-grounding requirements; possibly plugins/anarchy-ai/skills/anarchy-ai-harness/SKILL.md to surface the new output shape to agents; explicitly NOT a change to AGENTS-schema-*.json definitions (schema-applied refers to consumer repos applying schema artifacts, not to changes in schema definitions themselves) -- AI-Links/source-authoring boundary is already handled by d018: source workspaces do not receive consumer-state pressure; structural-grounding labels in source-authoring workspaces should reflect 'this workspace is the author of these schemas, not an adopter of them' rather than reporting unapplied state as a problem -- session evidence supporting the rule: the 2026-04-26 WO2 review surfaced schema non-conformance findings (P2 #3 and #4 in e047) while the same harness was producing operational output against the same non-conformant state in the same session, with quality degraded relative to schema-applied baseline because the output was not labeled as derived-from-non-conformant-state; e048's in-flight-stale-read pattern is partially upstream of the same problem (terrain unfavorability that the harness was not annotating in its own outputs) -- generalized class observation captured separately as observed-patterns.bad 'operational-legitimacy-without-prerequisites'; implementation work tracked as e049 -- earlier drafts of this entry used 'gate' language (the harness gates on schema-applied state, returns a refusal, etc.); that wording imported control-plane semantics that violate d019 and was corrected to measurement-aware-output framing in the same session; the correction is preserved in the entry rather than sanitized so future readers see what was initially drafted and what was sharpened",
       "decided-by": "Mike Herring",
       "requested-by": "Mike Herring (named the install discipline that was missed: harness operational tools running in repos without schema-applied state were producing output that did not honestly reflect its own structural grounding; positioned the corrective as install-time configuration rather than runtime ad hoc; later sharpened to clarify the corrective is measurement-aware output (tools always run, label their grounding) rather than gating (refusing to operate), since gating would import control-plane semantics that violate d019; also clarified implementation scope is plugin/MCP/skill, not schema definition edits)",
+      "reversed": false
+    },
+    {
+      "id": "d024",
+      "date": "2026-04-27",
+      "decision": "author-time and checkpoint narrative Arc validation is measurement terrain, not harness authorship or control-plane gating -- the harness should make it cheap to measure whether narrative registers and Arc records conform to the carried narrative shape before agents declare Arc/narrative work complete, but the validator remains read-only, advisory, and non-blocking; it reports file/path findings, structural grounding, and suggested corrections, while humans and repo-authored records keep content authority -- this closes the WO2 failure class where valid JSON was authored directly from schema prose but missed required narrative shape, then sat until reactive review; the remediation is validate_narrative_arc_state, assess/preflight/gov2gov conformance surfacing, a warn-only optional Claude Stop hook template, and skill guidance that requires validation before completion claims -- explicitly out of scope: AGENTS-schema definition changes, an Arc authoring wrapper, and a commit hook in this batch",
+      "decided-by": "Mike Herring",
+      "requested-by": "Mike Herring (accepted Claude's diagnosis that validation existed only reactively and directed a read-only author/checkpoint validator rather than schema edits, authoring tools, or hard gates)",
       "reversed": false
     }
   ],

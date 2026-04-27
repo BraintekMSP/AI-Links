@@ -333,6 +333,8 @@ public sealed class RuntimeEnvelopeTests
 
         Assert.Equal(RuntimeEnvelopeBuilder.RepoUnderlayPosture, root.GetProperty("workspace_posture").GetString());
         Assert.Equal(Gov2GovMigrationRunner.Gov2GovArtifactModeReference, root.GetProperty("gov2gov_artifact_mode").GetString());
+        Assert.True(root.GetProperty("post_migration_inventory").GetProperty("narrative_arc_structure").TryGetProperty("conformance", out var referenceConformance));
+        Assert.True(referenceConformance.TryGetProperty("validation_state", out _));
         Assert.DoesNotContain("realign_startup_discovery_paths", plannedActions);
         Assert.DoesNotContain("startup_discovery_path_weakened", remainingFindings);
         Assert.False(File.Exists(AnarchyPathCanon.ResolveRepoLocalMarketplaceFilePath(workspace.Path)));
@@ -376,6 +378,8 @@ public sealed class RuntimeEnvelopeTests
         Assert.Equal(RuntimeEnvelopeBuilder.RepoUnderlayPosture, root.GetProperty("workspace_posture").GetString());
         Assert.Equal(Gov2GovMigrationRunner.Gov2GovArtifactModeActive, root.GetProperty("gov2gov_artifact_mode").GetString());
         Assert.Equal("materialized", root.GetProperty("migration_result_state").GetString());
+        Assert.True(root.GetProperty("post_migration_inventory").GetProperty("narrative_arc_structure").TryGetProperty("conformance", out var activeConformance));
+        Assert.True(activeConformance.TryGetProperty("validation_state", out _));
         Assert.DoesNotContain("realign_startup_discovery_paths", plannedActions);
         Assert.DoesNotContain("startup_discovery_path_weakened", remainingFindings);
         Assert.False(File.Exists(AnarchyPathCanon.ResolveRepoLocalMarketplaceFilePath(workspace.Path)));

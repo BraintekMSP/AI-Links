@@ -53,6 +53,7 @@ internal sealed class ContractLoader
                 File.Exists(Path.Combine(candidate, "active-work-state.contract.json")) &&
                 File.Exists(Path.Combine(candidate, "preflight-session.contract.json")) &&
                 File.Exists(Path.Combine(candidate, "harness-gap-state.contract.json")) &&
+                File.Exists(Path.Combine(candidate, "narrative-arc-validation.contract.json")) &&
                 File.Exists(Path.Combine(candidate, "verify-config-materialization.contract.json")))
             {
                 return candidate;
@@ -1739,11 +1740,14 @@ internal sealed class SchemaRealityInspector
 // Critical dependencies: SchemaRealityInspector, CanonicalSchemaBundle, and workspace filesystem access.
 internal sealed class Gov2GovMigrationRunner(
     SchemaRealityInspector schemaRealityInspector,
-    StructuralGroundingInspector? structuralGroundingInspector = null)
+    StructuralGroundingInspector? structuralGroundingInspector = null,
+    NarrativeArcValidator? narrativeArcValidator = null)
 {
     private readonly CanonicalSchemaBundle _canonicalSchemaBundle = CanonicalSchemaBundle.TryLoad();
     private readonly StructuralGroundingInspector _structuralGroundingInspector =
         structuralGroundingInspector ?? new StructuralGroundingInspector(schemaRealityInspector);
+    private readonly NarrativeArcValidator _narrativeArcValidator =
+        narrativeArcValidator ?? new NarrativeArcValidator(structuralGroundingInspector ?? new StructuralGroundingInspector(schemaRealityInspector));
 
     internal const string Gov2GovArtifactModeActive = "active";
     internal const string Gov2GovArtifactModeReference = "reference";
@@ -2088,6 +2092,7 @@ internal sealed class Gov2GovMigrationRunner(
     {
         var plannedActionSet = plannedActions.ToHashSet(StringComparer.Ordinal);
         var actionTakenSet = actionsTaken.ToHashSet(StringComparer.Ordinal);
+        var narrativeArcValidation = _narrativeArcValidator.Validate(workspaceRoot);
 
         return new
         {
@@ -2104,7 +2109,7 @@ internal sealed class Gov2GovMigrationRunner(
             governed_agents_structure = RuntimeEnvelopeBuilder.GovernedAgentsStructure
                 .Select(fileName => BuildPresenceOnlyInventoryEntry(workspaceRoot, fileName))
                 .ToArray(),
-            narrative_arc_structure = BuildNarrativeArcInventory(workspaceRoot, plannedActionSet, actionTakenSet),
+            narrative_arc_structure = BuildNarrativeArcInventory(workspaceRoot, plannedActionSet, actionTakenSet, narrativeArcValidation),
             gov2gov_structure = RuntimeEnvelopeBuilder.Gov2GovStructure
                 .Select(fileName => BuildPresenceOnlyInventoryEntry(workspaceRoot, fileName))
                 .ToArray(),
@@ -2183,7 +2188,8 @@ internal sealed class Gov2GovMigrationRunner(
     private static object BuildNarrativeArcInventory(
         string workspaceRoot,
         IReadOnlySet<string> plannedActions,
-        IReadOnlySet<string> actionsTaken)
+        IReadOnlySet<string> actionsTaken,
+        object narrativeArcValidation)
     {
         var registerPath = Path.Combine(workspaceRoot, NarrativeRegisterRelativePath.Replace('/', Path.DirectorySeparatorChar));
         var projectsDirectoryPath = Path.Combine(workspaceRoot, NarrativeProjectsDirectoryRelativePath.Replace('/', Path.DirectorySeparatorChar));
@@ -2206,6 +2212,7 @@ internal sealed class Gov2GovMigrationRunner(
                 presence_state = Directory.Exists(projectsDirectoryPath) ? "present" : "missing",
                 delivery_plan_state = DetermineNarrativeProjectsDeliveryPlanState(Directory.Exists(projectsDirectoryPath), plannedActions, actionsTaken)
             },
+            conformance = narrativeArcValidation,
             hash_mode = "presence_only_workspace_specific_narrative_expected_to_diverge"
         };
     }
@@ -4363,10 +4370,13 @@ internal sealed class VerifyConfigMaterializationRunner
 // Critical dependencies: HarnessInstallDiscovery, SchemaRealityInspector, marketplace inspection, and bundle-surface inspection.
 internal sealed class HarnessGapAssessor(
     SchemaRealityInspector schemaRealityInspector,
-    StructuralGroundingInspector? structuralGroundingInspector = null)
+    StructuralGroundingInspector? structuralGroundingInspector = null,
+    NarrativeArcValidator? narrativeArcValidator = null)
 {
     private readonly StructuralGroundingInspector _structuralGroundingInspector =
         structuralGroundingInspector ?? new StructuralGroundingInspector(schemaRealityInspector);
+    private readonly NarrativeArcValidator _narrativeArcValidator =
+        narrativeArcValidator ?? new NarrativeArcValidator(structuralGroundingInspector ?? new StructuralGroundingInspector(schemaRealityInspector));
 
     private static readonly string[] ExpectedContractFiles =
     [
@@ -4375,6 +4385,7 @@ internal sealed class HarnessGapAssessor(
         "gov2gov-migration.contract.json",
         "preflight-session.contract.json",
         "harness-gap-state.contract.json",
+        "narrative-arc-validation.contract.json",
         "verify-config-materialization.contract.json"
     ];
 
@@ -4451,6 +4462,11 @@ internal sealed class HarnessGapAssessor(
         var schemaActiveReasons = GetStringArray(schemaElement, "active_reasons");
         var artifactHygiene = AssessArtifactHygiene(resolvedWorkspaceRoot);
         var underlayReadiness = AssessUnderlayReadiness(resolvedWorkspaceRoot, pluginRoot);
+        var narrativeArcValidation = _narrativeArcValidator.Validate(resolvedWorkspaceRoot);
+        var narrativeArcValidationElement = JsonSerializer.SerializeToElement(narrativeArcValidation);
+        var narrativeArcConformanceState = GetString(narrativeArcValidationElement, "validation_state");
+        var narrativeArcFindingCount = GetInt(narrativeArcValidationElement.GetProperty("summary"), "finding_count");
+        var narrativeArcRecommendedActions = GetStringArray(narrativeArcValidationElement, "recommended_next_actions");
 
         var missingComponents = new List<string>();
         missingComponents.AddRange(underlayReadiness.MissingComponents);
@@ -4617,6 +4633,9 @@ internal sealed class HarnessGapAssessor(
             underlayReadiness,
             artifactHygiene,
             structuralGrounding,
+            narrativeArcConformanceState,
+            narrativeArcFindingCount,
+            narrativeArcRecommendedActions,
             distinctMissingComponents,
             distinctSafeRepairs,
             distinctAdminActions);
@@ -4657,6 +4676,8 @@ internal sealed class HarnessGapAssessor(
                 narrative_register_valid = underlayReadiness.NarrativeRegisterValid,
                 narrative_projects_directory_present = underlayReadiness.NarrativeProjectsDirectoryPresent,
                 narrative_record_count = underlayReadiness.NarrativeRecordCount,
+                narrative_arc_conformance_state = narrativeArcConformanceState,
+                narrative_arc_finding_count = narrativeArcFindingCount,
                 governed_agents_family_present = underlayReadiness.GovernedAgentsFamilyPresent,
                 repo_utilization_state = underlayReadiness.RepoUtilizationState,
                 observed_surfaces = underlayReadiness.ObservedSurfaces,
@@ -4671,6 +4692,7 @@ internal sealed class HarnessGapAssessor(
                 recommended_artifact_lanes = artifactHygiene.RecommendedArtifactLanes,
                 safe_repairs = artifactHygiene.SafeRepairs
             },
+            narrative_arc_validation = narrativeArcValidation,
             structural_grounding = structuralGrounding,
             doctor_summary = doctorSummary,
             adoption_state = adoptionState,
@@ -4726,6 +4748,9 @@ internal sealed class HarnessGapAssessor(
         UnderlayReadinessAssessment underlayReadiness,
         ArtifactHygieneAssessment artifactHygiene,
         StructuralGroundingAssessment structuralGrounding,
+        string narrativeArcConformanceState,
+        int narrativeArcFindingCount,
+        string[] narrativeArcRecommendedActions,
         string[] missingComponents,
         string[] safeRepairs,
         string[] adminActions)
@@ -4738,6 +4763,9 @@ internal sealed class HarnessGapAssessor(
             .Except(blockingGaps, StringComparer.Ordinal)
             .Concat(underlayReadiness.UtilizationGaps.Select(static gap => $"underlay_utilization_gap:{gap}"))
             .Concat(structuralGrounding.MissingOrPartialSurfaces.Select(static gap => $"structural_grounding_gap:{gap}"))
+            .Concat(narrativeArcConformanceState == NarrativeArcValidator.ValidationStateNonConformant
+                ? new[] { $"narrative_arc_conformance_gap:{narrativeArcFindingCount}_findings" }
+                : Array.Empty<string>())
             .Concat(artifactHygiene.State == "repo_local_artifacts_observed"
                 ? new[] { "artifact_hygiene:repo_local_artifacts_observed" }
                 : Array.Empty<string>())
@@ -4745,6 +4773,7 @@ internal sealed class HarnessGapAssessor(
             .ToArray();
         var suggestedCorrections = safeRepairs
             .Concat(structuralGrounding.RecommendedNextActions)
+            .Concat(narrativeArcRecommendedActions)
             .Distinct(StringComparer.Ordinal)
             .ToArray();
         var recommendedNextActions = BuildRecommendedNextActions(
@@ -4752,6 +4781,7 @@ internal sealed class HarnessGapAssessor(
             nonBlockingGaps,
             underlayReadiness,
             structuralGrounding,
+            narrativeArcConformanceState,
             artifactHygiene);
         var humanAttentionReasons = BuildHumanAttentionReasons(
             blockingGaps,
@@ -4762,6 +4792,7 @@ internal sealed class HarnessGapAssessor(
             schemaRealityState,
             underlayReadiness,
             structuralGrounding,
+            narrativeArcConformanceState,
             artifactHygiene);
 
         return new
@@ -4777,6 +4808,8 @@ internal sealed class HarnessGapAssessor(
                 integrity_state = integrityState,
                 possession_state = possessionState,
                 underlay_readiness_state = underlayReadiness.ReadinessState,
+                narrative_arc_conformance_state = narrativeArcConformanceState,
+                narrative_arc_finding_count = narrativeArcFindingCount,
                 structural_grounding_state = structuralGrounding.GroundingState,
                 artifact_hygiene_state = artifactHygiene.State
             },
@@ -4810,6 +4843,7 @@ internal sealed class HarnessGapAssessor(
         string[] nonBlockingGaps,
         UnderlayReadinessAssessment underlayReadiness,
         StructuralGroundingAssessment structuralGrounding,
+        string narrativeArcConformanceState,
         ArtifactHygieneAssessment artifactHygiene)
     {
         var actions = new List<string>();
@@ -4826,6 +4860,12 @@ internal sealed class HarnessGapAssessor(
         if (structuralGrounding.GroundingState is "partially_grounded" or "ungrounded")
         {
             actions.AddRange(structuralGrounding.RecommendedNextActions);
+        }
+
+        if (narrativeArcConformanceState == NarrativeArcValidator.ValidationStateNonConformant)
+        {
+            actions.Add("repair_narrative_arc_conformance_before_declaring_arc_work_complete");
+            actions.Add("rerun_validate_narrative_arc_state");
         }
 
         if (artifactHygiene.State == "repo_local_artifacts_observed")
@@ -4873,6 +4913,7 @@ internal sealed class HarnessGapAssessor(
         string schemaRealityState,
         UnderlayReadinessAssessment underlayReadiness,
         StructuralGroundingAssessment structuralGrounding,
+        string narrativeArcConformanceState,
         ArtifactHygieneAssessment artifactHygiene)
     {
         var pitfalls = new List<string>();
@@ -4889,6 +4930,11 @@ internal sealed class HarnessGapAssessor(
         if (structuralGrounding.GroundingState is "partially_grounded" or "ungrounded")
         {
             pitfalls.Add("operational_output_can_be_misread_as_fully_grounded_when_structural_surfaces_are_partial");
+        }
+
+        if (narrativeArcConformanceState == NarrativeArcValidator.ValidationStateNonConformant)
+        {
+            pitfalls.Add("valid_json_can_be_misread_as_narrative_schema_conformance");
         }
 
         if (artifactHygiene.State == "repo_local_artifacts_observed")
@@ -5355,7 +5401,8 @@ internal sealed class HarnessGapAssessor(
                 "compile_active_work_state",
                 "is_schema_real_or_shadow_copied",
                 "run_gov2gov_migration",
-                "assess_harness_gap_state"
+                "assess_harness_gap_state",
+                "validate_narrative_arc_state"
             ];
     }
 
@@ -5616,6 +5663,15 @@ internal sealed class HarnessGapAssessor(
             : string.Empty;
     }
 
+    private static int GetInt(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var propertyElement) &&
+               propertyElement.ValueKind == JsonValueKind.Number &&
+               propertyElement.TryGetInt32(out var value)
+            ? value
+            : 0;
+    }
+
     // Purpose: Reads a string-array property from a JsonElement and drops blanks.
     // Expected input: JsonElement and property name.
     // Expected output: Array of nonblank strings, or an empty array when absent.
@@ -5690,7 +5746,8 @@ internal sealed class PreflightSessionRunner(
     HarnessGapAssessor harnessGapAssessor,
     SchemaRealityInspector schemaRealityInspector,
     ActiveWorkStateCompiler activeWorkStateCompiler,
-    StructuralGroundingInspector structuralGroundingInspector)
+    StructuralGroundingInspector structuralGroundingInspector,
+    NarrativeArcValidator narrativeArcValidator)
 {
     // Purpose: Produces one bounded preflight decision for complex changes.
     // Expected input: Workspace root, current objective, optional host context, optional startup surfaces, and optional user intent.
@@ -5726,7 +5783,8 @@ internal sealed class PreflightSessionRunner(
                     "compile_active_work_state",
                     "is_schema_real_or_shadow_copied",
                     "run_gov2gov_migration",
-                    "assess_harness_gap_state"
+                    "assess_harness_gap_state",
+                    "validate_narrative_arc_state"
                 ]));
 
         var schemaElement = JsonSerializer.SerializeToElement(
@@ -5743,6 +5801,10 @@ internal sealed class PreflightSessionRunner(
         var evidenceStatus = GetString(activeWorkElement, "evidence_status");
         var nextRequiredAction = GetString(activeWorkElement, "next_required_action");
         var activeLane = GetString(activeWorkElement, "active_lane");
+        var narrativeArcValidation = narrativeArcValidator.Validate(resolvedWorkspaceRoot);
+        var narrativeArcValidationElement = JsonSerializer.SerializeToElement(narrativeArcValidation);
+        var narrativeArcValidationState = GetString(narrativeArcValidationElement, "validation_state");
+        var narrativeArcFindingCount = GetInt(narrativeArcValidationElement.GetProperty("summary"), "finding_count");
 
         var installationState = GetString(gapElement, "installation_state");
         var adoptionState = GetString(gapElement, "adoption_state");
@@ -5760,6 +5822,10 @@ internal sealed class PreflightSessionRunner(
         var activeGaps = missingComponents
             .Concat(schemaReasonsForActiveGaps.Select(static value => $"schema:{value}"))
             .Concat(degradationSignals.Select(static value => $"session:{value}"))
+            .Concat(IsNarrativeArcValidationRelevant(currentObjective, userIntent, activeLane) &&
+                    narrativeArcValidationState == NarrativeArcValidator.ValidationStateNonConformant
+                ? new[] { $"narrative_arc_conformance:{narrativeArcFindingCount}_findings" }
+                : Array.Empty<string>())
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 
@@ -5834,6 +5900,7 @@ internal sealed class PreflightSessionRunner(
                 .ToArray(),
             active_lane = activeLane,
             current_status = currentStatus,
+            narrative_arc_validation = narrativeArcValidation,
             structural_grounding = structuralGrounding,
             schema_state = new
             {
@@ -5866,6 +5933,16 @@ internal sealed class PreflightSessionRunner(
             .ToArray();
     }
 
+    private static bool IsNarrativeArcValidationRelevant(string currentObjective, string? userIntent, string activeLane)
+    {
+        var joined = string.Join(
+            " ",
+            new[] { currentObjective, userIntent ?? string.Empty, activeLane });
+        return joined.Contains("narrative", StringComparison.OrdinalIgnoreCase) ||
+               joined.Contains("arc", StringComparison.OrdinalIgnoreCase) ||
+               joined.Contains("gov2gov", StringComparison.OrdinalIgnoreCase);
+    }
+
     // Purpose: Reads a string property from a JsonElement and falls back to an empty string when absent.
     // Expected input: JsonElement and property name.
     // Expected output: Property string value or empty string.
@@ -5876,6 +5953,15 @@ internal sealed class PreflightSessionRunner(
                propertyElement.ValueKind == JsonValueKind.String
             ? propertyElement.GetString() ?? string.Empty
             : string.Empty;
+    }
+
+    private static int GetInt(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var propertyElement) &&
+               propertyElement.ValueKind == JsonValueKind.Number &&
+               propertyElement.TryGetInt32(out var value)
+            ? value
+            : 0;
     }
 
     // Purpose: Reads a string-array property from a JsonElement and drops blanks.
@@ -5910,6 +5996,7 @@ internal sealed class AnarchyAiHarnessTools(
     ActiveWorkStateCompiler activeWorkStateCompiler,
     HarnessGapAssessor harnessGapAssessor,
     PreflightSessionRunner preflightSessionRunner,
+    NarrativeArcValidator narrativeArcValidator,
     DirectionAssistRunner directionAssistRunner,
     VerifyConfigMaterializationRunner verifyConfigMaterializationRunner)
 {
@@ -6000,6 +6087,24 @@ internal sealed class AnarchyAiHarnessTools(
         [Description("Optional capabilities the current environment expects to have available.")] string[]? expected_capabilities = null)
     {
         return harnessGapAssessor.Assess(workspace_root, host_context, expected_capabilities);
+    }
+
+    // Purpose: Runs the validate_narrative_arc_state MCP tool.
+    // Expected input: Absolute workspace root plus optional record-path narrowing and validation scope.
+    // Expected output: Read-only narrative Arc/register conformance findings.
+    // Critical dependencies: NarrativeArcValidator.
+    [McpServerTool(
+        Name = "validate_narrative_arc_state",
+        Title = "Validate Narrative Arc State",
+        ReadOnly = true,
+        UseStructuredContent = true)]
+    [Description("Measure narrative register and Arc record conformance against the carried AGENTS narrative shape without writing files.")]
+    public object ValidateNarrativeArcState(
+        [Description("Absolute workspace root to inspect.")] string workspace_root,
+        [Description("Optional repo-relative or absolute narrative record paths to check. When omitted, all discovered project records are checked.")] string[]? record_paths = null,
+        [Description("Validation scope: all, register, or records. Defaults to all.")] string validation_scope = "all")
+    {
+        return narrativeArcValidator.Validate(workspace_root, record_paths, validation_scope);
     }
 
     // Purpose: Runs the run_gov2gov_migration MCP tool.
@@ -6097,11 +6202,18 @@ internal static class Program
     // Critical dependencies: Host.CreateApplicationBuilder, dependency injection, and WithTools<AnarchyAiHarnessTools>.
     private static async Task Main(string[] args)
     {
+        if (NarrativeArcValidationCli.TryRun(args, Console.Out, out var exitCode))
+        {
+            Environment.ExitCode = exitCode;
+            return;
+        }
+
         var builder = Host.CreateApplicationBuilder(args);
         builder.Logging.ClearProviders();
         builder.Services.AddSingleton<ContractLoader>();
         builder.Services.AddSingleton<SchemaRealityInspector>();
         builder.Services.AddSingleton<StructuralGroundingInspector>();
+        builder.Services.AddSingleton<NarrativeArcValidator>();
         builder.Services.AddSingleton<Gov2GovMigrationRunner>();
         builder.Services.AddSingleton<ActiveWorkStateCompiler>();
         builder.Services.AddSingleton<DirectionAssistRunner>();

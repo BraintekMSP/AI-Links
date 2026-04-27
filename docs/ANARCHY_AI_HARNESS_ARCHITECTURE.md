@@ -63,6 +63,7 @@ The current first-class contracts are:
 - `compile_active_work_state`
 - `is_schema_real_or_shadow_copied`
 - `assess_harness_gap_state`
+- `validate_narrative_arc_state`
 - `run_gov2gov_migration`
 
 Current experimental test-lane contract:
@@ -71,7 +72,7 @@ Current experimental test-lane contract:
 
 Test-lane rule:
 
-- this module remains callable but outside the five-core default order
+- this module remains callable but outside the six-core default order
 - prime promotion should reuse the same `DirectionAssistRunner` module from this test lane rather than duplicating qualification logic
 
 ## Actor Surfaces

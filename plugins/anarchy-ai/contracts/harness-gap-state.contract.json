@@ -1,6 +1,6 @@
 {
     "contract_name":  "harness_gap_state_contract",
-    "contract_version":  "0.2.3",
+    "contract_version":  "0.2.4",
     "function_name":  "assess_harness_gap_state",
     "purpose":  "Assess installation, runtime, schema, startup, adoption, underlay readiness, and artifact-hygiene gaps so the harness can measure state and suggest corrections without acting as an instruction authority.",
     "input_contract":  {
@@ -131,7 +131,21 @@
                                                                       "agent_actions":  {
                                                                                             "type":  "string_array",
                                                                                             "description":  "Compatibility suggestions for agent-available follow-up. Values are advisory terrain/correction options, not instructions from the harness."
-                                                                                        }
+                                                                                        },
+                                                                      "narrative_arc_conformance_state":  {
+                                                                                                              "type":  "enum",
+                                                                                                              "values":  [
+                                                                                                                             "conformant",
+                                                                                                                             "non_conformant",
+                                                                                                                             "no_narrative_arc_surfaces",
+                                                                                                                             "invalid_input"
+                                                                                                                         ],
+                                                                                                              "description":  "Read-only narrative Arc conformance state from validate_narrative_arc_state."
+                                                                                                          },
+                                                                      "narrative_arc_finding_count":  {
+                                                                                                          "type":  "integer",
+                                                                                                          "description":  "Number of mechanical narrative Arc conformance findings observed during readiness measurement."
+                                                                                                      }
                                                                   }
                                                    },
                             "artifact_hygiene":  {
@@ -307,7 +321,11 @@
                                                                                                    "description":  "How the observed structural grounding qualifies the scope of the tool output."
                                                                                                }
                                                                     }
-                                                     }
+                                                     },
+                            "narrative_arc_validation":  {
+                                                             "type":  "object",
+                                                             "description":  "Embedded validate_narrative_arc_state result. The assessment still runs; this labels narrative conformance terrain for Arc/authorship work."
+                                                         }
                         },
     "result_example":  {
                            "workspace_role":  {
@@ -366,7 +384,9 @@
                                                       "agent_actions":  [
                                                                             "inspect_underlay_readiness_before_declaring_adoption",
                                                                             "do_not_treat_schema_availability_as_repo_utilization"
-                                                                        ]
+                                                                        ],
+                                                      "narrative_arc_conformance_state":  "conformant",
+                                                      "narrative_arc_finding_count":  0
                                                   },
                            "adoption_state":  "partially_adopted",
                            "artifact_hygiene":  {
@@ -386,7 +406,7 @@
                                                                      ]
                                                 },
                            "doctor_summary":  {
-                                                  "measurement_summary":  "Measured install, runtime, schema, underlay utilization, artifact hygiene, adoption, and path evidence; correction fields are recommendations, not authority.",
+                                                  "measurement_summary":  "Measured install, runtime, schema, underlay utilization, narrative Arc conformance, artifact hygiene, adoption, and path evidence; correction fields are recommendations, not authority.",
                                                   "observed_state":  {
                                                                          "installation_state":  "repo_bundle_present_unregistered",
                                                                          "runtime_state":  "callable_and_repo_bundled",
@@ -397,7 +417,9 @@
                                                                          "possession_state":  "unpossessed",
                                                                          "underlay_readiness_state":  "portable_underlay_available_no_repo_utilization",
                                                                          "artifact_hygiene_state":  "repo_local_artifacts_observed",
-                                                                         "structural_grounding_state":  "source_authoring_not_applicable"
+                                                                         "structural_grounding_state":  "source_authoring_not_applicable",
+                                                                         "narrative_arc_conformance_state":  "conformant",
+                                                                         "narrative_arc_finding_count":  0
                                                                      },
                                                   "blocking_gaps":  [
                                                                         "codex_skill_surface_missing"
@@ -512,7 +534,62 @@
                                                                                    "consumer_schema_application_pressure_not_applicable",
                                                                                    "tools_always_run_and_label_grounding"
                                                                                ]
-                                                    }
+                                                    },
+                           "narrative_arc_validation":  {
+                                                            "validation_state":  "conformant",
+                                                            "checked_surfaces":  [
+                                                                                     {
+                                                                                         "path":  "narratives/register.json",
+                                                                                         "surface_type":  "register",
+                                                                                         "state":  "checked",
+                                                                                         "checked_record_count":  1
+                                                                                     },
+                                                                                     {
+                                                                                         "path":  "narratives/projects/ai-links.json",
+                                                                                         "surface_type":  "project_record",
+                                                                                         "state":  "checked",
+                                                                                         "checked_entry_count":  46
+                                                                                     }
+                                                                                 ],
+                                                            "findings":  [
+
+                                                                         ],
+                                                            "summary":  {
+                                                                            "register_count":  1,
+                                                                            "record_count":  1,
+                                                                            "checked_record_count":  1,
+                                                                            "finding_count":  0,
+                                                                            "severity_counts":  {
+
+                                                                                                }
+                                                                        },
+                                                            "structural_grounding":  {
+                                                                                         "grounding_state":  "source_authoring_not_applicable",
+                                                                                         "required_structural_surfaces":  [
+                                                                                                                              "AGENTS-schema-narrative.json",
+                                                                                                                              "narrative register",
+                                                                                                                              "narrative project records"
+                                                                                                                          ],
+                                                                                         "observed_structural_surfaces":  [
+                                                                                                                              "tool:assess_harness_gap_state",
+                                                                                                                              "workspace_role:schema_authoring_and_plugin_delivery_workspace",
+                                                                                                                              "source_workspace_authors_schema_not_adopts_schema"
+                                                                                                                          ],
+                                                                                         "missing_or_partial_surfaces":  [
+
+                                                                                                                         ],
+                                                                                         "recommended_next_actions":  [
+                                                                                                                          "continue_with_source_authoring_context"
+                                                                                                                      ],
+                                                                                         "claim_scope_effect":  [
+                                                                                                                    "source_workspace_authors_schema_not_adopts_schema",
+                                                                                                                    "tools_always_run_and_label_grounding"
+                                                                                                                ]
+                                                                                     },
+                                                            "recommended_next_actions":  [
+                                                                                             "rerun_validate_narrative_arc_state_after_arc_changes"
+                                                                                         ]
+                                                        }
                        },
     "structural_grounding_requirement":  {
                                              "requirement_kind":  "diagnostic",

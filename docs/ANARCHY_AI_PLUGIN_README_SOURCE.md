@@ -75,7 +75,7 @@ The plugin provides:
 - direct launch of the bundled `.NET 8` self-contained single-file runtime inside the plugin
 - a bundled canonical schema family plus hash manifest under `./schemas/`
 - narrative register and record templates under `./templates/narratives/` because `AGENTS-schema-narrative.json` carries the arc/register lane
-- a skill that teaches when to use the five bounded core runtime tools and how to discover the experimental `direction_assist_test` module
+- a skill that teaches when to use the six bounded core runtime tools and how to discover the experimental `direction_assist_test` module
 - a runtime-free `/underlay` setup lane that seeds portable schema and narrative discipline into a repo without installing the runtime plugin or touching host config
 - a plan-first `/refresh` setup lane that aligns only portable schema files and requires `/apply` before overwriting
 - a repo-bootstrap script at `./scripts/bootstrap-anarchy-ai.ps1` as a compatibility/fallback lane for repo-local install, assess, and bundle refresh after the bundle already exists
@@ -129,10 +129,16 @@ Older legacy `mcp_servers.anarchy-ai-herringms` entries are cleanup evidence onl
   - schema state
   - underlay readiness so schema/template availability is not mistaken for repo utilization
   - narrative utilization facts such as register presence, projects directory presence, and record count
+  - narrative Arc conformance status from read-only validation
   - artifact hygiene state for repo-local generated build/cache/runtime/scratch directories
   - adoption state
   - missing components and safe repairs
   - nested `paths.origin|source|destination` evidence instead of flat path fields
+- `validate_narrative_arc_state` is implemented and returns:
+  - register, project-record, decision, entry, and observed-pattern conformance findings
+  - file path and JSON path evidence for each finding
+  - structural grounding and advisory next actions
+  - no file writes and no blocking behavior
 - `run_gov2gov_migration` is implemented for:
   - planning non-destructive gov2gov reconciliation
   - copying missing canonical schema bundle files into the workspace in `non_destructive_apply`
@@ -145,6 +151,7 @@ Together, these tools give Anarchy-AI its current runtime promise:
 - compile incomplete or drifting work context into bounded operational state
 - evaluate whether the schema package is materially real here
 - assess install, runtime, schema, and adoption gaps explicitly
+- validate narrative Arc/register conformance before declaring Arc edits complete
 - non-destructively migrate current AGENTS files toward a directionally stronger structure without replacing local authorship
 
 Experimental test-lane addition:

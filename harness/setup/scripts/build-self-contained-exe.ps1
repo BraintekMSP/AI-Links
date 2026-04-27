@@ -643,7 +643,7 @@ function Assert-SetupCliHelpContract {
     '/update',
     '/status',
     'install-state',
-    '5 core + 1 test harness tool'
+    '6 core + 1 test harness tool'
   )
 
   foreach ($snippet in $requiredSnippets) {

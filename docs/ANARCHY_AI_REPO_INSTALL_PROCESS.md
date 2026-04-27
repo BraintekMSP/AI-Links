@@ -605,6 +605,7 @@ Use:
 - `is_schema_real_or_shadow_copied`
 - `assess_harness_gap_state`
 - `preflight_session`
+- `validate_narrative_arc_state`
 
 Expected stable state for a governed repo:
 

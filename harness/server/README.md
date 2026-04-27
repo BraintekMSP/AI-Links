@@ -42,7 +42,7 @@ It currently exists to:
 
 - establish the folder boundary Codex expects
 - load the harness contract files
-- expose the current five harness tools
+- expose the current six harness tools
 - prove a Windows-first runtime path:
   - preferred `.NET 8` self-contained publish
   - legacy `net48` target kept in source, but not part of packaged validation
@@ -54,6 +54,7 @@ It now performs:
 - canonical schema bundle integrity and possession detection
 - bounded current-work compilation
 - environment gap assessment
+- read-only narrative Arc/register conformance validation
 - bounded gov2gov planning and missing-canonical-file refresh
 
 It still does not perform:
@@ -70,12 +71,13 @@ The intended first tools are:
 - `is_schema_real_or_shadow_copied`
 - `compile_active_work_state`
 - `assess_harness_gap_state`
+- `validate_narrative_arc_state`
 - `run_gov2gov_migration`
 
 Experimental test-lane tool:
 
 - `direction_assist_test`
 
-The five core tools remain the default runtime contract surface.
+The six core tools remain the default runtime contract surface.
 `direction_assist_test` is explicitly test-lane and should only be promoted into prime orchestration by reusing the same runner module.
 

@@ -133,7 +133,7 @@ Proven by current local source and build behavior:
 - the build helper renders destination-relative install facts into the published README and rejects stale source-layout-relative hops such as `../../../`
 - setup/bootstrap/health outputs now use one nested `paths.origin|source|destination` model instead of mixing flat `workspace_root` / `repo_root` / `plugin_root` fields
 
-### 8. Current Anarchy runtime binary and source surface still expose the five harness tools
+### 8. Current Anarchy runtime binary and source surface still expose the six harness tools
 
 Proven by current source registration and packaged runtime delivery:
 
@@ -141,11 +141,12 @@ Proven by current source registration and packaged runtime delivery:
 - `compile_active_work_state`
 - `is_schema_real_or_shadow_copied`
 - `assess_harness_gap_state`
+- `validate_narrative_arc_state`
 - `run_gov2gov_migration`
 
 Test-lane addition:
 
-- `direction_assist_test` is intentionally outside the five-core model and should be treated as experimental unless explicitly expected.
+- `direction_assist_test` is intentionally outside the six-core model and should be treated as experimental unless explicitly expected.
 
 ### 9. Fresh-session plugin mention resolution now works for the user-profile install
 
@@ -184,6 +185,7 @@ Proven by local build output and a throwaway-repo smoke install on `2026-04-25`:
   - `assess_harness_gap_state`
   - `preflight_session`
   - `compile_active_work_state`
+  - `validate_narrative_arc_state`
   - `run_gov2gov_migration`
   - `is_schema_real_or_shadow_copied`
 - what this proves:

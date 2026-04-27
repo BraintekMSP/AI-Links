@@ -1,6 +1,6 @@
 {
     "contract_name":  "gov2gov_migration_contract",
-    "contract_version":  "0.1.5",
+    "contract_version":  "0.1.6",
     "function_name":  "run_gov2gov_migration",
     "purpose":  "Non-destructively reconcile a partial or copied-only schema package using the AGENTS-schema-gov2gov-migration model, then return the resulting schema reality state.",
     "input_contract":  {
@@ -162,7 +162,7 @@
                                                            },
                             "post_migration_inventory":  {
                                                              "type":  "object",
-                                                             "description":  "Non-gating evidence inventory after the migration pass. Portable schema files are presence and hash checked against the current canonical bundle and this run\u0027s plan/action lists; governed AGENTS, narrative/arc artifacts, and GOV2GOV structure are presence-only because workspace-specific divergence is expected."
+                                                             "description":  "Non-gating evidence inventory after the migration pass. Portable schema files are presence and hash checked against the current canonical bundle and this run\u0027s plan/action lists; governed AGENTS and GOV2GOV structure are presence-only because workspace-specific divergence is expected; narrative/arc artifacts include mechanical conformance from validate_narrative_arc_state."
                                                          },
                             "structural_grounding":  {
                                                          "type":  "object",
@@ -284,7 +284,77 @@
                                                                                                   "presence_state":  "present",
                                                                                                   "hash_mode":  "presence_only_workspace_specific_divergence_expected"
                                                                                               }
-                                                                                          ]
+                                                                                          ],
+                                                            "narrative_arc_structure":  {
+                                                                                            "register":  {
+                                                                                                             "path":  ".agents/anarchy-ai/narratives/register.json",
+                                                                                                             "presence_state":  "present",
+                                                                                                             "json_state":  "valid_json",
+                                                                                                             "template_source":  "templates/narratives/register.template.json",
+                                                                                                             "delivery_plan_state":  "already_present_not_targeted"
+                                                                                                         },
+                                                                                            "projects_directory":  {
+                                                                                                                       "path":  ".agents/anarchy-ai/narratives/projects",
+                                                                                                                       "presence_state":  "present",
+                                                                                                                       "delivery_plan_state":  "already_present_not_targeted"
+                                                                                                                   },
+                                                                                            "conformance":  {
+                                                                                                                "validation_state":  "conformant",
+                                                                                                                "checked_surfaces":  [
+                                                                                                                                         {
+                                                                                                                                             "path":  "narratives/register.json",
+                                                                                                                                             "surface_type":  "register",
+                                                                                                                                             "state":  "checked",
+                                                                                                                                             "checked_record_count":  1
+                                                                                                                                         },
+                                                                                                                                         {
+                                                                                                                                             "path":  "narratives/projects/ai-links.json",
+                                                                                                                                             "surface_type":  "project_record",
+                                                                                                                                             "state":  "checked",
+                                                                                                                                             "checked_entry_count":  46
+                                                                                                                                         }
+                                                                                                                                     ],
+                                                                                                                "findings":  [
+
+                                                                                                                             ],
+                                                                                                                "summary":  {
+                                                                                                                                "register_count":  1,
+                                                                                                                                "record_count":  1,
+                                                                                                                                "checked_record_count":  1,
+                                                                                                                                "finding_count":  0,
+                                                                                                                                "severity_counts":  {
+
+                                                                                                                                                    }
+                                                                                                                            },
+                                                                                                                "structural_grounding":  {
+                                                                                                                                             "grounding_state":  "source_authoring_not_applicable",
+                                                                                                                                             "required_structural_surfaces":  [
+                                                                                                                                                                                  "AGENTS-schema-narrative.json",
+                                                                                                                                                                                  "narrative register",
+                                                                                                                                                                                  "narrative project records"
+                                                                                                                                                                              ],
+                                                                                                                                             "observed_structural_surfaces":  [
+                                                                                                                                                                                  "tool:run_gov2gov_migration",
+                                                                                                                                                                                  "workspace_role:schema_authoring_and_plugin_delivery_workspace",
+                                                                                                                                                                                  "source_workspace_authors_schema_not_adopts_schema"
+                                                                                                                                                                              ],
+                                                                                                                                             "missing_or_partial_surfaces":  [
+
+                                                                                                                                                                             ],
+                                                                                                                                             "recommended_next_actions":  [
+                                                                                                                                                                              "continue_with_source_authoring_context"
+                                                                                                                                                                          ],
+                                                                                                                                             "claim_scope_effect":  [
+                                                                                                                                                                        "source_workspace_authors_schema_not_adopts_schema",
+                                                                                                                                                                        "tools_always_run_and_label_grounding"
+                                                                                                                                                                    ]
+                                                                                                                                         },
+                                                                                                                "recommended_next_actions":  [
+                                                                                                                                                 "rerun_validate_narrative_arc_state_after_arc_changes"
+                                                                                                                                             ]
+                                                                                                            },
+                                                                                            "hash_mode":  "presence_only_workspace_specific_narrative_expected_to_diverge"
+                                                                                        }
                                                         },
                            "structural_grounding":  {
                                                         "grounding_state":  "not_required",

@@ -90,10 +90,11 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 - `../harness/contracts/preflight-session.contract.json` - session preflight contract for complex changes
 - `../harness/contracts/schema-reality.contract.json` - first harness contract for `is_schema_real_or_shadow_copied`
 - `../harness/contracts/harness-gap-state.contract.json` - environment gap-assessment contract for install/runtime/schema/adoption state
+- `../harness/contracts/narrative-arc-validation.contract.json` - read-only narrative Arc/register conformance validation contract for author-time and checkpoint measurement
 - `../harness/contracts/gov2gov-migration.contract.json` - second harness contract for `run_gov2gov_migration`
 - `../harness/server/README.md` - local MCP launch lane and Codex hookup notes
 - `../harness/server/dotnet/AnarchyAi.Mcp.Server.csproj` - Windows-first C# MCP server project (`net8.0` packaged path; `net48` target remains provisional)
-- `../harness/server/dotnet/Program.cs` - current C# MCP entrypoint for the five core harness tools plus the experimental `direction_assist_test` module
+- `../harness/server/dotnet/Program.cs` - current C# MCP entrypoint for the six core harness tools plus the experimental `direction_assist_test` module
 
 ## Anarchy-AI plugin delivery
 
@@ -107,7 +108,7 @@ Treat the `.json` files as canonical and the markdown companions as human-facing
 - `../plugins/anarchy-ai/scripts/remove-anarchy-ai.ps1` - canonical advanced/scriptable retirement helper for agents and power users
 - `../plugins/anarchy-ai/scripts/stop-anarchy-ai.ps1` - bounded runtime-lock assess, safe-release, and force-release command for the repo-local Anarchy-AI process
 - `../plugins/anarchy-ai/scripts/start-anarchy-ai.cmd` - development helper only, not the intended delivery path
-- `../plugins/anarchy-ai/skills/anarchy-ai-harness/SKILL.md` - usage layer for the five core harness tools, with explicit discovery for the experimental `direction_assist_test` module
+- `../plugins/anarchy-ai/skills/anarchy-ai-harness/SKILL.md` - usage layer for the six core harness tools, with explicit discovery for the experimental `direction_assist_test` module
 - `../plugins/anarchy-ai/skills/chat-history-capture/SKILL.md` - Anarchy skill for extracting repo-specific decisions from chat history into arc and vision docs with timestamp provenance
 - `../.codex/skills/chat-history-capture/SKILL.md` - AI-Links repo-local mirror of the chat history capture skill for immediate use before plugin reinstall/cache refresh
 - `../.claude/skills/chat-history-capture/SKILL.md` - AI-Links Claude Code mirror of the chat history capture skill

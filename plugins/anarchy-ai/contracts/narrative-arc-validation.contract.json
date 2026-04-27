@@ -1,0 +1,128 @@
+{
+  "contract_name": "narrative_arc_validation_contract",
+  "contract_version": "0.1.0",
+  "function_name": "validate_narrative_arc_state",
+  "purpose": "Read-only measurement tool that validates Anarchy narrative register and Arc record structure against the carried narrative schema shape. Its job is author-time and checkpoint-time conformance measurement: it reports where JSON is syntactically valid but structurally non-conformant, without authoring records, blocking execution, or mutating repo files.",
+  "input_contract": {
+    "workspace_root": {
+      "type": "absolute_path",
+      "required": true,
+      "description": "Workspace root to inspect. The tool only reads narrative surfaces under this root."
+    },
+    "record_paths": {
+      "type": "string_array",
+      "required": false,
+      "description": "Optional repo-relative or absolute narrative record paths to check. When omitted, all discovered project records are checked."
+    },
+    "validation_scope": {
+      "type": "enum",
+      "required": false,
+      "values": [
+        "all",
+        "register",
+        "records"
+      ],
+      "description": "Which narrative surfaces to validate. Defaults to all."
+    }
+  },
+  "output_contract": {
+    "validation_state": {
+      "type": "enum",
+      "values": [
+        "conformant",
+        "non_conformant",
+        "no_narrative_arc_surfaces",
+        "invalid_input"
+      ],
+      "description": "Conformance state. non_conformant means at least one narrative surface parsed as JSON but did not match the carried narrative shape."
+    },
+    "checked_surfaces": {
+      "type": "object_array",
+      "description": "Surfaces inspected. Each entry includes path, surface_type, presence_state, and json_state."
+    },
+    "findings": {
+      "type": "object_array",
+      "description": "Structural findings with severity, rule_id, file_path, json_path, observed_state, and suggested_correction."
+    },
+    "summary": {
+      "type": "object",
+      "fields": {
+        "checked_surface_count": {
+          "type": "integer"
+        },
+        "finding_count": {
+          "type": "integer"
+        },
+        "non_conformant_surface_count": {
+          "type": "integer"
+        }
+      }
+    },
+    "structural_grounding": {
+      "type": "object",
+      "description": "Measurement-first grounding label for the validation output. This is provenance and terrain, not refusal or authority."
+    },
+    "recommended_next_actions": {
+      "type": "string_array",
+      "description": "Advisory corrections or re-measurement steps. These are terrain suggestions, not commands."
+    }
+  },
+  "result_example": {
+    "validation_state": "non_conformant",
+    "checked_surfaces": [
+      {
+        "path": ".agents/anarchy-ai/narratives/register.json",
+        "surface_type": "narrative_register",
+        "presence_state": "present",
+        "json_state": "valid_json"
+      }
+    ],
+    "findings": [
+      {
+        "severity": "P2",
+        "rule_id": "narrative.register.subject.required",
+        "file_path": ".agents/anarchy-ai/narratives/register.json",
+        "json_path": "$.records[0].subject",
+        "observed_state": "missing",
+        "suggested_correction": "Add required string field $.records[0].subject."
+      }
+    ],
+    "summary": {
+      "checked_surface_count": 1,
+      "finding_count": 1,
+      "non_conformant_surface_count": 1
+    },
+    "structural_grounding": {
+      "grounding_state": "partially_grounded",
+      "required_structural_surfaces": [
+        "AGENTS.md",
+        "AGENTS-schema-narrative.json"
+      ],
+      "observed_structural_surfaces": [
+        "tool:validate_narrative_arc_state"
+      ],
+      "missing_or_partial_surfaces": [],
+      "recommended_next_actions": [
+        "continue_with_structural_grounding_visible"
+      ],
+      "claim_scope_effect": [
+        "diagnostic_lane_observes_structural_grounding_without_requiring_it",
+        "tools_always_run_and_label_grounding"
+      ]
+    },
+    "recommended_next_actions": [
+      "repair_narrative_arc_conformance_before_declaring_arc_work_complete",
+      "rerun_validate_narrative_arc_state"
+    ]
+  },
+  "structural_grounding_requirement": {
+    "requirement_kind": "diagnostic",
+    "output_behavior": "non_blocking_measurement_label; tools always run and label grounding rather than refusing execution",
+    "description": "validate_narrative_arc_state measures narrative conformance and remains callable even when narrative surfaces are missing or partial.",
+    "typical_required_surfaces": [
+      "AGENTS-schema-narrative.json",
+      ".agents/anarchy-ai/narratives/register.json",
+      ".agents/anarchy-ai/narratives/projects"
+    ]
+  }
+}

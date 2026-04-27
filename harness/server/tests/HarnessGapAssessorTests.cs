@@ -141,6 +141,8 @@ public sealed class HarnessGapAssessorTests
             Assert.False(underlayReadiness.GetProperty("narrative_register_present").GetBoolean());
             Assert.False(underlayReadiness.GetProperty("narrative_projects_directory_present").GetBoolean());
             Assert.Equal(0, underlayReadiness.GetProperty("narrative_record_count").GetInt32());
+            Assert.Equal(NarrativeArcValidator.ValidationStateNoNarrativeSurfaces, underlayReadiness.GetProperty("narrative_arc_conformance_state").GetString());
+            Assert.Equal(0, underlayReadiness.GetProperty("narrative_arc_finding_count").GetInt32());
             Assert.Equal("none", underlayReadiness.GetProperty("repo_utilization_state").GetString());
 
             var utilizationGaps = ReadStringArray(underlayReadiness, "utilization_gaps");
@@ -186,6 +188,8 @@ public sealed class HarnessGapAssessorTests
             Assert.Equal("portable_underlay_available_no_repo_utilization", observedState.GetProperty("underlay_readiness_state").GetString());
             Assert.Equal("repo_local_artifacts_observed", observedState.GetProperty("artifact_hygiene_state").GetString());
             Assert.True(observedState.TryGetProperty("structural_grounding_state", out _));
+            Assert.True(observedState.TryGetProperty("narrative_arc_conformance_state", out _));
+            Assert.True(observedState.TryGetProperty("narrative_arc_finding_count", out _));
 
             var structuralGrounding = document.RootElement.GetProperty("structural_grounding");
             Assert.True(IsAllowedGroundingState(structuralGrounding.GetProperty("grounding_state").GetString()));
@@ -201,6 +205,45 @@ public sealed class HarnessGapAssessorTests
             {
                 Assert.DoesNotContain($"\"{forbiddenFieldName}\"", serialized, StringComparison.Ordinal);
             }
+        }
+        finally
+        {
+            DeleteTempWorkspace(tempRoot);
+        }
+    }
+
+    /// <summary>
+    /// Confirms that gap assessment surfaces narrative Arc conformance gaps as measurement terrain.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts serialized JSON structure.</returns>
+    /// <remarks>Critical dependencies: <see cref="HarnessGapAssessor.Assess(string, string?, string[]?)"/> and <see cref="NarrativeArcValidator"/> integration.</remarks>
+    [Fact]
+    public void Assess_ReportsNarrativeArcConformanceGapInDoctorSummary()
+    {
+        var tempRoot = CreateTempWorkspace();
+        try
+        {
+            SeedPortableSchemaFiles(tempRoot);
+            SeedNarrativeTemplates(tempRoot);
+            var narrativeRoot = Path.Combine(tempRoot, ".agents", "anarchy-ai", "narratives");
+            Directory.CreateDirectory(Path.Combine(narrativeRoot, "projects"));
+            File.WriteAllText(Path.Combine(narrativeRoot, "register.json"), """{"records":[{"id":"wo2"}]}""");
+            File.WriteAllText(
+                Path.Combine(narrativeRoot, "projects", "wo2.json"),
+                """{"header":{"id":"wo2","subject":"WO2","entity-type":"project","primary-parties":["owner"],"cadence":"as-needed","status":"active","last-updated":"2026-04-27","owner":"owner"},"entries":[{"summary":"missing required entry fields"}],"known-decisions":[{"id":"d001","date":"2026-04-27","decision":"test","reversed":false}],"observed-patterns":[]}""");
+
+            var assessor = new HarnessGapAssessor(new SchemaRealityInspector());
+            var result = assessor.Assess(tempRoot, "generic", ["repo_underlay"]);
+
+            using var document = JsonDocument.Parse(JsonSerializer.Serialize(result));
+            var underlayReadiness = document.RootElement.GetProperty("underlay_readiness");
+            Assert.Equal(NarrativeArcValidator.ValidationStateNonConformant, underlayReadiness.GetProperty("narrative_arc_conformance_state").GetString());
+            Assert.True(underlayReadiness.GetProperty("narrative_arc_finding_count").GetInt32() > 0);
+
+            var doctorSummary = document.RootElement.GetProperty("doctor_summary");
+            Assert.Contains(ReadStringArray(doctorSummary, "non_blocking_gaps"), value => value.StartsWith("narrative_arc_conformance_gap:", StringComparison.Ordinal));
+            Assert.Contains("valid_json_can_be_misread_as_narrative_schema_conformance", ReadStringArray(doctorSummary, "observed_pitfalls"));
+            Assert.True(document.RootElement.TryGetProperty("narrative_arc_validation", out _));
         }
         finally
         {
@@ -230,10 +273,11 @@ public sealed class HarnessGapAssessorTests
             var outputContract = document.RootElement.GetProperty("output_contract");
             var doctorSummary = outputContract.GetProperty("doctor_summary");
 
-            Assert.Equal("0.2.3", document.RootElement.GetProperty("contract_version").GetString());
+            Assert.Equal("0.2.4", document.RootElement.GetProperty("contract_version").GetString());
             Assert.True(document.RootElement.TryGetProperty("structural_grounding_requirement", out var requirement));
             Assert.Equal("diagnostic", requirement.GetProperty("requirement_kind").GetString());
             Assert.True(outputContract.TryGetProperty("structural_grounding", out _));
+            Assert.True(outputContract.TryGetProperty("narrative_arc_validation", out _));
             Assert.True(doctorSummary.GetProperty("fields").TryGetProperty("suggested_corrections", out _));
             Assert.True(doctorSummary.GetProperty("fields").TryGetProperty("recommended_next_actions", out _));
             Assert.True(doctorSummary.GetProperty("fields").TryGetProperty("human_review_recommended", out _));

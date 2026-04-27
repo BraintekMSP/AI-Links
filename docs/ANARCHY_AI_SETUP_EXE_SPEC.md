@@ -619,6 +619,7 @@ Before handing out a local setup executable:
    - `assess_harness_gap_state`
    - `preflight_session`
    - `compile_active_work_state`
+   - `validate_narrative_arc_state`
    - `run_gov2gov_migration`
    - `is_schema_real_or_shadow_copied`
 6. Run setup tests:

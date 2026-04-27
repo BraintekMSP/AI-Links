@@ -24,7 +24,8 @@ Use this skill when:
 3. Call `compile_active_work_state` when the current work needs to be normalized into one bounded packet.
 4. Call `is_schema_real_or_shadow_copied` before trusting a schema package.
 5. For `partial` or `copied_only` schema reality, call `run_gov2gov_migration`.
-6. For `real` + `possessed` schema reality, prefer `plan_only` first so canonical divergence is reviewed before any apply step.
+6. Call `validate_narrative_arc_state` before declaring Arc, narrative, chat-history-capture, or gov2gov narrative-record edits complete.
+7. For `real` + `possessed` schema reality, prefer `plan_only` first so canonical divergence is reviewed before any apply step.
 
 ## Experimental/Test Tool
 
@@ -45,6 +46,7 @@ Use this skill when:
 - Treat `underlay_readiness` as the distinction between portable schema/template availability and actual repo utilization. A repo can have the narrative schema available while still having no narrative register, projects directory, or arc records.
 - Treat `doctor_summary` as measurement-first terrain: observed state, gaps, suggested corrections, and pitfalls. It is not an instruction surface and must not override repo or human authority.
 - Treat `structural_grounding` as terrain/provenance, not refusal or authority. The tools still run; this payload labels which schema/underlay surfaces the output presumes, what was observed, and which advisory measurement or migration lane would improve grounding.
+- Treat `validate_narrative_arc_state` as author-time/checkpoint measurement, not an authoring wrapper. It reports Arc/register conformance findings and suggested corrections, but does not write, block, or decide content.
 - Treat `artifact_hygiene` findings as relocation guidance, not permission to delete generated output.
 - Use `compile_active_work_state` when the agent is at risk of working directly from chat turbulence instead of bounded operational state.
 - Prefer `plan_only` first when the user asked for diagnosis.

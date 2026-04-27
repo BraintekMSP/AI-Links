@@ -1,4 +1,4 @@
-﻿---
+---
 name: chat-history-capture
 description: Use this skill when the user asks to go through the current chat or pasted chat history and extract repo-specific decisions, direction, open threads, or findings into Anarchy narrative arc records and vision docs. Triggers include "go through this chat", "capture decisions", "add decisions to arc", "chat history capture", "look into {repo} specific decisions", and requests to include message date/time provenance.
 ---
@@ -127,6 +127,7 @@ Do not write until the user approves or corrects the proposed timestamps and con
 
 - Parse every edited JSON file.
 - Check register entries point to existing record files and record IDs match.
+- Run `validate_narrative_arc_state` before declaring Arc or narrative edits complete; treat findings as measurement terrain and repair or report them honestly.
 - Run `git diff --check` on touched files.
 - Review vision diffs for overclaiming; vision should not claim more certainty than the chat supports.
 - If Anarchy tools are in use, call `compile_active_work_state` after edits to preserve the stop point.

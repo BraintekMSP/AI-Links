@@ -56,6 +56,7 @@ The current contracts live at:
 
 - `./contracts/schema-reality.contract.json`
 - `./contracts/gov2gov-migration.contract.json`
+- `./contracts/narrative-arc-validation.contract.json`
 - `./server/README.md`
 - `./server/dotnet/AnarchyAi.Mcp.Server.csproj`
 - `./server/dotnet/Program.cs`
@@ -70,6 +71,8 @@ Together they define:
   - `compile_active_work_state`
 - the environment gap assessor:
   - `assess_harness_gap_state`
+- the narrative Arc conformance validator:
+  - `validate_narrative_arc_state`
 - the second reconciliation function:
   - `run_gov2gov_migration`
 - the status model
@@ -87,12 +90,12 @@ If the schema is not `real`, the next harness lane is:
 
 - gov2gov-backed reconciliation and migration handling
 
-Five bounded harness tools now exist as contracts plus runtime implementation.
+Six bounded harness tools now exist as contracts plus runtime implementation.
 
 Test-lane addition:
 
 - `direction_assist_test` is now available as an explicit experimental module.
-- It is intentionally outside the five core tool model and is not part of default core sequencing.
+- It is intentionally outside the six core tool model and is not part of default core sequencing.
 - Prime-lane promotion should call the same `DirectionAssistRunner` rather than duplicating direction qualification logic in preflight or active-work paths.
 
 The next likely additions are:
