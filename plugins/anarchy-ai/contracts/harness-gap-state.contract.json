@@ -540,38 +540,33 @@
                                                             "checked_surfaces":  [
                                                                                      {
                                                                                          "path":  "narratives/register.json",
-                                                                                         "surface_type":  "register",
-                                                                                         "state":  "checked",
-                                                                                         "checked_record_count":  1
+                                                                                         "surface_type":  "narrative_register",
+                                                                                         "presence_state":  "present",
+                                                                                         "json_state":  "valid_json"
                                                                                      },
                                                                                      {
                                                                                          "path":  "narratives/projects/ai-links.json",
                                                                                          "surface_type":  "project_record",
-                                                                                         "state":  "checked",
-                                                                                         "checked_entry_count":  46
+                                                                                         "presence_state":  "present",
+                                                                                         "json_state":  "valid_json"
                                                                                      }
                                                                                  ],
                                                             "findings":  [
 
                                                                          ],
                                                             "summary":  {
-                                                                            "register_count":  1,
-                                                                            "record_count":  1,
-                                                                            "checked_record_count":  1,
+                                                                            "checked_surface_count":  2,
                                                                             "finding_count":  0,
-                                                                            "severity_counts":  {
-
-                                                                                                }
+                                                                            "non_conformant_surface_count":  0
                                                                         },
                                                             "structural_grounding":  {
                                                                                          "grounding_state":  "source_authoring_not_applicable",
                                                                                          "required_structural_surfaces":  [
-                                                                                                                              "AGENTS-schema-narrative.json",
-                                                                                                                              "narrative register",
-                                                                                                                              "narrative project records"
+                                                                                                                              "AGENTS.md",
+                                                                                                                              "AGENTS-schema-narrative.json"
                                                                                                                           ],
                                                                                          "observed_structural_surfaces":  [
-                                                                                                                              "tool:assess_harness_gap_state",
+                                                                                                                              "tool:validate_narrative_arc_state",
                                                                                                                               "workspace_role:schema_authoring_and_plugin_delivery_workspace",
                                                                                                                               "source_workspace_authors_schema_not_adopts_schema"
                                                                                                                           ],
@@ -587,7 +582,7 @@
                                                                                                                 ]
                                                                                      },
                                                             "recommended_next_actions":  [
-                                                                                             "rerun_validate_narrative_arc_state_after_arc_changes"
+                                                                                             "continue_with_narrative_arc_conformance_visible"
                                                                                          ]
                                                         }
                        },

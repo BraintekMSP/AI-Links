@@ -85,6 +85,44 @@ public sealed class NarrativeArcValidatorTests
     }
 
     [Fact]
+    public void ValidateNarrativeArcState_ReportsMissingExplicitRecordPath()
+    {
+        using var workspace = TestWorkspace.Create();
+        var validator = CreateValidator();
+
+        var result = validator.Validate(workspace.Path, ["narratives/projects/missing.json"], "records");
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(result));
+        var root = document.RootElement;
+        var ruleIds = root.GetProperty("findings")
+            .EnumerateArray()
+            .Select(finding => finding.GetProperty("rule_id").GetString())
+            .ToArray();
+        Assert.Equal(NarrativeArcValidator.ValidationStateNonConformant, root.GetProperty("validation_state").GetString());
+        Assert.Contains("narrative.record.file.exists", ruleIds);
+    }
+
+    [Fact]
+    public void ValidateNarrativeArcState_ReportsProjectsDirectoryWithoutRegister()
+    {
+        using var workspace = TestWorkspace.Create();
+        WriteConformantNarrative(workspace.Path);
+        File.Delete(Path.Combine(workspace.Path, "narratives", "register.json"));
+
+        var validator = CreateValidator();
+        var result = validator.Validate(workspace.Path);
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(result));
+        var root = document.RootElement;
+        var ruleIds = root.GetProperty("findings")
+            .EnumerateArray()
+            .Select(finding => finding.GetProperty("rule_id").GetString())
+            .ToArray();
+        Assert.Equal(NarrativeArcValidator.ValidationStateNonConformant, root.GetProperty("validation_state").GetString());
+        Assert.Contains("narrative.register.file.required", ruleIds);
+    }
+
+    [Fact]
     public void NarrativeArcValidationCli_EmitsJsonAndExitsZeroForFindings()
     {
         using var workspace = TestWorkspace.Create();

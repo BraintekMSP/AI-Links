@@ -64,9 +64,14 @@ internal sealed class NarrativeArcValidator(StructuralGroundingInspector structu
         var roots = DiscoverNarrativeRoots(resolvedWorkspaceRoot, recordPaths);
         if (scope is "all" or "register")
         {
-            foreach (var root in roots.Where(static root => File.Exists(root.RegisterPath)).DistinctBy(static root => root.RegisterPath))
+            foreach (var root in roots
+                         .Where(static root =>
+                             root.IsExplicit ||
+                             File.Exists(root.RegisterPath) ||
+                             Directory.Exists(root.ProjectsDirectoryPath))
+                         .DistinctBy(static root => root.RegisterPath))
             {
-                ValidateRegister(resolvedWorkspaceRoot, root.RegisterPath, checkedSurfaces, findings);
+                ValidateRegister(resolvedWorkspaceRoot, root.RegisterPath, checkedSurfaces, findings, required: true);
             }
         }
 
@@ -146,10 +151,12 @@ internal sealed class NarrativeArcValidator(StructuralGroundingInspector structu
         {
             new(
                 Path.Combine(workspaceRoot, RegisterRelativePath),
-                Path.Combine(workspaceRoot, ProjectsDirectoryRelativePath)),
+                Path.Combine(workspaceRoot, ProjectsDirectoryRelativePath),
+                IsExplicit: false),
             new(
                 Path.Combine(workspaceRoot, SourceRegisterRelativePath),
-                Path.Combine(workspaceRoot, SourceProjectsDirectoryRelativePath))
+                Path.Combine(workspaceRoot, SourceProjectsDirectoryRelativePath),
+                IsExplicit: false)
         };
 
         foreach (var recordPath in recordPaths ?? [])
@@ -169,7 +176,8 @@ internal sealed class NarrativeArcValidator(StructuralGroundingInspector structu
 
             roots.Add(new(
                 Path.Combine(possibleNarrativeRoot, "register.json"),
-                Path.Combine(possibleNarrativeRoot, "projects")));
+                Path.Combine(possibleNarrativeRoot, "projects"),
+                IsExplicit: true));
         }
 
         return roots
@@ -184,7 +192,6 @@ internal sealed class NarrativeArcValidator(StructuralGroundingInspector structu
             return recordPaths
                 .Where(static path => !string.IsNullOrWhiteSpace(path))
                 .Select(path => ResolveWorkspacePath(workspaceRoot, path))
-                .Where(File.Exists)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
         }
@@ -219,9 +226,21 @@ internal sealed class NarrativeArcValidator(StructuralGroundingInspector structu
         string workspaceRoot,
         string registerPath,
         List<NarrativeArcCheckedSurface> checkedSurfaces,
-        List<NarrativeArcValidationFinding> findings)
+        List<NarrativeArcValidationFinding> findings,
+        bool required)
     {
         var relativePath = ToRepoRelativePath(workspaceRoot, registerPath);
+        if (!File.Exists(registerPath))
+        {
+            checkedSurfaces.Add(new NarrativeArcCheckedSurface(relativePath, "narrative_register", "missing", "not_applicable"));
+            if (required)
+            {
+                AddFinding(findings, relativePath, "$", "narrative.register.file.required", "missing", "Add a narrative register file for this narrative root.");
+            }
+
+            return;
+        }
+
         if (!TryParseObject(registerPath, relativePath, "narrative_register", checkedSurfaces, findings, out var root))
         {
             return;
@@ -272,6 +291,13 @@ internal sealed class NarrativeArcValidator(StructuralGroundingInspector structu
         List<NarrativeArcValidationFinding> findings)
     {
         var relativePath = ToRepoRelativePath(workspaceRoot, recordPath);
+        if (!File.Exists(recordPath))
+        {
+            checkedSurfaces.Add(new NarrativeArcCheckedSurface(relativePath, "project_record", "missing", "not_applicable"));
+            AddFinding(findings, relativePath, "$", "narrative.record.file.exists", "missing", "Point record_paths at existing narrative record files before declaring validation complete.");
+            return;
+        }
+
         if (!TryParseObject(recordPath, relativePath, "project_record", checkedSurfaces, findings, out var root))
         {
             return;
@@ -617,7 +643,7 @@ internal sealed class NarrativeArcValidator(StructuralGroundingInspector structu
             .Replace(Path.AltDirectorySeparatorChar, '/');
     }
 
-    private sealed record NarrativeRoot(string RegisterPath, string ProjectsDirectoryPath);
+    private sealed record NarrativeRoot(string RegisterPath, string ProjectsDirectoryPath, bool IsExplicit);
 }
 
 internal static class NarrativeArcValidationCli
