@@ -311,6 +311,7 @@ internal sealed class SetupForm : Form
     private readonly Label _introLabel;
     private readonly Label _pathLabel;
     private readonly TextBox _repoPathTextBox;
+    private readonly Label _pathHelpLabel;
     private readonly TextBox _resultTextBox;
     private readonly Label _statusLabel;
     private Label _subtitleLabel = null!;
@@ -474,6 +475,7 @@ internal sealed class SetupForm : Form
             Enabled = true,
             Margin = new Padding(0, 2, 0, 4)
         };
+        _codexHostCheckBox.CheckedChanged += (_, _) => UpdatePathPresentation(GetSelectedInstallScope());
         hostTargetFlow.Controls.Add(_codexHostCheckBox);
 
         _claudeCodeHostCheckBox = new CheckBox
@@ -484,6 +486,7 @@ internal sealed class SetupForm : Form
             Enabled = true,
             Margin = new Padding(0, 2, 0, 4)
         };
+        _claudeCodeHostCheckBox.CheckedChanged += (_, _) => UpdatePathPresentation(GetSelectedInstallScope());
         hostTargetFlow.Controls.Add(_claudeCodeHostCheckBox);
 
         _claudeDesktopHostCheckBox = new CheckBox
@@ -494,6 +497,7 @@ internal sealed class SetupForm : Form
             Enabled = true,
             Margin = new Padding(0, 2, 0, 0)
         };
+        _claudeDesktopHostCheckBox.CheckedChanged += (_, _) => UpdatePathPresentation(GetSelectedInstallScope());
         hostTargetFlow.Controls.Add(_claudeDesktopHostCheckBox);
         hostTargetGroup.Controls.Add(hostTargetFlow);
         rootPanel.Controls.Add(hostTargetGroup, 0, 3);
@@ -505,6 +509,7 @@ internal sealed class SetupForm : Form
             AutoSize = true,
             Margin = new Padding(0, 12, 0, 0)
         };
+        pathSectionPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         pathSectionPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         pathSectionPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
@@ -549,6 +554,16 @@ internal sealed class SetupForm : Form
         pathPanel.Controls.Add(_browseButton, 2, 0);
         pathSectionPanel.Controls.Add(pathPanel, 0, 0);
 
+        _pathHelpLabel = new Label
+        {
+            AutoSize = true,
+            Text = string.Empty,
+            MaximumSize = new System.Drawing.Size(1030, 0),
+            ForeColor = System.Drawing.Color.FromArgb(90, 90, 90),
+            Margin = new Padding(108, 2, 0, 0)
+        };
+        pathSectionPanel.Controls.Add(_pathHelpLabel, 0, 1);
+
         _targetRepoPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
@@ -586,7 +601,7 @@ internal sealed class SetupForm : Form
         };
         _targetRepoBrowseButton.Click += TargetRepoBrowseButton_Click;
         _targetRepoPanel.Controls.Add(_targetRepoBrowseButton, 2, 0);
-        pathSectionPanel.Controls.Add(_targetRepoPanel, 0, 1);
+        pathSectionPanel.Controls.Add(_targetRepoPanel, 0, 2);
 
         rootPanel.Controls.Add(pathSectionPanel, 0, 4);
 
@@ -850,14 +865,11 @@ internal sealed class SetupForm : Form
             }
 
             _statusLabel.Text = $"{mode} in progress...";
-            var result = new SetupEngine().Execute(new SetupOptions
-            {
-                Mode = mode,
-                InstallScope = installScope,
-                HostContext = "codex",
-                HostTargets = selectedHostTargets,
-                RepoPath = effectiveRepoPath
-            });
+            var result = new SetupEngine().Execute(BuildGuiSetupOptions(
+                mode,
+                installScope,
+                effectiveRepoPath,
+                selectedHostTargets));
 
             _resultTextBox.Text = JsonSerializer.Serialize(result, ProgramJson.Options);
             _statusLabel.Text = result.bootstrap_state == "ready"
@@ -869,6 +881,31 @@ internal sealed class SetupForm : Form
             _resultTextBox.Text = JsonSerializer.Serialize(new { error = ex.Message }, ProgramJson.Options);
             _statusLabel.Text = $"{mode} failed";
         }
+    }
+
+    // Purpose: Maps GUI button semantics onto the same setup options users would expect from CLI lanes.
+    // Expected input: The selected GUI operation, lane, repo path, and host targets.
+    // Expected output: Setup options with repo-underlay planning/apply mapped to explicit schema refresh flags.
+    // Critical dependencies: GetSecondaryActionMode/GetPrimaryActionMode button labels and /underlay /refresh /apply contract.
+    internal static SetupOptions BuildGuiSetupOptions(
+        OperationMode mode,
+        InstallScope installScope,
+        string effectiveRepoPath,
+        HostTargets selectedHostTargets)
+    {
+        var isRepoUnderlayLane = installScope == InstallScope.RepoLocal;
+        var refreshPortableSchemaFamily = isRepoUnderlayLane && (mode is OperationMode.Refresh or OperationMode.Underlay);
+
+        return new SetupOptions
+        {
+            Mode = mode,
+            InstallScope = installScope,
+            HostContext = "codex",
+            HostTargets = selectedHostTargets,
+            RepoPath = effectiveRepoPath,
+            RefreshPortableSchemaFamily = refreshPortableSchemaFamily,
+            ApplyChanges = isRepoUnderlayLane && mode == OperationMode.Underlay
+        };
     }
 
     // Purpose: Resolves the install scope selected by the radio-button group.
@@ -974,10 +1011,11 @@ internal sealed class SetupForm : Form
         {
             if (installScope == InstallScope.UserProfile)
             {
-                _pathLabel.Text = "Install Root:";
+                _pathLabel.Text = "Runtime Payload:";
                 _repoPathTextBox.Text = AnarchyPathCanon.ResolveUserProfilePluginRoot(
                     Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                     GeneratedAnarchyPathCanon.DefaultPluginName);
+                _pathHelpLabel.Text = BuildUserProfilePathHelp(GetSelectedHostTargets());
                 _repoPathTextBox.ReadOnly = true;
                 _repoPathTextBox.BackColor = System.Drawing.SystemColors.Control;
                 _browseButton.Visible = false;
@@ -988,6 +1026,7 @@ internal sealed class SetupForm : Form
 
             _pathLabel.Text = "Repo Path:";
             _repoPathTextBox.Text = _selectedRepoPath;
+            _pathHelpLabel.Text = "Repo underlay writes portable schema, narrative, and hygiene surfaces only; it does not install a runtime or modify host config.";
             _repoPathTextBox.ReadOnly = false;
             _repoPathTextBox.BackColor = System.Drawing.SystemColors.Window;
             _browseButton.Visible = true;
@@ -1012,6 +1051,31 @@ internal sealed class SetupForm : Form
         }
 
         return _selectedRepoPath.Trim();
+    }
+
+    // Purpose: Explains that user-profile host targets share one runtime payload but write different host integration surfaces.
+    // Expected input: Current host-target checkbox selection.
+    // Expected output: A concise UI line naming selected host config targets without changing the shared payload path.
+    // Critical dependencies: HostTargets labels and user-profile install lane semantics.
+    private static string BuildUserProfilePathHelp(HostTargets selectedHostTargets)
+    {
+        var targets = new List<string>();
+        if (selectedHostTargets.HasFlag(HostTargets.Codex))
+        {
+            targets.Add("Codex marketplace/config");
+        }
+
+        if (selectedHostTargets.HasFlag(HostTargets.ClaudeCode))
+        {
+            targets.Add("Claude Code ~/.claude.json");
+        }
+
+        if (selectedHostTargets.HasFlag(HostTargets.ClaudeDesktop))
+        {
+            targets.Add("Claude Desktop detected config");
+        }
+
+        return $"Shared runtime payload used by selected hosts. Host targets: {string.Join("; ", targets)}.";
     }
 }
 
@@ -1546,6 +1610,7 @@ internal sealed class SetupEngine
             ? BuildPluginName(installScope, repoPath)
             : BuildPluginName(installScope, null);
         var marketplacePath = BuildMarketplacePathLabel(installScope, repoPath);
+        var codexSelected = hostTargets.HasFlag(HostTargets.Codex);
         var disclosureLines = new List<string>
         {
             $"Responsible disclosure for {BuildInstallScopeLabel(installScope).ToLowerInvariant()} {AnarchyBranding.BrandDisplayName} install.",
@@ -1555,17 +1620,28 @@ internal sealed class SetupEngine
                 ? $"Workspace target: {targetRepo}"
                 : $"Target repo: {targetRepo}",
             "Install impact:",
-            $"- Adds {pluginFolder}\\ with {PluginSurfaces.Count} bundled surfaces.",
-            $"- Creates or updates {marketplacePath}.",
             installScope == InstallScope.UserProfile
-                ? $"- Registers {pluginName} as INSTALLED_BY_DEFAULT in the current user profile marketplace."
-                : $"- Registers {pluginName} as INSTALLED_BY_DEFAULT in the target repo.",
-            installScope == InstallScope.UserProfile
-                ? $"- Uses the Codex-native plugin marketplace lane; it does not require a custom mcp_servers.{BuildMcpServerName()} block to count as ready."
-                : $"- Updates only Anarchy-owned Codex plugin enable-state in {AnarchyPathCanon.BuildHomeLabelPath(AnarchyPathCanon.UserProfileCodexConfigFileRelativePath)} when needed to select this repo-local runtime lane; unrelated Codex settings are preserved.",
+                ? $"- Adds shared runtime payload {pluginFolder}\\ with {PluginSurfaces.Count} bundled surfaces."
+                : $"- Adds {pluginFolder}\\ with {PluginSurfaces.Count} bundled surfaces.",
             "- Writes a versioned install-state record inside the owned plugin bundle for later status/doctor inspection.",
             "- Current GUI install does not rewrite AGENTS.md."
         };
+
+        if (codexSelected)
+        {
+            disclosureLines.Add($"- Creates or updates {marketplacePath}.");
+            disclosureLines.Add(installScope == InstallScope.UserProfile
+                ? $"- Registers {pluginName} as INSTALLED_BY_DEFAULT in the current user profile marketplace."
+                : $"- Registers {pluginName} as INSTALLED_BY_DEFAULT in the target repo.");
+            disclosureLines.Add(installScope == InstallScope.UserProfile
+                ? $"- Uses the Codex-native plugin marketplace lane; it does not require a custom mcp_servers.{BuildMcpServerName()} block to count as ready."
+                : $"- Updates only Anarchy-owned Codex plugin enable-state in {AnarchyPathCanon.BuildHomeLabelPath(AnarchyPathCanon.UserProfileCodexConfigFileRelativePath)} when needed to select this repo-local runtime lane; unrelated Codex settings are preserved.");
+        }
+        else
+        {
+            disclosureLines.Add("- Codex marketplace registration is skipped because Codex is not selected.");
+            disclosureLines.Add("- Selected non-Codex hosts are pointed at the shared runtime payload through their own MCP host config files.");
+        }
 
         if (installScope == InstallScope.RepoLocal && hostTargets.HasFlag(HostTargets.Codex))
         {
@@ -1634,10 +1710,11 @@ internal sealed class SetupEngine
             $"Target repo: {targetRepo}",
             "Underlay impact:",
             "- Seeds missing portable root schema files from the embedded payload.",
+            "- Refreshes stale portable root schema files from the embedded payload and writes timestamped .bak files for overwritten files.",
             "- Seeds the Anarchy narrative register and projects directory when missing.",
             "- Adds Anarchy-scoped .gitignore hygiene lines when missing.",
             "- Creates a small AGENTS.md awareness stub only when AGENTS.md is absent.",
-            "- Leaves existing AGENTS.md and existing root schema files in place.",
+            "- Leaves existing AGENTS.md and existing narrative records in place.",
             "- Does not add plugins\\anarchy-ai\\.",
             "- Does not create or update .agents\\plugins\\marketplace.json.",
             "- Does not register a plugin, modify Codex plugin enable-state, write host MCP config, or start a runtime process.",
@@ -1772,6 +1849,7 @@ internal sealed class SetupEngine
         var updateRequested = options.Mode == OperationMode.Update;
         var updateState = updateRequested ? "in_progress" : "not_requested";
         var runtimeFreeOperation = options.Mode is OperationMode.Underlay or OperationMode.Refresh;
+        var codexSelected = options.HostTargets.HasFlag(HostTargets.Codex);
         var refreshResult = RefreshSchemaResult.Empty;
         var duplicateLaneResult = CodexDuplicateLaneResult.Empty;
 
@@ -2082,6 +2160,8 @@ internal sealed class SetupEngine
         missingComponents.UnionWith(pluginManifestInspection.Findings);
         var marketplaceInspection = runtimeFreeOperation
             ? new MarketplaceInspection(false, false, false, false, true, true, [])
+            : !codexSelected
+            ? new MarketplaceInspection(false, false, false, false, true, true, [])
             : InspectMarketplace(marketplacePath, options.InstallScope, workspaceRoot);
         missingComponents.UnionWith(marketplaceInspection.Findings);
         var mcpInspection = runtimeFreeOperation
@@ -2090,30 +2170,31 @@ internal sealed class SetupEngine
         missingComponents.UnionWith(mcpInspection.Findings);
         var marketplaceMissingFinding = BuildMarketplaceMissingFinding(options.InstallScope);
         var marketplaceMissingPluginsArrayFinding = BuildMarketplaceMissingPluginsArrayFinding(options.InstallScope);
-        if (!runtimeFreeOperation && !marketplaceInspection.Exists && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
+        if (!runtimeFreeOperation && codexSelected && !marketplaceInspection.Exists && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
         {
             missingComponents.Add(marketplaceMissingFinding);
         }
-        if (!runtimeFreeOperation && marketplaceInspection.Exists && !marketplaceInspection.HasPluginsArray && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
+        if (!runtimeFreeOperation && codexSelected && marketplaceInspection.Exists && !marketplaceInspection.HasPluginsArray && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
         {
             missingComponents.Add(marketplaceMissingPluginsArrayFinding);
         }
-        if (!runtimeFreeOperation && marketplaceInspection.Exists && !marketplaceInspection.IsValidJson && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
+        if (!runtimeFreeOperation && codexSelected && marketplaceInspection.Exists && !marketplaceInspection.IsValidJson && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
         {
             missingComponents.Add("marketplace_json_invalid");
         }
 
         var marketplaceRegistrationReady = runtimeExists
-            && marketplaceInspection.HasAnarchyPluginEntry
-            && marketplaceInspection.InstalledByDefault
+            && (!codexSelected || marketplaceInspection.HasAnarchyPluginEntry)
+            && (!codexSelected || marketplaceInspection.InstalledByDefault)
             && pluginManifestInspection.IdentityAligned
-            && marketplaceInspection.MarketplaceIdentityAligned
+            && (!codexSelected || marketplaceInspection.MarketplaceIdentityAligned)
             && mcpInspection.IdentityAligned;
         var legacyUserProfileInspection = InspectLegacyUserProfileSurfaces(options.InstallScope, normalizedHostContext, marketplaceRegistrationReady);
         missingComponents.UnionWith(legacyUserProfileInspection.Findings);
 
         if (!runtimeFreeOperation && !runtimeExists) { safeRepairs.Add("publish_or_restore_bundled_runtime"); }
         if (!runtimeFreeOperation
+            && codexSelected
             && (!marketplaceInspection.HasAnarchyPluginEntry || !marketplaceInspection.InstalledByDefault)
             && !blockSourceAuthoringConsumerWrite)
         {
@@ -2129,7 +2210,7 @@ internal sealed class SetupEngine
                 ? "refresh_user_profile_plugin_identity"
                 : "refresh_repo_plugin_identity");
         }
-        if (!marketplaceInspection.MarketplaceIdentityAligned && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
+        if (codexSelected && !marketplaceInspection.MarketplaceIdentityAligned && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
         {
             safeRepairs.Add(options.InstallScope == InstallScope.UserProfile
                 ? "refresh_user_profile_marketplace_identity"
@@ -2196,7 +2277,7 @@ internal sealed class SetupEngine
                     : "bootstrap_needed";
         var registrationMode = runtimeFreeOperation
             ? "none"
-            : DetermineRegistrationMode(options.InstallScope, normalizedHostContext, legacyUserProfileInspection);
+            : DetermineRegistrationMode(options.InstallScope, normalizedHostContext, options.HostTargets, legacyUserProfileInspection);
 
         var nextAction = hasLockedBundleSurfaceSkip
             ? "release_runtime_lock_and_retry_install"
@@ -2260,8 +2341,8 @@ internal sealed class SetupEngine
             update_source_zip_url = options.UpdateSourceZipUrl,
             update_notes = updateNotes.ToArray(),
             runtime_present = !runtimeFreeOperation && runtimeExists,
-            marketplace_registered = !runtimeFreeOperation && marketplaceInspection.HasAnarchyPluginEntry,
-            installed_by_default = !runtimeFreeOperation && marketplaceInspection.InstalledByDefault,
+            marketplace_registered = !runtimeFreeOperation && codexSelected && marketplaceInspection.HasAnarchyPluginEntry,
+            installed_by_default = !runtimeFreeOperation && codexSelected && marketplaceInspection.InstalledByDefault,
             host_config_modified = duplicateLaneResult.SelectedLaneEnabled
                 || duplicateLaneResult.DisabledLanes.Length > 0
                 || actionsTaken.Contains("removed_legacy_codex_custom_mcp_entry"),
@@ -3697,8 +3778,18 @@ internal sealed class SetupEngine
     // Expected input: Install scope, normalized host context, and legacy home-surface inspection results.
     // Expected output: A registration-mode string for setup JSON.
     // Critical dependencies: LegacyUserProfileInspection and the current Codex home-install model.
-    internal static string DetermineRegistrationMode(InstallScope installScope, string normalizedHostContext, LegacyUserProfileInspection legacyUserProfileInspection)
+    internal static string DetermineRegistrationMode(
+        InstallScope installScope,
+        string normalizedHostContext,
+        HostTargets hostTargets,
+        LegacyUserProfileInspection legacyUserProfileInspection)
     {
+        if (!hostTargets.HasFlag(HostTargets.Codex)
+            && (hostTargets.HasFlag(HostTargets.ClaudeCode) || hostTargets.HasFlag(HostTargets.ClaudeDesktop)))
+        {
+            return "host_config";
+        }
+
         if (installScope == InstallScope.UserProfile
             && string.Equals(normalizedHostContext, "codex", StringComparison.Ordinal)
             && legacyUserProfileInspection.LegacyCodexCustomMcpEntryPresent
@@ -4486,18 +4577,26 @@ internal sealed class SetupEngine
         var destinationRoot = options.InstallScope == InstallScope.UserProfile
             ? GetUserProfileDirectory()
             : workspaceRoot;
+        var codexSelected = options.HostTargets.HasFlag(HostTargets.Codex);
+        var claudeDesktopConfigPath = options.HostTargets.HasFlag(HostTargets.ClaudeDesktop)
+            ? ClaudeDesktopInstallDetector.ResolveActiveConfigPath(ClaudeDesktopInstallDetector.Detect())
+            : null;
 
         return AnarchyPathCanon.CreateRoleReport(
             rootPath: destinationRoot,
             directories:
             [
                 CreatePathEntry("plugin_root_directory_path", pluginRoot),
-                CreatePathEntry("marketplace_directory_path", Path.GetDirectoryName(marketplacePath)),
+                CreatePathEntry(
+                    "marketplace_directory_path",
+                    codexSelected ? Path.GetDirectoryName(marketplacePath) : null),
                 CreatePathEntry("schema_target_root_directory_path", workspaceRoot)
             ],
             files:
             [
-                CreatePathEntry("marketplace_file_path", marketplacePath),
+                CreatePathEntry(
+                    "marketplace_file_path",
+                    codexSelected ? marketplacePath : null),
                 CreatePathEntry("plugin_manifest_file_path", pluginManifestPath),
                 CreatePathEntry("mcp_declaration_file_path", mcpPath),
                 CreatePathEntry("runtime_executable_file_path", runtimePath),
@@ -4506,17 +4605,25 @@ internal sealed class SetupEngine
                 CreatePathEntry("install_state_file_path", ResolveInstallStatePath(pluginRoot)),
                 CreatePathEntry(
                     "codex_config_file_path",
-                    options.InstallScope == InstallScope.UserProfile
+                    options.InstallScope == InstallScope.UserProfile && codexSelected
                         ? AnarchyPathCanon.ResolveUserProfileCodexConfigFilePath(GetUserProfileDirectory())
-                        : null)
+                        : null),
+                CreatePathEntry(
+                    "claude_code_config_file_path",
+                    options.HostTargets.HasFlag(HostTargets.ClaudeCode)
+                        ? ClaudeCodeUserScopeLane.GetUserScopeConfigPath()
+                        : null),
+                CreatePathEntry("claude_desktop_config_file_path", claudeDesktopConfigPath)
             ],
             relative:
             [
                 CreatePathEntry(
                     "marketplace_file_relative_path",
-                    options.InstallScope == InstallScope.UserProfile
-                        ? AnarchyPathCanon.UserProfileMarketplaceFileRelativePath
-                        : AnarchyPathCanon.RepoLocalMarketplaceFileRelativePath),
+                    codexSelected
+                        ? options.InstallScope == InstallScope.UserProfile
+                            ? AnarchyPathCanon.UserProfileMarketplaceFileRelativePath
+                            : AnarchyPathCanon.RepoLocalMarketplaceFileRelativePath
+                        : null),
                 CreatePathEntry("plugin_source_relative_path", BuildPluginRelativePath(options.InstallScope, workspaceRoot)),
                 CreatePathEntry("plugin_manifest_file_relative_path", AnarchyPathCanon.BundlePluginManifestFileRelativePath),
                 CreatePathEntry("mcp_declaration_file_relative_path", AnarchyPathCanon.BundleMcpFileRelativePath),

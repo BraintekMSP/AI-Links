@@ -103,6 +103,22 @@ public sealed class SetupEngineTests
     }
 
     /// <summary>
+    /// Verifies that Claude-only user-profile disclosure distinguishes the shared runtime payload from Codex marketplace registration.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts disclosure wording.</returns>
+    /// <remarks>Critical dependencies: <see cref="SetupEngine.BuildInstallDisclosure(string, InstallScope, HostTargets)"/> and host-target-specific install semantics.</remarks>
+    [Fact]
+    public void BuildInstallDisclosure_UserProfile_ClaudeOnly_DoesNotClaimCodexMarketplaceRegistration()
+    {
+        var disclosure = SetupEngine.BuildInstallDisclosure(string.Empty, InstallScope.UserProfile, HostTargets.ClaudeCode);
+
+        Assert.Contains("shared runtime payload", disclosure, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Codex marketplace registration is skipped", disclosure, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Claude Code lane", disclosure, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("INSTALLED_BY_DEFAULT in the current user profile marketplace", disclosure, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Verifies that CLI help reports the same Codex-native user-profile lane as the disclosure surface.
     /// </summary>
     /// <returns>No direct return value; the method asserts help-text content.</returns>
@@ -153,6 +169,8 @@ public sealed class SetupEngineTests
         Assert.Contains("Does not add plugins\\anarchy-ai", disclosure, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Does not create or update .agents\\plugins\\marketplace.json", disclosure, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Does not register a plugin", disclosure, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Refreshes stale portable root schema files", disclosure, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("timestamped .bak", disclosure, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("user-profile install", disclosure, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("CLI-only proving/debug lane", disclosure, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("INSTALLED_BY_DEFAULT", disclosure, StringComparison.OrdinalIgnoreCase);
@@ -199,6 +217,30 @@ public sealed class SetupEngineTests
         Assert.Equal(InstallScope.RepoLocal, options.InstallScope);
         Assert.True(options.RefreshPortableSchemaFamily);
         Assert.True(options.ApplyChanges);
+    }
+
+    [Fact]
+    public void GuiRepoUnderlayButtons_MapToRefreshPlanAndRefreshApply()
+    {
+        var plan = SetupForm.BuildGuiSetupOptions(
+            OperationMode.Refresh,
+            InstallScope.RepoLocal,
+            "C:\\repo",
+            HostTargets.None);
+
+        Assert.Equal(OperationMode.Refresh, plan.Mode);
+        Assert.True(plan.RefreshPortableSchemaFamily);
+        Assert.False(plan.ApplyChanges);
+
+        var apply = SetupForm.BuildGuiSetupOptions(
+            OperationMode.Underlay,
+            InstallScope.RepoLocal,
+            "C:\\repo",
+            HostTargets.None);
+
+        Assert.Equal(OperationMode.Underlay, apply.Mode);
+        Assert.True(apply.RefreshPortableSchemaFamily);
+        Assert.True(apply.ApplyChanges);
     }
 
     [Fact]
@@ -538,6 +580,29 @@ public sealed class SetupEngineTests
     }
 
     [Fact]
+    public void Execute_GuiRepoUnderlayApply_RefreshesStaleSchemasAndMaterializesUnderlay()
+    {
+        using var tempRepo = CreateTempRepo();
+        var schemaPath = Path.Combine(tempRepo.Path, "AGENTS-schema-governance.json");
+        const string localSchema = "{\"local\":true}";
+        File.WriteAllText(schemaPath, localSchema, Encoding.UTF8);
+
+        var options = SetupForm.BuildGuiSetupOptions(
+            OperationMode.Underlay,
+            InstallScope.RepoLocal,
+            tempRepo.Path,
+            HostTargets.None);
+        var result = new SetupEngine().Execute(options);
+
+        Assert.False(result.refresh_plan_only);
+        Assert.Contains("AGENTS-schema-governance.json", result.refreshed_files);
+        Assert.Contains("refreshed_portable_schema_family_from_embedded_payload", result.actions_taken);
+        Assert.Contains("materialized_repo_underlay", result.actions_taken);
+        Assert.NotEqual(localSchema, File.ReadAllText(schemaPath));
+        Assert.Contains(result.backup_files, backup => backup.Contains("AGENTS-schema-governance.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void DisableDuplicateCodexLanesInConfigText_DisablesOnlyOwnedNonSelectedLanes()
     {
         const string config = """
@@ -753,7 +818,7 @@ public sealed class SetupEngineTests
     /// Verifies that legacy home-local evidence is reported as a custom-MCP fallback mode instead of a ready marketplace lane.
     /// </summary>
     /// <returns>No direct return value; the method asserts the computed registration mode.</returns>
-    /// <remarks>Critical dependencies: <see cref="SetupEngine.DetermineRegistrationMode(InstallScope, string, LegacyUserProfileInspection)"/> and legacy-surface inspection rules.</remarks>
+    /// <remarks>Critical dependencies: <see cref="SetupEngine.DetermineRegistrationMode(InstallScope, string, HostTargets, LegacyUserProfileInspection)"/> and legacy-surface inspection rules.</remarks>
     [Fact]
     public void DetermineRegistrationMode_ReportsCustomFallbackForLegacyCodexHomeState()
     {
@@ -763,9 +828,44 @@ public sealed class SetupEngineTests
             NewPluginMarketplaceLaneReady: false,
             Findings: ["legacy_user_profile_plugin_root_present"]);
 
-        var registrationMode = SetupEngine.DetermineRegistrationMode(InstallScope.UserProfile, "codex", inspection);
+        var registrationMode = SetupEngine.DetermineRegistrationMode(InstallScope.UserProfile, "codex", HostTargets.Codex, inspection);
 
         Assert.Equal("custom_mcp_fallback", registrationMode);
+    }
+
+    /// <summary>
+    /// Confirms that Claude-only assess output does not present Codex marketplace files as selected host targets.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts host-specific path and readiness fields.</returns>
+    /// <remarks>Critical dependencies: <see cref="SetupEngine.Execute(SetupOptions)"/> and destination path role filtering by selected host targets.</remarks>
+    [Fact]
+    public void Execute_Assess_UserProfile_ClaudeOnly_ReportsHostConfigNotCodexMarketplace()
+    {
+        var engine = new SetupEngine();
+        var result = engine.Execute(new SetupOptions
+        {
+            Mode = OperationMode.Assess,
+            InstallScope = InstallScope.UserProfile,
+            HostTargets = HostTargets.ClaudeCode,
+            HostContext = "codex",
+            Silent = true,
+            JsonOutput = true
+        });
+
+        Assert.Equal("host_config", result.registration_mode);
+        Assert.False(result.marketplace_registered);
+        Assert.False(result.installed_by_default);
+        Assert.Null(result.codex_materialization);
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(result, ProgramJson.Options));
+        var files = document.RootElement
+            .GetProperty("paths")
+            .GetProperty("destination")
+            .GetProperty("files");
+
+        Assert.True(files.TryGetProperty("claude_code_config_file_path", out _));
+        Assert.False(files.TryGetProperty("codex_config_file_path", out _));
+        Assert.False(files.TryGetProperty("marketplace_file_path", out _));
     }
 
     /// <summary>
@@ -853,6 +953,7 @@ public sealed class SetupEngineTests
         {
             Mode = OperationMode.Assess,
             InstallScope = InstallScope.UserProfile,
+            HostTargets = HostTargets.Codex,
             HostContext = "codex",
             Silent = true,
             JsonOutput = true

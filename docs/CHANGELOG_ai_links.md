@@ -2,6 +2,12 @@
 
 ## 2026-04-26
 
+### Anarchy-AI 0.2.4 setup GUI underlay refresh apply
+
+- Fixed GUI repo-underlay apply so `Apply Repo Underlay` maps to the same semantics as `/underlay /refresh /apply`, refreshing stale portable schema files instead of only seeding missing underlay surfaces.
+- Updated setup disclosure and tests so `Plan Repo Refresh` remains plan-only while GUI apply materializes stale schema refreshes with backups.
+- Clarified user-profile setup presentation so the `~/.codex/plugins/anarchy-ai` path is labeled as the shared runtime payload, while Codex marketplace and Claude host-config targets are reported only when selected.
+
 ### Anarchy-AI 0.2.3 structural grounding labels
 
 - Added non-blocking `structural_grounding` payloads to schema-dependent/runtime outputs so tools label required structural surfaces, observed surfaces, missing/partial surfaces, advisory next measurements, and claim-scope effects without refusing execution.
@@ -1054,4 +1060,4 @@ Validation:
   - `harness/setup/scripts/publish-anarchy-ai-setup.ps1`
   - `plugins/anarchy-ai/scripts/start-anarchy-ai.cmd`
 - Added a repeatable documentation-truth audit so active specs and READMEs now fail validation when they drift from the current namespaced identity or Codex home-install model.
-- Tightened the documentation-discovered bug register so “documentation complete” now means audited repo state, not a conversational claim.
+- Tightened the documentation-discovered bug register so "documentation complete" now means audited repo state, not a conversational claim.

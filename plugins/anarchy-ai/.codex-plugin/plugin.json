@@ -1,6 +1,6 @@
 {
     "name":  "anarchy-ai",
-    "version":  "0.2.3",
+    "version":  "0.2.4",
     "description":  "Windows-first local Anarchy-AI harness that turns incomplete repo context into durable working context for complex changes.",
     "author":  {
                    "name":  "Matt Herring",
