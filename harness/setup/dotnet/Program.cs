@@ -2168,6 +2168,10 @@ internal sealed class SetupEngine
             ? new McpConfigurationInspection(false, true, true, [])
             : InspectMcpConfiguration(mcpPath);
         missingComponents.UnionWith(mcpInspection.Findings);
+        var hostConfigInspection = runtimeFreeOperation
+            ? HostConfigInspection.NotRequired
+            : InspectSelectedHostConfigs(options.HostTargets, destinationRuntimePath);
+        missingComponents.UnionWith(hostConfigInspection.Findings);
         var marketplaceMissingFinding = BuildMarketplaceMissingFinding(options.InstallScope);
         var marketplaceMissingPluginsArrayFinding = BuildMarketplaceMissingPluginsArrayFinding(options.InstallScope);
         if (!runtimeFreeOperation && codexSelected && !marketplaceInspection.Exists && !useSourceAuthoringBundleForReadOnlyInspection && !blockSourceAuthoringConsumerWrite)
@@ -2188,7 +2192,8 @@ internal sealed class SetupEngine
             && (!codexSelected || marketplaceInspection.InstalledByDefault)
             && pluginManifestInspection.IdentityAligned
             && (!codexSelected || marketplaceInspection.MarketplaceIdentityAligned)
-            && mcpInspection.IdentityAligned;
+            && mcpInspection.IdentityAligned
+            && hostConfigInspection.Ready;
         var legacyUserProfileInspection = InspectLegacyUserProfileSurfaces(options.InstallScope, normalizedHostContext, marketplaceRegistrationReady);
         missingComponents.UnionWith(legacyUserProfileInspection.Findings);
 
@@ -2220,6 +2225,7 @@ internal sealed class SetupEngine
         {
             safeRepairs.Add("refresh_mcp_server_identity");
         }
+        safeRepairs.UnionWith(hostConfigInspection.SafeRepairs);
         if (legacyUserProfileInspection.LegacyPluginRootPresent)
         {
             safeRepairs.Add("inventory_and_manually_quarantine_legacy_user_profile_plugin_root");
@@ -2345,7 +2351,8 @@ internal sealed class SetupEngine
             installed_by_default = !runtimeFreeOperation && codexSelected && marketplaceInspection.InstalledByDefault,
             host_config_modified = duplicateLaneResult.SelectedLaneEnabled
                 || duplicateLaneResult.DisabledLanes.Length > 0
-                || actionsTaken.Contains("removed_legacy_codex_custom_mcp_entry"),
+                || actionsTaken.Contains("removed_legacy_codex_custom_mcp_entry")
+                || DidModifyHostConfig(actionsTaken),
             refresh_plan_only = options.RefreshPortableSchemaFamily && !options.ApplyChanges,
             refreshed_files = refreshResult.RefreshedFiles,
             unchanged_files = refreshResult.UnchangedFiles,
@@ -3221,6 +3228,94 @@ internal sealed class SetupEngine
         }
     }
 
+    // Purpose: Measures whether selected Claude host integrations actually point at the runtime payload.
+    // Expected input: Selected host-target flags and the absolute runtime executable path.
+    // Expected output: Ready/not-ready plus bounded findings and suggested repairs for missing or stale host configs.
+    // Critical dependencies: Claude host config locations and the mcpServers entry shape.
+    private static HostConfigInspection InspectSelectedHostConfigs(HostTargets hostTargets, string runtimePath)
+    {
+        var findings = new List<string>();
+        var safeRepairs = new List<string>();
+
+        if (hostTargets.HasFlag(HostTargets.ClaudeCode))
+        {
+            var claudeCode = InspectClaudeHostConfigFile(
+                ClaudeCodeUserScopeLane.GetUserScopeConfigPath(),
+                runtimePath,
+                missingFinding: "claude_code_user_scope_registration_missing",
+                staleFinding: "claude_code_user_scope_registration_stale",
+                invalidFinding: "claude_code_user_scope_config_invalid",
+                safeRepair: "run_harness_install_with_claude_code");
+            findings.AddRange(claudeCode.Findings);
+            safeRepairs.AddRange(claudeCode.SafeRepairs);
+        }
+
+        if (hostTargets.HasFlag(HostTargets.ClaudeDesktop))
+        {
+            var installKind = ClaudeDesktopInstallDetector.Detect();
+            var configPath = ClaudeDesktopInstallDetector.ResolveActiveConfigPath(installKind);
+            if (configPath is null)
+            {
+                findings.Add("claude_desktop_install_not_detected");
+                safeRepairs.Add("install_or_launch_claude_desktop_then_rerun_user_profile_install");
+            }
+            else
+            {
+                var claudeDesktop = InspectClaudeHostConfigFile(
+                    configPath,
+                    runtimePath,
+                    missingFinding: "claude_desktop_registration_missing",
+                    staleFinding: "claude_desktop_registration_stale",
+                    invalidFinding: "claude_desktop_config_invalid",
+                    safeRepair: "run_harness_install_with_claude_desktop");
+                findings.AddRange(claudeDesktop.Findings);
+                safeRepairs.AddRange(claudeDesktop.SafeRepairs);
+            }
+        }
+
+        return new HostConfigInspection(
+            Ready: findings.Count == 0,
+            Findings: findings.Distinct(StringComparer.Ordinal).ToArray(),
+            SafeRepairs: safeRepairs.Distinct(StringComparer.Ordinal).ToArray());
+    }
+
+    // Purpose: Checks one Claude host config for a matching Anarchy mcpServers entry.
+    // Expected input: Config path, expected runtime path, and host-specific finding/repair labels.
+    // Expected output: Ready only when mcpServers.anarchy-ai exists and its command matches the expected runtime path.
+    // Critical dependencies: ClaudeHostConfigWriter tolerant parser and EntryMatchesCommand.
+    internal static HostConfigInspection InspectClaudeHostConfigFile(
+        string configPath,
+        string runtimePath,
+        string missingFinding,
+        string staleFinding,
+        string invalidFinding,
+        string safeRepair)
+    {
+        if (!File.Exists(configPath))
+        {
+            return new HostConfigInspection(false, [missingFinding], [safeRepair]);
+        }
+
+        var (root, fileExistedAndParsed) = ClaudeHostConfigWriter.ReadTolerant(configPath);
+        if (!fileExistedAndParsed)
+        {
+            return new HostConfigInspection(false, [invalidFinding], [safeRepair]);
+        }
+
+        if (root["mcpServers"] is not JsonObject mcpServers
+            || mcpServers[BuildMcpServerName()] is not JsonObject existingEntry)
+        {
+            return new HostConfigInspection(false, [missingFinding], [safeRepair]);
+        }
+
+        if (!ClaudeHostConfigWriter.EntryMatchesCommand(existingEntry, runtimePath))
+        {
+            return new HostConfigInspection(false, [staleFinding], [safeRepair]);
+        }
+
+        return HostConfigInspection.ReadyState;
+    }
+
     // Purpose: Detects whether a marketplace JSON node represents any Anarchy-AI plugin entry, including legacy shapes.
     // Expected input: Candidate plugin JSON object.
     // Expected output: True when the node matches Anarchy-AI by name or supported source path.
@@ -3799,6 +3894,18 @@ internal sealed class SetupEngine
         }
 
         return "plugin_marketplace";
+    }
+
+    // Purpose: Determines whether setup actions changed a host-owned configuration file.
+    // Expected input: Actions taken during the setup run.
+    // Expected output: True for write actions, false for no-op, skipped, or detection-only actions.
+    // Critical dependencies: Claude lane action labels and setup result host_config_modified semantics.
+    internal static bool DidModifyHostConfig(ISet<string> actionsTaken)
+    {
+        return actionsTaken.Contains("claude_code_user_scope_registration_added")
+            || actionsTaken.Contains("claude_code_user_scope_registration_refreshed")
+            || actionsTaken.Contains("claude_desktop_registration_added")
+            || actionsTaken.Contains("claude_desktop_registration_refreshed");
     }
 
     // Purpose: Builds the install-lane-specific missing-marketplace finding string.
@@ -5021,6 +5128,19 @@ internal sealed record McpConfigurationInspection(
     bool IdentityAligned,
     bool IsValidJson,
     string[] Findings);
+
+// Purpose: Summarizes selected host-config readiness for non-Codex MCP host targets.
+// Expected input: Claude host config inspections for the selected host targets.
+// Expected output: Immutable readiness, findings, and suggested safe repairs.
+// Critical dependencies: Claude Code and Claude Desktop host-config inspectors.
+internal sealed record HostConfigInspection(
+    bool Ready,
+    string[] Findings,
+    string[] SafeRepairs)
+{
+    public static HostConfigInspection NotRequired { get; } = new(true, [], []);
+    public static HostConfigInspection ReadyState { get; } = new(true, [], []);
+}
 
 // Purpose: Summarizes legacy home-local evidence discovered during user-profile inspection.
 // Expected input: Legacy plugin-root and legacy custom-MCP detection facts.

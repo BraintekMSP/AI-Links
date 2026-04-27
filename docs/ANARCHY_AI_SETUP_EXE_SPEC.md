@@ -510,6 +510,8 @@ Delivered today:
 - GUI mode covers repo refresh planning, repo underlay apply with schema refresh apply, user-profile install, and user-profile assess
 - GUI exposes setup-lane selection for `repo-underlay` versus `user-profile install`, with repo-local runtime kept as a CLI proving/debug lane
 - GUI labels the user-profile `~/.codex/plugins/anarchy-ai` path as the shared runtime payload and reports Codex marketplace versus Claude host-config targets separately
+- User-profile readiness for Claude targets is measured from matching host-config `mcpServers.anarchy-ai` entries, not inferred from shared runtime payload presence
+- `host_config_modified` covers selected Claude host config writes in addition to Codex config writes
 - GUI keeps placeholder platform radios (`Windows` payload is the active lane)
 
 Future work reserved for later delivery:

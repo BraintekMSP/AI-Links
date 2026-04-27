@@ -7,6 +7,8 @@
 - Fixed GUI repo-underlay apply so `Apply Repo Underlay` maps to the same semantics as `/underlay /refresh /apply`, refreshing stale portable schema files instead of only seeding missing underlay surfaces.
 - Updated setup disclosure and tests so `Plan Repo Refresh` remains plan-only while GUI apply materializes stale schema refreshes with backups.
 - Clarified user-profile setup presentation so the `~/.codex/plugins/anarchy-ai` path is labeled as the shared runtime payload, while Codex marketplace and Claude host-config targets are reported only when selected.
+- Tightened Claude target readiness so setup measures selected Claude host configs for matching `mcpServers.anarchy-ai` entries instead of inferring readiness from runtime payload presence alone.
+- Corrected `host_config_modified` reporting so Claude Code and Claude Desktop config writes count as host config modifications while no-op/skipped detections do not.
 
 ### Anarchy-AI 0.2.3 structural grounding labels
 

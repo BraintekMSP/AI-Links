@@ -834,6 +834,30 @@ public sealed class SetupEngineTests
     }
 
     /// <summary>
+    /// Verifies that host_config_modified reflects Claude config writes but not no-op or skipped actions.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts action-label classification.</returns>
+    /// <remarks>Critical dependencies: Claude lane action labels and setup result host_config_modified semantics.</remarks>
+    [Fact]
+    public void DidModifyHostConfig_TracksClaudeWriteActionsOnly()
+    {
+        Assert.True(SetupEngine.DidModifyHostConfig(new HashSet<string>(StringComparer.Ordinal)
+        {
+            "claude_code_user_scope_registration_added"
+        }));
+        Assert.True(SetupEngine.DidModifyHostConfig(new HashSet<string>(StringComparer.Ordinal)
+        {
+            "claude_desktop_registration_refreshed"
+        }));
+        Assert.False(SetupEngine.DidModifyHostConfig(new HashSet<string>(StringComparer.Ordinal)
+        {
+            "claude_code_user_scope_registration_noop",
+            "claude_desktop_registration_skipped_no_install_detected",
+            "claude_desktop_install_detected_none"
+        }));
+    }
+
+    /// <summary>
     /// Confirms that Claude-only assess output does not present Codex marketplace files as selected host targets.
     /// </summary>
     /// <returns>No direct return value; the method asserts host-specific path and readiness fields.</returns>
@@ -866,6 +890,83 @@ public sealed class SetupEngineTests
         Assert.True(files.TryGetProperty("claude_code_config_file_path", out _));
         Assert.False(files.TryGetProperty("codex_config_file_path", out _));
         Assert.False(files.TryGetProperty("marketplace_file_path", out _));
+    }
+
+    /// <summary>
+    /// Verifies that Claude host-config readiness is measured from the actual mcpServers entry rather than inferred from runtime presence.
+    /// </summary>
+    /// <returns>No direct return value; the method asserts missing, stale, and ready host-config states.</returns>
+    /// <remarks>Critical dependencies: <see cref="SetupEngine.InspectClaudeHostConfigFile"/> and the Claude host mcpServers shape.</remarks>
+    [Fact]
+    public void InspectClaudeHostConfigFile_MeasuresMissingStaleAndReadyStates()
+    {
+        using var tempDir = new TempDirectory();
+        var configPath = Path.Combine(tempDir.Path, ".claude.json");
+        var expectedRuntime = Path.Combine(tempDir.Path, "runtime", "AnarchyAi.Mcp.Server.exe");
+
+        var missing = SetupEngine.InspectClaudeHostConfigFile(
+            configPath,
+            expectedRuntime,
+            "missing",
+            "stale",
+            "invalid",
+            "repair");
+
+        Assert.False(missing.Ready);
+        Assert.Equal(["missing"], missing.Findings);
+        Assert.Equal(["repair"], missing.SafeRepairs);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
+        File.WriteAllText(
+            configPath,
+            """
+            {
+              "mcpServers": {
+                "anarchy-ai": {
+                  "command": "C:\\old\\AnarchyAi.Mcp.Server.exe",
+                  "args": []
+                }
+              }
+            }
+            """,
+            Encoding.UTF8);
+
+        var stale = SetupEngine.InspectClaudeHostConfigFile(
+            configPath,
+            expectedRuntime,
+            "missing",
+            "stale",
+            "invalid",
+            "repair");
+
+        Assert.False(stale.Ready);
+        Assert.Equal(["stale"], stale.Findings);
+
+        File.WriteAllText(
+            configPath,
+            $$"""
+            {
+              "mcpServers": {
+                "anarchy-ai": {
+                  "command": {{JsonSerializer.Serialize(expectedRuntime)}},
+                  "args": []
+                }
+              }
+            }
+            """,
+            Encoding.UTF8);
+
+        var ready = SetupEngine.InspectClaudeHostConfigFile(
+            configPath,
+            expectedRuntime,
+            "missing",
+            "stale",
+            "invalid",
+            "repair");
+
+        Assert.True(ready.Ready);
+        Assert.Empty(ready.Findings);
+        Assert.Empty(ready.SafeRepairs);
     }
 
     /// <summary>
